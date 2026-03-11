@@ -331,13 +331,13 @@ export default function LandingPage() {
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
               <p className="font-mono text-[10px] tracking-widest text-primary uppercase mb-4">
-                Operational software for makerspaces
+                hackerspace management
               </p>
               <h1 className="font-sans text-3xl md:text-4xl lg:text-5xl font-bold text-white leading-tight mb-6 text-balance">
-                Run your hackerspace like the infrastructure it is
+                Members, payments, tasks, projects, ops docs
               </h1>
               <p className="font-sans text-base md:text-lg text-sidebar-foreground leading-relaxed mb-8 max-w-lg">
-                Member management, dues tracking, task coordination, project visibility, and a shared ops brain for the things that keep the space running.
+                Track who is in your space, what they owe, what needs doing, and where to find the WiFi password.
               </p>
               <div className="flex flex-col sm:flex-row gap-3">
                 <Link href="/signup" className="inline-flex items-center justify-center gap-2 bg-primary text-white font-sans text-sm px-6 py-3 rounded hover:bg-primary/90 transition">
@@ -369,13 +369,10 @@ export default function LandingPage() {
       <section id="features" className="py-16 md:py-24">
         <div className="max-w-6xl mx-auto px-4 md:px-6">
           <div className="mb-12 md:mb-16">
-            <p className="font-mono text-[10px] tracking-widest text-primary uppercase mb-3">Features</p>
+            <p className="font-mono text-[10px] tracking-widest text-primary uppercase mb-3">What it does</p>
             <h2 className="font-sans text-2xl md:text-3xl font-bold text-foreground mb-4 text-balance">
-              Everything your space needs, nothing it does not
+              Six modules
             </h2>
-            <p className="font-sans text-base text-muted-foreground max-w-2xl">
-              No bloated enterprise features. No learning curve. Tools that match how hackerspaces actually operate.
-            </p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -401,7 +398,7 @@ export default function LandingPage() {
               {
                 Icon: IcoCreditCard,
                 title: 'Payment Reconciliation',
-                description: 'Import from PayPal, Venmo, and Zeffy. Link transactions to members. Know exactly who owes what without the spreadsheet.',
+                description: 'Import from PayPal, Venmo, or Zeffy. Match transactions to members manually or let it auto-match by email.',
                 preview: <MiniPayments />,
               },
               {
@@ -455,7 +452,7 @@ export default function LandingPage() {
               {
                 step: '02',
                 title: 'Connect payments',
-                description: 'Link your PayPal or Zeffy account. Transactions import and sit waiting to be matched to members.',
+                description: 'Link your PayPal or Zeffy account. Import transactions and match them to members.',
               },
               {
                 step: '03',
@@ -475,14 +472,8 @@ export default function LandingPage() {
 
       {/* CTA */}
       <section className="py-16 md:py-24 bg-sidebar border-t border-sidebar-border">
-        <div className="max-w-3xl mx-auto px-4 md:px-6">
-          <h2 className="font-sans text-2xl md:text-3xl font-bold text-white mb-4 text-balance">
-            Your space deserves better than spreadsheets
-          </h2>
-          <p className="font-sans text-base text-sidebar-foreground mb-8 max-w-xl">
-            A tool built specifically for volunteer-run makerspaces and hackerspaces. Not adapted from something else.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3">
+        <div className="max-w-3xl mx-auto px-4 md:px-6 text-center">
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link href="/signup" className="inline-flex items-center gap-2 bg-primary text-white font-sans text-sm px-8 py-3 rounded hover:bg-primary/90 transition">
               Get Started
               <IcoArrow className="w-4 h-4" />
