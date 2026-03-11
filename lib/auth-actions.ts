@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
+import { checkRateLimit, sanitizeString, sanitizeSlug } from '@/lib/security'
 
 function generateInviteCode() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
@@ -24,6 +25,22 @@ export async function createSpace(formData: {
   const { data: { user }, error: userErr } = await supabase.auth.getUser()
   if (userErr || !user) return { error: 'Not authenticated' }
 
+  // Rate limit space creation
+  const rateLimit = checkRateLimit(`createspace:${user.id}`, 3, 3600000) // 3 per hour
+  if (!rateLimit.allowed) {
+    return { error: 'Too many space creation attempts. Please try again later.' }
+  }
+
+  // Sanitize inputs
+  const spaceName = sanitizeString(formData.spaceName).slice(0, 100)
+  const spaceSlug = sanitizeSlug(formData.spaceSlug)
+  const spaceCity = formData.spaceCity ? sanitizeString(formData.spaceCity).slice(0, 100) : null
+  const displayName = sanitizeString(formData.displayName).slice(0, 100)
+
+  if (!spaceName || !spaceSlug || !displayName) {
+    return { error: 'Invalid input. Please check your entries.' }
+  }
+
   // Use admin client for inserts (bypasses RLS)
   const admin = createAdminClient()
 
@@ -31,7 +48,7 @@ export async function createSpace(formData: {
   const { data: existingSpace } = await admin
     .from('spaces')
     .select('id')
-    .eq('slug', formData.spaceSlug.toLowerCase().trim())
+    .eq('slug', spaceSlug)
     .maybeSingle()
 
   if (existingSpace) {
@@ -42,9 +59,9 @@ export async function createSpace(formData: {
   const { data: space, error: spaceErr } = await admin
     .from('spaces')
     .insert({
-      name: formData.spaceName,
-      slug: formData.spaceSlug.toLowerCase().trim(),
-      city: formData.spaceCity || null,
+      name: spaceName,
+      slug: spaceSlug,
+      city: spaceCity,
       invite_code: generateInviteCode(),
     })
     .select('id')
@@ -63,7 +80,7 @@ export async function createSpace(formData: {
     .insert({
       space_id: space.id,
       user_id: user.id,
-      display_name: formData.displayName || user.email,
+      display_name: displayName || user.email,
       email: user.email,
       role: 'admin',
       tier: 'plus',
@@ -117,6 +134,12 @@ export async function joinSpace(formData: {
 }
 
 export async function signIn(email: string, password: string) {
+  // Rate limit by email to prevent brute force
+  const rateLimit = checkRateLimit(`signin:${email.toLowerCase()}`, 5, 60000)
+  if (!rateLimit.allowed) {
+    return { error: 'Too many login attempts. Please try again later.' }
+  }
+
   const supabase = await createClient()
   
   const { data, error } = await supabase.auth.signInWithPassword({

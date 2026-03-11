@@ -4,21 +4,14 @@ import { useState } from 'react'
 import { X, RefreshCcw } from 'lucide-react'
 import { toast } from 'sonner'
 import { logCashPayment, linkPaymentToMember } from '@/lib/actions'
+import type { Tables } from '@/types/database'
 
-interface Payment {
-  id: string
-  platform: string
-  amount: number
-  from_identifier: string
-  from_note?: string
-  transaction_date: string
-  link_status: string
-  member_id?: string
+type Payment = Tables<'payments'> & {
   space_members?: { display_name: string } | null
 }
 
-interface Member { id: string; display_name: string; email: string }
-interface Integration { platform: string; is_connected: boolean; config?: Record<string, string> }
+type Member = Pick<Tables<'space_members'>, 'id' | 'display_name' | 'email'>
+type Integration = Pick<Tables<'integrations'>, 'platform' | 'is_connected' | 'config'>
 
 interface Props {
   payments: Payment[]

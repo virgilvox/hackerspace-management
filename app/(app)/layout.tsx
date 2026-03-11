@@ -41,7 +41,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex h-screen bg-background overflow-hidden">
       <AppSidebar
-        member={member as any}
+        member={member}
         taskBadge={taskCount ?? 0}
         paymentBadge={paymentCount ?? 0}
       />

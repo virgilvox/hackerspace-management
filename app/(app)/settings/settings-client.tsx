@@ -3,25 +3,10 @@
 import { useState } from 'react'
 import { X, Check, Copy, Eye, EyeOff, RotateCcw } from 'lucide-react'
 import { updateSpaceSettings, saveIntegration, disconnectIntegration, rotateWebhookSecret } from '@/lib/actions'
+import type { Tables } from '@/types/database'
 
-interface Space {
-  id: string
-  name: string
-  slug: string
-  city?: string
-  invite_code?: string
-  require_approval?: boolean
-  public_member_directory?: boolean
-  webhook_secret?: string
-}
-
-interface Integration {
-  id: string
-  platform: string
-  name?: string
-  is_connected: boolean
-  config?: Record<string, string>
-}
+type Space = Tables<'spaces'>
+type Integration = Tables<'integrations'>
 
 interface Props {
   space: Space

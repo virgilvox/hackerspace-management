@@ -246,13 +246,22 @@ export default function ImportClient({ spaceId, role }: Props) {
         const last_paid_at = obj.last_paid_at ? new Date(obj.last_paid_at).toISOString() : null
         const has_card_access = /yes|true|1|y/i.test(obj.has_card_access ?? '')
 
+        // Map tier value to valid enum or default to 'basic'
+        const tierMap: Record<string, 'plus' | 'basic' | 'associate'> = {
+          plus: 'plus', premium: 'plus', full: 'plus',
+          basic: 'basic', member: 'basic', standard: 'basic',
+          associate: 'associate', visitor: 'associate', guest: 'associate',
+        }
+        const tier = tierMap[(obj.tier || '').toLowerCase()] || 'basic'
+
         const { error } = await supabase.from('space_members').insert({
           space_id: spaceId,
+          user_id: crypto.randomUUID(),
           display_name: obj.display_name,
           email: obj.email,
           phone: obj.phone || null,
           handle: obj.handle || null,
-          tier: obj.tier || 'member',
+          tier,
           role: 'member',
           status: 'current',
           approved: true,

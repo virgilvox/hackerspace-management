@@ -3,30 +3,13 @@
 import { useState, useTransition } from 'react'
 import { Plus, X, CheckCircle2 } from 'lucide-react'
 import { createTask, claimTask, completeTask, deleteTask } from '@/lib/actions'
+import type { Tables } from '@/types/database'
 
-interface Task {
-  id: string
-  title: string
-  description?: string
-  type?: string
-  task_type?: string
-  status: string
-  area?: string
-  recurrence?: string
-  due_date?: string
-  claimed_by?: string
-  claimed_by_name?: string
-  assigned_to?: string
-  assigned_to_name?: string
-  progress?: number
-  subtask_completed?: number
-  subtask_total?: number
-  created_at: string
-}
+type Task = Tables<'tasks'>
 
 interface Props {
   tasks: Task[]
-  members: { id: string; display_name: string; user_id: string }[]
+  members: Pick<Tables<'space_members'>, 'id' | 'display_name' | 'user_id'>[]
   currentUserId: string
   spaceId: string
 }
@@ -57,8 +40,8 @@ export function TasksClient({ tasks: initialTasks, members, currentUserId, space
   // Chores = chore type OR regular tasks without recurrence (the general open pool)
   // Mine = tasks claimed/assigned to me
   // Done = completed
-  const isDone = (t: any) => t.status === 'done' || t.status === 'completed'
-  const isOpen = (t: any) => !isDone(t)
+  const isDone = (t: Task) => t.status === 'done' || t.status === 'completed'
+  const isOpen = (t: Task) => !isDone(t)
   const chores = tasks.filter(t => isOpen(t) && (!t.recurrence || t.recurrence === 'none'))
   const ongoing = tasks.filter(t => t.recurrence && t.recurrence !== 'none' && isOpen(t))
   const mine = tasks.filter(t => (t.claimed_by === currentUserId || t.assigned_to === currentUserId) && isOpen(t))

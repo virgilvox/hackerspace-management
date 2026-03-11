@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { OpsClient } from './ops-client'
+import type { Tables } from '@/types/database'
 
 export default async function OpsPage() {
   const supabase = await createClient()
@@ -16,17 +17,17 @@ export default async function OpsPage() {
     supabase.from('knowledge_base').select('*').eq('space_id', member.space_id).order('is_pinned', { ascending: false }).order('created_at', { ascending: false }),
     supabase.from('area_leads').select('*').eq('space_id', member.space_id).order('area_name'),
     canSeeSecrets
-      ? supabase.from('secrets').select('id, title, area, created_at').eq('space_id', member.space_id)
-      : Promise.resolve({ data: [] }),
+      ? supabase.from('secrets').select('id, title, area, created_at, label, value, description, icon, space_id, created_by, updated_at, category, notes').eq('space_id', member.space_id)
+      : Promise.resolve({ data: [] as Tables<'secrets'>[] }),
   ])
 
   return (
     <OpsClient
-      member={member}
+      member={member as Tables<'space_members'>}
       spaceId={member.space_id}
       kbEntries={kbEntries ?? []}
       areaLeads={areaLeads ?? []}
-      secrets={(secretsResult as any)?.data ?? []}
+      secrets={secretsResult.data ?? []}
       canSeeSecrets={canSeeSecrets}
     />
   )

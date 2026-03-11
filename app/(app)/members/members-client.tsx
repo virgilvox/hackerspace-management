@@ -3,24 +3,9 @@
 import { useState } from 'react'
 import { Plus, X, ChevronDown } from 'lucide-react'
 import { addMember, updateMember, approveMember, removeMember } from '@/lib/actions'
+import type { Tables } from '@/types/database'
 
-interface Member {
-  id: string
-  display_name: string
-  email: string
-  phone?: string
-  handle?: string
-  tier: string
-  role: string
-  status: string
-  joined_at?: string
-  last_paid_at?: string
-  last_payment_at?: string
-  payment_status?: string
-  payment_note?: string
-  has_card_access?: boolean
-  approved?: boolean
-}
+type Member = Tables<'space_members'>
 
 interface Props {
   members: Member[]

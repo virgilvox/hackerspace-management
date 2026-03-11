@@ -3,16 +3,20 @@
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Hash, Users2, Send, ChevronLeft } from 'lucide-react'
+import type { Tables } from '@/types/database'
+
+type Channel = Tables<'comms_channels'>
+type Message = Tables<'comms_messages'>
 
 interface Props {
-  member: any
-  space: any
-  channels: any[]
+  member: Tables<'space_members'>
+  space: Tables<'spaces'>
+  channels: Channel[]
 }
 
 export default function CommsClient({ member, space, channels }: Props) {
-  const [selectedChannel, setSelectedChannel] = useState(channels[0] || null)
-  const [messages, setMessages] = useState<any[]>([])
+  const [selectedChannel, setSelectedChannel] = useState<Channel | null>(channels[0] || null)
+  const [messages, setMessages] = useState<Message[]>([])
   const [newMessage, setNewMessage] = useState('')
   const [sending, setSending] = useState(false)
   const [showChannelList, setShowChannelList] = useState(true)

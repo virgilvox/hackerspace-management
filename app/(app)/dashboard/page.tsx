@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import type { Tables } from '@/types/database'
 
 function IcoUsers({ className }: { className?: string }) {
   return <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
@@ -50,7 +51,7 @@ export default async function DashboardPage() {
     supabase.from('activity_log').select('*').eq('space_id', spaceId).order('created_at', { ascending: false }).limit(6),
   ])
 
-  const overdueTasks = (tasks ?? []).filter((t: any) => t.due_date && new Date(t.due_date) < new Date())
+  const overdueTasks = (tasks ?? []).filter((t) => t.due_date && new Date(t.due_date) < new Date())
 
   const stats = [
     { label: 'Active Members', value: activeMembers ?? 0, Ico: IcoUsers, sub: 'in your space', warn: false },
@@ -91,7 +92,7 @@ export default async function DashboardPage() {
                 <Link href="/tasks" className="font-sans text-xs text-primary hover:underline">All tasks</Link>
               </div>
               <div className="bg-card rounded border border-border divide-y divide-border">
-                {(tasks ?? []).length > 0 ? (tasks ?? []).map((task: any) => {
+                {(tasks ?? []).length > 0 ? (tasks ?? []).map((task) => {
                   const isOverdue = task.due_date && new Date(task.due_date) < new Date()
                   const isDueToday = task.due_date && new Date(task.due_date).toDateString() === new Date().toDateString()
                   return (
@@ -127,7 +128,7 @@ export default async function DashboardPage() {
                 <Link href="/projects" className="font-sans text-xs text-primary hover:underline">All projects</Link>
               </div>
               <div className="bg-card rounded border border-border divide-y divide-border">
-                {(projects ?? []).length > 0 ? (projects ?? []).map((project: any) => (
+                {(projects ?? []).length > 0 ? (projects ?? []).map((project) => (
                   <div key={project.id} className="px-4 py-4">
                     <div className="flex items-center justify-between mb-1">
                       <p className="font-sans text-sm font-medium text-foreground">{project.title}</p>
@@ -167,7 +168,7 @@ export default async function DashboardPage() {
             <div>
               <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-3">Recent Activity</p>
               <div className="space-y-3">
-                {(activity ?? []).length > 0 ? (activity ?? []).map((item: any) => (
+                {(activity ?? []).length > 0 ? (activity ?? []).map((item) => (
                   <div key={item.id} className="flex items-start gap-2.5">
                     <div className="w-1.5 h-1.5 rounded-full mt-2 flex-shrink-0 bg-primary" />
                     <div>

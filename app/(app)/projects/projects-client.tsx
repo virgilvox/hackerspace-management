@@ -3,18 +3,9 @@
 import { useState } from 'react'
 import { Plus, X } from 'lucide-react'
 import { createProject, updateProjectStatus, deleteProject } from '@/lib/actions'
+import type { Tables } from '@/types/database'
 
-interface Project {
-  id: string
-  title: string
-  description?: string
-  status: string
-  area?: string
-  tags?: string[]
-  progress?: number
-  due_date?: string
-  created_at: string
-}
+type Project = Tables<'projects'>
 
 const STATUS_COLS = [
   { key: 'backlog', label: 'BACKLOG', color: 'text-muted-foreground', dot: 'bg-muted-foreground' },
