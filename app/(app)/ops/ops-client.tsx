@@ -25,9 +25,9 @@ interface KbEntry {
 interface AreaLead {
   id: string
   area_name: string
-  member_name: string
-  member_id?: string
-  contact_info?: string
+  lead_handle: string
+  lead_id?: string
+  description?: string
 }
 
 interface Secret {
@@ -225,6 +225,7 @@ function AddSecretModal({
     const { data, error } = await supabase.from('secrets').insert({
       space_id: spaceId,
       title: title.trim(),
+      label: title.trim(),
       area: area.trim() || null,
       value: value.trim(),
     }).select('id, title, area, created_at').single()
@@ -299,8 +300,8 @@ function AreaLeadModal({
 }) {
   const isEdit = !!lead
   const [areaName, setAreaName] = useState(lead?.area_name ?? '')
-  const [memberName, setMemberName] = useState(lead?.member_name ?? '')
-  const [contactInfo, setContactInfo] = useState(lead?.contact_info ?? '')
+  const [memberName, setMemberName] = useState(lead?.lead_handle ?? '')
+  const [contactInfo, setContactInfo] = useState(lead?.description ?? '')
   const [saving, setSaving] = useState(false)
 
   async function handleSave(e: React.FormEvent) {
@@ -312,15 +313,15 @@ function AreaLeadModal({
     if (isEdit) {
       result = await supabase.from('area_leads').update({
         area_name: areaName.trim(),
-        member_name: memberName.trim(),
-        contact_info: contactInfo.trim() || null,
+        lead_handle: memberName.trim(),
+        description: contactInfo.trim() || null,
       }).eq('id', lead.id).select('*').single()
     } else {
       result = await supabase.from('area_leads').insert({
         space_id: spaceId,
         area_name: areaName.trim(),
-        member_name: memberName.trim(),
-        contact_info: contactInfo.trim() || null,
+        lead_handle: memberName.trim(),
+        description: contactInfo.trim() || null,
       }).select('*').single()
     }
     setSaving(false)
@@ -717,9 +718,9 @@ export function OpsClient({ member, spaceId, kbEntries: initial, areaLeads: init
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-sans text-sm font-medium text-foreground">{lead.area_name}</p>
-                      <p className="font-mono text-xs text-muted-foreground">{lead.member_name}</p>
-                      {lead.contact_info && (
-                        <p className="font-mono text-[10px] text-muted-foreground/60 mt-0.5">{lead.contact_info}</p>
+                      <p className="font-mono text-xs text-muted-foreground">{lead.lead_handle}</p>
+                      {lead.description && (
+                        <p className="font-mono text-[10px] text-muted-foreground/60 mt-0.5">{lead.description}</p>
                       )}
                     </div>
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition">
