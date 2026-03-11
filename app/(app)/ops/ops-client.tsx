@@ -6,39 +6,14 @@ import { Plus, Search, Lock, Pin, Eye, EyeOff, Pencil, Trash2, X, ChevronDown, U
 import { createKbEntry, updateKbEntry, deleteKbEntry } from '@/lib/actions'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import type { Tables, TablesInsert } from '@/types/database'
 
-interface KbEntry {
-  id: string
-  title: string
-  content: string
-  description?: string
-  area?: string
-  visibility: string
-  is_pinned: boolean
-  tags?: string[]
-  icon?: string
-  updated_by_name?: string
-  updated_at: string
-  created_at: string
-}
-
-interface AreaLead {
-  id: string
-  area_name: string
-  lead_handle: string
-  lead_id?: string
-  description?: string
-}
-
-interface Secret {
-  id: string
-  title: string
-  area?: string
-  created_at: string
-}
+type KbEntry = Tables<'knowledge_base'>
+type AreaLead = Tables<'area_leads'>
+type Secret = Tables<'secrets'>
 
 interface Props {
-  member: any
+  member: Tables<'space_members'>
   spaceId: string
   kbEntries: KbEntry[]
   areaLeads: AreaLead[]

@@ -6,10 +6,11 @@ import Link from 'next/link'
 import { ArrowLeft, Pin, Lock } from 'lucide-react'
 import { createKbEntry, updateKbEntry } from '@/lib/actions'
 import { toast } from 'sonner'
+import type { Tables } from '@/types/database'
 
 interface Props {
-  entry?: any
-  member: any
+  entry?: Tables<'knowledge_base'>
+  member: Tables<'space_members'>
 }
 
 export default function KbEntryEditor({ entry, member }: Props) {

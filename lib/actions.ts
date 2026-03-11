@@ -3,6 +3,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '@/types/database'
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
 
@@ -26,7 +28,7 @@ export async function getUser() {
 }
 
 // ─── Helper: get current member (any non-inactive status) ────────────────────
-async function getMember(supabase: any, userId: string) {
+async function getMember(supabase: SupabaseClient<Database>, userId: string) {
   const { data } = await supabase
     .from('space_members')
     .select('space_id, role, display_name')
@@ -670,6 +672,7 @@ export async function createSecret(formData: {
   const { data, error } = await supabase.from('secrets').insert({
     space_id: member.space_id,
     title: formData.title,
+    label: formData.title,
     value: formData.value,
     description: formData.description,
     area: formData.area,

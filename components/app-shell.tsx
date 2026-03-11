@@ -8,6 +8,7 @@ import {
   LayoutDashboard, ListChecks, FolderKanban, Settings2, MessageSquare,
   Users, CreditCard, BookUser, Download, LogOut, ChevronDown
 } from 'lucide-react'
+import type { Tables } from '@/types/database'
 
 const NAV = [
   {
@@ -38,8 +39,8 @@ const NAV = [
 ]
 
 interface Props {
-  member: any
-  space: any
+  member: Tables<'space_members'>
+  space: Tables<'spaces'>
   children: React.ReactNode
 }
 

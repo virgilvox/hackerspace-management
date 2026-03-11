@@ -3,19 +3,9 @@
 import { useState } from 'react'
 import { Plus, X, Pencil } from 'lucide-react'
 import { createContact, updateContact, deleteContact } from '@/lib/actions'
+import type { Tables } from '@/types/database'
 
-interface Contact {
-  id: string
-  name: string
-  contact_type: string
-  email?: string
-  phone?: string
-  details?: string
-  note?: string
-  group_label?: string
-  tags?: string[]
-  code?: string
-}
+type Contact = Tables<'contacts'>
 
 const CATEGORY_COLORS: Record<string, string> = {
   vendor: 'text-primary border-primary/30 bg-primary/5',
