@@ -309,16 +309,16 @@ export default function LandingPage() {
     <div className="min-h-screen bg-background">
       {/* Nav */}
       <nav className="border-b border-border bg-sidebar">
-        <div className="max-w-6xl mx-auto px-4 md:px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <IcoTerminal className="w-5 h-5 text-primary" />
-            <span className="font-mono text-sm font-bold text-white">hackerspace.sh</span>
+        <div className="max-w-6xl mx-auto px-4 md:px-6 py-3 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2 min-w-0">
+            <IcoTerminal className="w-5 h-5 text-primary shrink-0" />
+            <span className="font-mono text-sm font-bold text-white truncate">hackerspace.sh</span>
           </div>
-          <div className="flex items-center gap-4">
-            <Link href="/login" className="font-sans text-sm text-sidebar-foreground hover:text-white transition">
+          <div className="flex items-center gap-2 shrink-0">
+            <Link href="/login" className="font-sans text-sm text-sidebar-foreground hover:text-white transition px-3 py-1.5">
               Log in
             </Link>
-            <Link href="/signup" className="font-sans text-sm bg-primary text-white px-4 py-1.5 rounded hover:bg-primary/90 transition">
+            <Link href="/signup" className="font-sans text-sm bg-primary text-white px-3 py-1.5 rounded hover:bg-primary/90 transition whitespace-nowrap">
               Get Started
             </Link>
           </div>
