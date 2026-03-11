@@ -174,7 +174,7 @@ export function PaymentsClient({ payments: initialPayments, members, integration
                     )}
                   </div>
                 </div>
-                <p className="text-2xl font-sans font-bold text-foreground">${total.toFixed(0)}</p>
+                <p className="text-2xl font-sans font-bold text-foreground">{'$'}{total.toFixed(0)}</p>
                 <p className="font-mono text-[10px] text-muted-foreground mt-1">
                   {txs.length} tx{txs.length !== 1 ? 's' : ''} · {unlinked} unlinked
                 </p>
