@@ -62,7 +62,7 @@ export async function createTask(formData: {
     space_id: member.space_id,
     title: formData.title,
     description: formData.description,
-    type: formData.type || 'task',
+    task_type: formData.type || 'task',
     area: formData.area,
     recurrence: formData.recurrence || 'none',
     due_date: formData.due_date || null,
