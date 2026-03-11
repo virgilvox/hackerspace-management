@@ -5,6 +5,25 @@ import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database'
+import {
+  createTaskSchema,
+  taskIdSchema,
+  createProjectSchema,
+  updateProjectStatusSchema,
+  addMemberSchema,
+  updateMemberSchema,
+  createContactSchema,
+  updateContactSchema,
+  createKbEntrySchema,
+  updateKbEntrySchema,
+  createSecretSchema,
+  logCashPaymentSchema,
+  linkPaymentSchema,
+  updateSpaceSettingsSchema,
+  saveIntegrationSchema,
+  upsertAreaLeadSchema,
+  uuidSchema,
+} from '@/lib/validations'
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
 
@@ -61,6 +80,13 @@ export async function createTask(formData: {
   recurrence?: string
   due_date?: string
 }) {
+  // Validate input
+  const parsed = createTaskSchema.safeParse(formData)
+  if (!parsed.success) {
+    return { error: parsed.error.errors[0]?.message || 'Invalid input' }
+  }
+  const input = parsed.data
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
@@ -70,12 +96,12 @@ export async function createTask(formData: {
 
   const { data, error } = await supabase.from('tasks').insert({
     space_id: member.space_id,
-    title: formData.title,
-    description: formData.description,
-    task_type: formData.type || 'task',
-    area: formData.area,
-    recurrence: formData.recurrence || 'none',
-    due_date: formData.due_date || null,
+    title: input.title,
+    description: input.description,
+    task_type: input.type || 'task',
+    area: input.area,
+    recurrence: input.recurrence || 'none',
+    due_date: input.due_date || null,
     status: 'open',
     requested_by: user.id,
     requested_by_name: member.display_name,
@@ -100,6 +126,9 @@ export async function createTask(formData: {
 }
 
 export async function claimTask(taskId: string) {
+  const idResult = taskIdSchema.safeParse(taskId)
+  if (!idResult.success) return { error: 'Invalid task ID' }
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
@@ -111,7 +140,7 @@ export async function claimTask(taskId: string) {
     claimed_by: user.id,
     claimed_by_name: member.display_name,
     status: 'claimed',
-  }).eq('id', taskId).eq('space_id', member.space_id)
+  }).eq('id', idResult.data).eq('space_id', member.space_id)
 
   if (error) return { error: error.message }
 

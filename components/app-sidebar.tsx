@@ -5,7 +5,10 @@ import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { signOut } from '@/lib/auth-actions'
-import type { SpaceMember, Space } from '@/lib/types'
+import type { Tables } from '@/types/database'
+
+type SpaceMember = Tables<'space_members'>
+type Space = Tables<'spaces'>
 import {
   Menu, X, LayoutDashboard, ListChecks, FolderKanban, Settings2,
   MessageSquare, Users, CreditCard, BookUser, Download, LogOut,
@@ -46,7 +49,7 @@ function NavLink({ href, label, icon: Icon, badge, active, onClick }: NavLinkPro
 }
 
 interface AppSidebarProps {
-  member: SpaceMember & { spaces: Space }
+  member: SpaceMember & { spaces: Space | null }
   taskBadge?: number
   commsBadge?: number
   paymentBadge?: number
