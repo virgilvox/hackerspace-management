@@ -122,7 +122,7 @@ export function TasksClient({ tasks: initialTasks, members, currentUserId, space
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="bg-sidebar px-6 py-3 flex items-center justify-between">
+      <div className="bg-sidebar px-4 md:px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h1 className="text-white font-sans text-lg font-semibold">Tasks & Chores</h1>
             <span className="font-mono text-xs text-white/50">{tasks.filter(t => !isDone(t)).length} open</span>
@@ -131,7 +131,7 @@ export function TasksClient({ tasks: initialTasks, members, currentUserId, space
           <select
             value={filterArea}
             onChange={e => setFilterArea(e.target.value)}
-            className="bg-sidebar-accent border border-sidebar-border text-sidebar-foreground text-xs font-sans rounded px-2 py-1.5"
+            className="hidden sm:block bg-sidebar-accent border border-sidebar-border text-sidebar-foreground text-xs font-sans rounded px-2 py-1.5"
           >
             <option value="">All Areas</option>
             {AREAS.map(a => <option key={a}>{a}</option>)}
@@ -140,12 +140,12 @@ export function TasksClient({ tasks: initialTasks, members, currentUserId, space
             onClick={() => setShowCreate(true)}
             className="flex items-center gap-1.5 bg-primary text-white text-xs font-sans px-3 py-1.5 rounded hover:bg-primary/90 transition"
           >
-            <Plus className="w-3.5 h-3.5" /> New Task
+            <Plus className="w-3.5 h-3.5" /> <span className="hidden sm:inline">New Task</span>
           </button>
         </div>
       </div>
 
-      <div className="bg-card border-b border-border px-6 flex gap-6">
+      <div className="bg-card border-b border-border px-4 md:px-6 flex gap-4 md:gap-6 overflow-x-auto">
         {(['chores', 'ongoing', 'mine', 'done'] as const).map((tab) => (
           <button
             key={tab}
@@ -166,7 +166,7 @@ export function TasksClient({ tasks: initialTasks, members, currentUserId, space
         ))}
       </div>
 
-      <div className="p-6">
+      <div className="p-4 md:p-6">
         <div className="bg-card rounded border border-border divide-y divide-border">
           {currentList.length > 0 ? currentList.map(task => (
             <div key={task.id} className={`flex items-center gap-3 px-4 py-3 ${
@@ -283,7 +283,7 @@ export function TasksClient({ tasks: initialTasks, members, currentUserId, space
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Type</label>
                   <select
@@ -308,7 +308,7 @@ export function TasksClient({ tasks: initialTasks, members, currentUserId, space
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Recurrence</label>
                   <select

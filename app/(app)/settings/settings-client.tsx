@@ -193,15 +193,15 @@ export default function SettingsClient({ space, isAdmin, integrations, currentRo
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="bg-sidebar px-6 py-3 flex items-center">
+      <div className="bg-sidebar px-4 md:px-6 py-3 flex items-center">
         <h1 className="text-white font-sans text-lg font-semibold">Settings & Admin</h1>
       </div>
 
       <div className="flex">
         {/* Main content */}
-        <div className="flex-1 p-6">
+        <div className="flex-1 p-4 md:p-6">
           {/* Tabs */}
-          <div className="bg-card border-b border-border flex gap-6 px-2 mb-6 rounded-t">
+          <div className="bg-card border-b border-border flex gap-4 md:gap-6 px-2 mb-6 rounded-t overflow-x-auto">
             {(['space', 'roles', 'integrations', 'webhooks'] as const).map(tab => (
               <button
                 key={tab}
@@ -229,7 +229,7 @@ export default function SettingsClient({ space, isAdmin, integrations, currentRo
               <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-6">Space Settings</p>
 
               <form onSubmit={handleSaveSpace} className="space-y-6">
-                <div className="grid grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div>
                     <label className="font-sans text-sm text-foreground block mb-1.5">Space Name</label>
                     <input

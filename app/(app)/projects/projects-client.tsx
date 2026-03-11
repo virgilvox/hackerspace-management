@@ -68,7 +68,7 @@ export function ProjectsClient({ projects: initialProjects, spaceId }: { project
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="bg-sidebar px-6 py-3 flex items-center justify-between">
+      <div className="bg-sidebar px-4 md:px-6 py-3 flex items-center justify-between">
         <h1 className="text-white font-sans text-lg font-semibold">Projects</h1>
         <button
           onClick={() => setShowCreate(true)}
@@ -78,8 +78,9 @@ export function ProjectsClient({ projects: initialProjects, spaceId }: { project
         </button>
       </div>
 
-      <div className="p-6">
-        <div className="grid grid-cols-4 gap-4">
+      <div className="p-4 md:p-6">
+        <div className="overflow-x-auto -mx-4 md:mx-0 px-4 md:px-0">
+        <div className="grid grid-cols-4 gap-4 min-w-[640px]">
           {STATUS_COLS.map(col => {
             const items = columns[col.key] ?? []
             return (
@@ -141,6 +142,7 @@ export function ProjectsClient({ projects: initialProjects, spaceId }: { project
             )
           })}
         </div>
+        </div>
       </div>
 
       {showCreate && (
@@ -162,7 +164,7 @@ export function ProjectsClient({ projects: initialProjects, spaceId }: { project
                 <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
                   rows={2} className="w-full bg-background border border-border rounded px-3 py-2 font-sans text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition resize-none" />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Area</label>
                   <select value={form.area} onChange={e => setForm(f => ({ ...f, area: e.target.value }))}

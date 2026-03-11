@@ -45,7 +45,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         taskBadge={taskCount ?? 0}
         paymentBadge={paymentCount ?? 0}
       />
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto pt-[52px] md:pt-0">
         {children}
       </main>
     </div>

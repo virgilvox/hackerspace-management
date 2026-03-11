@@ -129,7 +129,7 @@ export function MembersClient({ members: initialMembers, currentRole }: Props) {
 
   const MemberFormFields = () => (
     <>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Full Name *</label>
           <input type="text" required value={form.display_name} onChange={e => setForm(f => ({ ...f, display_name: e.target.value }))}
@@ -141,7 +141,7 @@ export function MembersClient({ members: initialMembers, currentRole }: Props) {
             className="w-full bg-background border border-border rounded px-3 py-2 font-sans text-sm text-foreground focus:outline-none focus:border-primary transition" />
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Phone</label>
           <input type="tel" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
@@ -153,7 +153,7 @@ export function MembersClient({ members: initialMembers, currentRole }: Props) {
             className="w-full bg-background border border-border rounded px-3 py-2 font-mono text-sm text-foreground focus:outline-none focus:border-primary transition" />
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Tier</label>
           <select value={form.tier} onChange={e => setForm(f => ({ ...f, tier: e.target.value }))}
@@ -175,7 +175,7 @@ export function MembersClient({ members: initialMembers, currentRole }: Props) {
           </select>
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Joined At</label>
           <input type="date" value={form.joined_at?.slice(0, 10)} onChange={e => setForm(f => ({ ...f, joined_at: e.target.value }))}
@@ -194,7 +194,7 @@ export function MembersClient({ members: initialMembers, currentRole }: Props) {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="bg-sidebar px-6 py-3 flex items-center justify-between">
+      <div className="bg-sidebar px-4 md:px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h1 className="text-white font-sans text-lg font-semibold">Members</h1>
           <span className="font-mono text-xs text-white/50">{total} total</span>
@@ -209,7 +209,7 @@ export function MembersClient({ members: initialMembers, currentRole }: Props) {
         )}
       </div>
 
-      <div className="bg-card border-b border-border px-6 flex gap-6">
+      <div className="bg-card border-b border-border px-4 md:px-6 flex gap-4 md:gap-6 overflow-x-auto">
         {[
           { key: 'all', label: `All ${total}` },
           { key: 'payment_issues', label: `Payment Issues ${paymentIssues}` },
@@ -228,7 +228,7 @@ export function MembersClient({ members: initialMembers, currentRole }: Props) {
         ))}
       </div>
 
-      <div className="p-6">
+      <div className="p-4 md:p-6">
         <div className="flex gap-3 mb-4">
           <div className="flex-1 relative">
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -236,7 +236,7 @@ export function MembersClient({ members: initialMembers, currentRole }: Props) {
             </svg>
             <input
               type="text"
-              placeholder="Search by name, email, handle..."
+              placeholder="Search..."
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="w-full bg-card border border-border rounded pl-9 pr-4 py-2 font-sans text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition"
@@ -245,7 +245,7 @@ export function MembersClient({ members: initialMembers, currentRole }: Props) {
           <select
             value={tierFilter}
             onChange={e => setTierFilter(e.target.value)}
-            className="bg-card border border-border text-foreground text-sm font-sans rounded px-3 py-2 focus:outline-none focus:border-primary"
+            className="bg-card border border-border text-foreground text-sm font-sans rounded px-2 md:px-3 py-2 focus:outline-none focus:border-primary"
           >
             <option value="">All Tiers</option>
             <option value="plus">Plus</option>
@@ -255,7 +255,8 @@ export function MembersClient({ members: initialMembers, currentRole }: Props) {
         </div>
 
         <div className="bg-card rounded border border-border overflow-hidden">
-          <table className="w-full">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[600px]">
             <thead>
               <tr className="border-b border-border">
                 <th className="px-4 py-3 text-left font-mono text-[10px] tracking-widest text-muted-foreground">MEMBER</th>
@@ -354,6 +355,7 @@ export function MembersClient({ members: initialMembers, currentRole }: Props) {
               )}
             </tbody>
           </table>
+          </div>
         </div>
       </div>
 
