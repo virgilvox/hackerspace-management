@@ -217,7 +217,7 @@ export function PaymentsClient({ payments: initialPayments, members, integration
                     <td className={`px-4 py-3 font-mono text-[10px] font-bold ${platformColors[p.platform] ?? ''}`}>
                       {p.platform?.toUpperCase()}
                     </td>
-                    <td className="px-4 py-3 font-sans text-sm font-medium">${Number(p.amount).toFixed(2)}</td>
+                    <td className="px-4 py-3 font-sans text-sm font-medium">{'$'}{Number(p.amount).toFixed(2)}</td>
                     <td className="px-4 py-3 font-mono text-xs text-muted-foreground max-w-[200px] truncate">
                       {p.from_identifier}{p.from_note ? ` — "${p.from_note}"` : ''}
                     </td>
@@ -316,7 +316,7 @@ export function PaymentsClient({ payments: initialPayments, members, integration
               <div>
                 <h2 className="font-sans text-base font-semibold text-foreground">Link to Member</h2>
                 <p className="font-mono text-xs text-muted-foreground mt-0.5">
-                  ${linkingPayment.amount} via {linkingPayment.platform?.toUpperCase()} — {linkingPayment.from_identifier}
+                  {'$'}{linkingPayment.amount} via {linkingPayment.platform?.toUpperCase()} — {linkingPayment.from_identifier}
                 </p>
               </div>
               <button onClick={() => setLinkingPayment(null)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
