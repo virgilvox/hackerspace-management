@@ -114,7 +114,7 @@ export function ContactsClient({ contacts: initialContacts }: { contacts: Contac
 
   const ContactForm = ({ onSubmit, submitLabel }: { onSubmit: (e: React.FormEvent) => void, submitLabel: string }) => (
     <form onSubmit={onSubmit} className="p-6 space-y-4">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Name *</label>
           <input type="text" required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
@@ -128,7 +128,7 @@ export function ContactsClient({ contacts: initialContacts }: { contacts: Contac
           </select>
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Email</label>
           <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
@@ -145,7 +145,7 @@ export function ContactsClient({ contacts: initialContacts }: { contacts: Contac
         <textarea value={form.details} onChange={e => setForm(f => ({ ...f, details: e.target.value }))}
           rows={2} className="w-full bg-background border border-border rounded px-3 py-2 font-sans text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition resize-none" />
       </div>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Group Label</label>
           <input type="text" value={form.group_label} onChange={e => setForm(f => ({ ...f, group_label: e.target.value }))}
@@ -173,7 +173,7 @@ export function ContactsClient({ contacts: initialContacts }: { contacts: Contac
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="bg-sidebar px-6 py-3 flex items-center justify-between">
+      <div className="bg-sidebar px-4 md:px-6 py-3 flex items-center justify-between">
         <h1 className="text-white font-sans text-lg font-semibold">Contacts</h1>
         <button
           onClick={() => { resetForm(); setShowCreate(true) }}
@@ -183,7 +183,7 @@ export function ContactsClient({ contacts: initialContacts }: { contacts: Contac
         </button>
       </div>
 
-      <div className="p-6 space-y-4">
+      <div className="p-4 md:p-6 space-y-4">
         <div className="relative">
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />

@@ -79,12 +79,8 @@ export default function SignupPage() {
     const supabase = createClient()
 
     if (mode === 'join') {
-      const { data: space, error: lookupErr } = await supabase
-        .from('spaces')
-        .select('id')
-        .eq('invite_code', inviteCode.trim().toUpperCase())
-        .single()
-      if (lookupErr || !space) { setError('Invalid invite code'); setLoading(false); return }
+      // Invite code is validated server-side in joinSpace (uses admin client, bypasses RLS).
+      // Do NOT pre-validate here with the regular client — RLS blocks unauthenticated lookups.
     }
 
     const metadata: Record<string, string> = {

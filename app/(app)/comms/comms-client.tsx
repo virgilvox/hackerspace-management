@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Hash, Users2, Send } from 'lucide-react'
+import { Hash, Users2, Send, ChevronLeft } from 'lucide-react'
 
 interface Props {
   member: any
@@ -15,6 +15,7 @@ export default function CommsClient({ member, space, channels }: Props) {
   const [messages, setMessages] = useState<any[]>([])
   const [newMessage, setNewMessage] = useState('')
   const [sending, setSending] = useState(false)
+  const [showChannelList, setShowChannelList] = useState(true)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -140,26 +141,32 @@ export default function CommsClient({ member, space, channels }: Props) {
   const projectChannels = channels.filter(c => c.channel_type === 'project')
 
   return (
-    <div className="h-screen bg-background flex flex-col">
-      <div className="bg-sidebar px-6 py-3 flex items-center justify-between border-b border-sidebar-border">
+    <div className="h-[calc(100vh-52px)] md:h-screen bg-background flex flex-col">
+      <div className="bg-sidebar px-4 md:px-6 py-3 flex items-center justify-between border-b border-sidebar-border">
         <div className="flex items-center gap-3">
-          <h1 className="text-white font-sans text-lg font-semibold">Comms</h1>
+          {/* Mobile back to channels */}
+          {!showChannelList && selectedChannel && (
+            <button
+              onClick={() => setShowChannelList(true)}
+              className="md:hidden text-sidebar-foreground/70 hover:text-sidebar-foreground mr-1"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+          )}
+          <h1 className="text-white font-sans text-lg font-semibold">
+            {!showChannelList && selectedChannel ? `#${selectedChannel.name}` : 'Comms'}
+          </h1>
         </div>
         <div className="flex items-center gap-2">
           <button className="text-sidebar-foreground/70 hover:text-sidebar-foreground text-sm">
             <Users2 className="w-4 h-4" />
           </button>
-          <button className="text-sidebar-foreground/70 hover:text-sidebar-foreground text-sm">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </button>
         </div>
       </div>
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Channels sidebar */}
-        <aside className="w-[220px] bg-card border-r border-border overflow-y-auto">
+        {/* Channels sidebar — hidden on mobile when a channel is selected */}
+        <aside className={`${showChannelList ? 'flex' : 'hidden'} md:flex w-full md:w-[220px] flex-col bg-card border-r border-border overflow-y-auto`}>
           <div className="p-3">
             {generalChannels.length > 0 && (
               <div className="mb-4">
@@ -167,7 +174,7 @@ export default function CommsClient({ member, space, channels }: Props) {
                 {generalChannels.map(channel => (
                   <button
                     key={channel.id}
-                    onClick={() => setSelectedChannel(channel)}
+                    onClick={() => { setSelectedChannel(channel); setShowChannelList(false) }}
                     className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm font-sans transition ${
                       selectedChannel?.id === channel.id
                         ? 'bg-primary/10 text-primary'
@@ -192,7 +199,7 @@ export default function CommsClient({ member, space, channels }: Props) {
                 {areaChannels.map(channel => (
                   <button
                     key={channel.id}
-                    onClick={() => setSelectedChannel(channel)}
+                    onClick={() => { setSelectedChannel(channel); setShowChannelList(false) }}
                     className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm font-sans transition ${
                       selectedChannel?.id === channel.id
                         ? 'bg-primary/10 text-primary'
@@ -212,7 +219,7 @@ export default function CommsClient({ member, space, channels }: Props) {
                 {projectChannels.map(channel => (
                   <button
                     key={channel.id}
-                    onClick={() => setSelectedChannel(channel)}
+                    onClick={() => { setSelectedChannel(channel); setShowChannelList(false) }}
                     className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm font-sans transition ${
                       selectedChannel?.id === channel.id
                         ? 'bg-primary/10 text-primary'
@@ -232,7 +239,7 @@ export default function CommsClient({ member, space, channels }: Props) {
 
         {/* Main chat area */}
         {selectedChannel ? (
-          <div className="flex-1 flex flex-col overflow-hidden">
+          <div className={`${showChannelList ? 'hidden md:flex' : 'flex'} flex-1 flex-col overflow-hidden`}>
             {/* Channel header */}
             <div className="bg-card border-b border-border px-4 py-3 flex items-center gap-2">
               <Hash className="w-4 h-4 text-muted-foreground" />

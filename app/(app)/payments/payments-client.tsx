@@ -121,9 +121,9 @@ export function PaymentsClient({ payments: initialPayments, members, integration
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="bg-sidebar px-6 py-3 flex items-center justify-between">
+      <div className="bg-sidebar px-4 md:px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h1 className="text-white font-sans text-lg font-semibold">Payment Reconciliation</h1>
+          <h1 className="text-white font-sans text-lg font-semibold">Payments</h1>
           {unlinkedCount > 0 && (
             <span className="font-mono text-xs text-orange-400">{unlinkedCount} unlinked</span>
           )}
@@ -140,9 +140,9 @@ export function PaymentsClient({ payments: initialPayments, members, integration
         )}
       </div>
 
-      <div className="p-6 space-y-6">
+      <div className="p-4 md:p-6 space-y-6">
         {/* Platform summary cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
           {platforms.map(platform => {
             const txs = byPlatform[platform] ?? []
             const total = txs.reduce((sum, t) => sum + (t.amount ?? 0), 0)
@@ -203,7 +203,8 @@ export function PaymentsClient({ payments: initialPayments, members, integration
           </div>
 
           <div className="bg-card rounded border border-border overflow-hidden">
-            <table className="w-full">
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[600px]">
               <thead>
                 <tr className="border-b border-border">
                   {['PLATFORM', 'AMOUNT', 'FROM / NOTE', 'DATE', 'MEMBER'].map(h => (
@@ -253,6 +254,7 @@ export function PaymentsClient({ payments: initialPayments, members, integration
                 )}
               </tbody>
             </table>
+            </div>
           </div>
         </div>
       </div>
@@ -266,7 +268,7 @@ export function PaymentsClient({ payments: initialPayments, members, integration
               <button onClick={() => setShowLogCash(false)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
             </div>
             <form onSubmit={handleLogCash} className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Amount *</label>
                   <input type="number" step="0.01" min="0" required value={cashForm.amount}

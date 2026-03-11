@@ -11,7 +11,7 @@ export default async function OpsEntryPage({ params }: { params: Promise<{ id: s
   if (!user) return null
 
   const { data: member } = await supabase
-    .from('space_members').select('space_id, role, display_name').eq('user_id', user.id).eq('status', 'current').single()
+    .from('space_members').select('space_id, role, display_name').eq('user_id', user.id).in('status', ['current', 'unverified', 'late']).single()
   if (!member) return null
 
   const { data: entry } = await supabase

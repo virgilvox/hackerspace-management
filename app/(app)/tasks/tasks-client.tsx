@@ -53,10 +53,13 @@ export function TasksClient({ tasks: initialTasks, members, currentUserId, space
   const [formError, setFormError] = useState('')
   const [formLoading, setFormLoading] = useState(false)
 
-  // Ongoing = tasks with a recurrence (not 'none')
+  // Ongoing = recurring tasks (recurrence != 'none')
+  // Chores = chore type OR regular tasks without recurrence (the general open pool)
+  // Mine = tasks claimed/assigned to me
+  // Done = completed
   const isDone = (t: any) => t.status === 'done' || t.status === 'completed'
   const isOpen = (t: any) => !isDone(t)
-  const chores = tasks.filter(t => (t.type === 'chore' || t.task_type === 'chore') && isOpen(t) && (!t.recurrence || t.recurrence === 'none'))
+  const chores = tasks.filter(t => isOpen(t) && (!t.recurrence || t.recurrence === 'none'))
   const ongoing = tasks.filter(t => t.recurrence && t.recurrence !== 'none' && isOpen(t))
   const mine = tasks.filter(t => (t.claimed_by === currentUserId || t.assigned_to === currentUserId) && isOpen(t))
   const done = tasks.filter(isDone)
@@ -122,7 +125,7 @@ export function TasksClient({ tasks: initialTasks, members, currentUserId, space
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="bg-sidebar px-6 py-3 flex items-center justify-between">
+      <div className="bg-sidebar px-4 md:px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h1 className="text-white font-sans text-lg font-semibold">Tasks & Chores</h1>
             <span className="font-mono text-xs text-white/50">{tasks.filter(t => !isDone(t)).length} open</span>
@@ -131,7 +134,7 @@ export function TasksClient({ tasks: initialTasks, members, currentUserId, space
           <select
             value={filterArea}
             onChange={e => setFilterArea(e.target.value)}
-            className="bg-sidebar-accent border border-sidebar-border text-sidebar-foreground text-xs font-sans rounded px-2 py-1.5"
+            className="hidden sm:block bg-sidebar-accent border border-sidebar-border text-sidebar-foreground text-xs font-sans rounded px-2 py-1.5"
           >
             <option value="">All Areas</option>
             {AREAS.map(a => <option key={a}>{a}</option>)}
@@ -140,12 +143,12 @@ export function TasksClient({ tasks: initialTasks, members, currentUserId, space
             onClick={() => setShowCreate(true)}
             className="flex items-center gap-1.5 bg-primary text-white text-xs font-sans px-3 py-1.5 rounded hover:bg-primary/90 transition"
           >
-            <Plus className="w-3.5 h-3.5" /> New Task
+            <Plus className="w-3.5 h-3.5" /> <span className="hidden sm:inline">New Task</span>
           </button>
         </div>
       </div>
 
-      <div className="bg-card border-b border-border px-6 flex gap-6">
+      <div className="bg-card border-b border-border px-4 md:px-6 flex gap-4 md:gap-6 overflow-x-auto">
         {(['chores', 'ongoing', 'mine', 'done'] as const).map((tab) => (
           <button
             key={tab}
@@ -154,7 +157,7 @@ export function TasksClient({ tasks: initialTasks, members, currentUserId, space
               activeTab === tab ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >
-            {tab === 'mine' ? 'My Tasks' : tab.charAt(0).toUpperCase() + tab.slice(1)}{' '}
+            {tab === 'mine' ? 'My Tasks' : tab === 'chores' ? 'Open Tasks' : tab.charAt(0).toUpperCase() + tab.slice(1)}{' '}
             {tabCounts[tab] > 0 && (
               <span className={`ml-1 text-[10px] font-mono px-1.5 py-0.5 rounded ${
                 activeTab === tab ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
@@ -166,7 +169,7 @@ export function TasksClient({ tasks: initialTasks, members, currentUserId, space
         ))}
       </div>
 
-      <div className="p-6">
+      <div className="p-4 md:p-6">
         <div className="bg-card rounded border border-border divide-y divide-border">
           {currentList.length > 0 ? currentList.map(task => (
             <div key={task.id} className={`flex items-center gap-3 px-4 py-3 ${
@@ -235,7 +238,7 @@ export function TasksClient({ tasks: initialTasks, members, currentUserId, space
             </div>
           )) : (
             <div className="px-4 py-10 text-center">
-              <p className="font-sans text-sm text-muted-foreground">No {activeTab === 'done' ? 'completed' : 'open'} tasks in this view</p>
+              <p className="font-sans text-sm text-muted-foreground">No {activeTab === 'done' ? 'completed' : activeTab === 'chores' ? 'open' : activeTab} tasks in this view</p>
               <button
                 onClick={() => setShowCreate(true)}
                 className="font-mono text-xs text-primary mt-2 hover:underline"
@@ -283,7 +286,7 @@ export function TasksClient({ tasks: initialTasks, members, currentUserId, space
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Type</label>
                   <select
@@ -308,7 +311,7 @@ export function TasksClient({ tasks: initialTasks, members, currentUserId, space
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Recurrence</label>
                   <select

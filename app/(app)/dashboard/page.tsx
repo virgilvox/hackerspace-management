@@ -61,18 +61,19 @@ export default async function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="bg-sidebar px-6 py-3 flex items-center justify-between">
+      <div className="bg-sidebar px-4 md:px-6 py-3 flex items-center justify-between">
         <h1 className="text-white font-sans text-lg font-semibold">Dashboard</h1>
         <Link href="/tasks" className="flex items-center gap-1.5 bg-primary text-white text-xs font-sans px-3 py-1.5 rounded hover:bg-primary/90 transition">
           <IcoPlus className="w-3.5 h-3.5" />
-          Quick Task
+          <span className="hidden sm:inline">Quick Task</span>
+          <span className="sm:hidden">Task</span>
         </Link>
       </div>
 
-      <div className="p-6 space-y-6">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="p-4 md:p-6 space-y-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
           {stats.map(({ label, value, Ico, sub, warn }) => (
-            <div key={label} className="bg-card rounded border border-border p-5">
+            <div key={label} className="bg-card rounded border border-border p-4 md:p-5">
               <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-2 flex items-center gap-1.5">
                 <Ico className="w-3 h-3" /> {label}
               </p>
@@ -82,7 +83,7 @@ export default async function DashboardPage() {
           ))}
         </div>
 
-        <div className="grid lg:grid-cols-[1fr_300px] gap-6">
+        <div className="grid lg:grid-cols-[1fr_280px] gap-6">
           <div className="space-y-6">
             <div>
               <div className="flex items-center justify-between mb-3">

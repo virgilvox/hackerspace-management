@@ -7,7 +7,7 @@ export default async function PaymentsPage() {
   if (!user) return null
 
   const { data: member } = await supabase
-    .from('space_members').select('space_id, role').eq('user_id', user.id).eq('status', 'current').single()
+    .from('space_members').select('space_id, role').eq('user_id', user.id).in('status', ['current', 'unverified', 'late']).single()
   if (!member) return null
 
   const [{ data: payments }, { data: members }, { data: integrations }] = await Promise.all([
@@ -19,7 +19,7 @@ export default async function PaymentsPage() {
     supabase.from('space_members')
       .select('id, display_name, email')
       .eq('space_id', member.space_id)
-      .eq('status', 'current'),
+      .in('status', ['current', 'late']),
     supabase.from('integrations')
       .select('platform, is_connected, config')
       .eq('space_id', member.space_id),

@@ -25,18 +25,27 @@ export async function getUser() {
   return user
 }
 
+// ─── Helper: get current member (any non-inactive status) ────────────────────
+async function getMember(supabase: any, userId: string) {
+  const { data } = await supabase
+    .from('space_members')
+    .select('space_id, role, display_name')
+    .eq('user_id', userId)
+    .in('status', ['current', 'unverified', 'late'])
+    .single()
+  return data
+}
+
 export async function getCurrentMember() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
-
   const { data } = await supabase
     .from('space_members')
     .select('*, spaces(*)')
     .eq('user_id', user.id)
-    .eq('status', 'current')
+    .in('status', ['current', 'unverified', 'late'])
     .single()
-
   return data
 }
 
@@ -54,8 +63,7 @@ export async function createTask(formData: {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
 
-  const { data: member } = await supabase
-    .from('space_members').select('space_id, display_name').eq('user_id', user.id).eq('status', 'current').single()
+  const member = await getMember(supabase, user.id)
   if (!member) return { error: 'No active membership' }
 
   const { data, error } = await supabase.from('tasks').insert({
@@ -94,8 +102,7 @@ export async function claimTask(taskId: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
 
-  const { data: member } = await supabase
-    .from('space_members').select('space_id, display_name').eq('user_id', user.id).eq('status', 'current').single()
+  const member = await getMember(supabase, user.id)
   if (!member) return { error: 'No active membership' }
 
   const { error } = await supabase.from('tasks').update({
@@ -125,8 +132,7 @@ export async function completeTask(taskId: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
 
-  const { data: member } = await supabase
-    .from('space_members').select('space_id, display_name').eq('user_id', user.id).eq('status', 'current').single()
+  const member = await getMember(supabase, user.id)
   if (!member) return { error: 'No active membership' }
 
   const { error } = await supabase.from('tasks').update({
@@ -156,8 +162,7 @@ export async function deleteTask(taskId: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
 
-  const { data: member } = await supabase
-    .from('space_members').select('space_id').eq('user_id', user.id).eq('status', 'current').single()
+  const member = await getMember(supabase, user.id)
   if (!member) return { error: 'No active membership' }
 
   const { error } = await supabase.from('tasks').delete()
@@ -181,8 +186,7 @@ export async function createProject(formData: {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
 
-  const { data: member } = await supabase
-    .from('space_members').select('space_id, display_name').eq('user_id', user.id).eq('status', 'current').single()
+  const member = await getMember(supabase, user.id)
   if (!member) return { error: 'No active membership' }
 
   const { data, error } = await supabase.from('projects').insert({
@@ -216,8 +220,7 @@ export async function updateProjectStatus(projectId: string, status: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
 
-  const { data: member } = await supabase
-    .from('space_members').select('space_id').eq('user_id', user.id).eq('status', 'current').single()
+  const member = await getMember(supabase, user.id)
   if (!member) return { error: 'No active membership' }
 
   const { error } = await supabase.from('projects').update({ status, updated_at: new Date().toISOString() })
@@ -234,8 +237,7 @@ export async function deleteProject(projectId: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
 
-  const { data: member } = await supabase
-    .from('space_members').select('space_id').eq('user_id', user.id).eq('status', 'current').single()
+  const member = await getMember(supabase, user.id)
   if (!member) return { error: 'No active membership' }
 
   const { error } = await supabase.from('projects').delete()
@@ -263,7 +265,7 @@ export async function addMember(formData: {
   if (!user) return { error: 'Not authenticated' }
 
   const { data: self } = await supabase
-    .from('space_members').select('space_id, role').eq('user_id', user.id).eq('status', 'current').single()
+    .from('space_members').select('space_id, role').eq('user_id', user.id).in('status', ['current', 'unverified', 'late']).single()
   if (!self || (self.role !== 'admin' && self.role !== 'board')) return { error: 'Admin access required' }
 
   const { data, error } = await supabase.from('space_members').insert({
@@ -302,7 +304,7 @@ export async function updateMember(memberId: string, updates: {
   if (!user) return { error: 'Not authenticated' }
 
   const { data: self } = await supabase
-    .from('space_members').select('space_id, role').eq('user_id', user.id).eq('status', 'current').single()
+    .from('space_members').select('space_id, role').eq('user_id', user.id).in('status', ['current', 'unverified', 'late']).single()
   if (!self || (self.role !== 'admin' && self.role !== 'board')) return { error: 'Admin access required' }
 
   const { error } = await supabase.from('space_members').update(updates)
@@ -319,7 +321,7 @@ export async function approveMember(memberId: string) {
   if (!user) return { error: 'Not authenticated' }
 
   const { data: self } = await supabase
-    .from('space_members').select('space_id, role, display_name').eq('user_id', user.id).eq('status', 'current').single()
+    .from('space_members').select('space_id, role, display_name').eq('user_id', user.id).in('status', ['current', 'unverified', 'late']).single()
   if (!self || (self.role !== 'admin' && self.role !== 'board')) return { error: 'Admin access required' }
 
   const { error } = await supabase.from('space_members').update({ status: 'current', approved: true })
@@ -346,7 +348,7 @@ export async function removeMember(memberId: string) {
   if (!user) return { error: 'Not authenticated' }
 
   const { data: self } = await supabase
-    .from('space_members').select('space_id, role').eq('user_id', user.id).eq('status', 'current').single()
+    .from('space_members').select('space_id, role').eq('user_id', user.id).in('status', ['current', 'unverified', 'late']).single()
   if (!self || self.role !== 'admin') return { error: 'Admin access required' }
 
   const { error } = await supabase.from('space_members').delete()
@@ -373,8 +375,7 @@ export async function createContact(formData: {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
 
-  const { data: member } = await supabase
-    .from('space_members').select('space_id').eq('user_id', user.id).eq('status', 'current').single()
+  const member = await getMember(supabase, user.id)
   if (!member) return { error: 'No active membership' }
 
   const code = formData.name.slice(0, 3).toUpperCase() + Math.floor(Math.random() * 900 + 100)
@@ -411,8 +412,7 @@ export async function updateContact(contactId: string, updates: {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
 
-  const { data: member } = await supabase
-    .from('space_members').select('space_id').eq('user_id', user.id).eq('status', 'current').single()
+  const member = await getMember(supabase, user.id)
   if (!member) return { error: 'No active membership' }
 
   const { error } = await supabase.from('contacts').update({ ...updates, updated_at: new Date().toISOString() })
@@ -428,8 +428,7 @@ export async function deleteContact(contactId: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
 
-  const { data: member } = await supabase
-    .from('space_members').select('space_id').eq('user_id', user.id).eq('status', 'current').single()
+  const member = await getMember(supabase, user.id)
   if (!member) return { error: 'No active membership' }
 
   const { error } = await supabase.from('contacts').delete()
@@ -453,7 +452,7 @@ export async function logCashPayment(formData: {
   if (!user) return { error: 'Not authenticated' }
 
   const { data: member } = await supabase
-    .from('space_members').select('space_id, role, display_name').eq('user_id', user.id).eq('status', 'current').single()
+    .from('space_members').select('space_id, role, display_name').eq('user_id', user.id).in('status', ['current', 'unverified', 'late']).single()
   if (!member || (member.role !== 'admin' && member.role !== 'board' && member.role !== 'treasurer')) {
     return { error: 'Treasurer access required' }
   }
@@ -500,7 +499,7 @@ export async function linkPaymentToMember(paymentId: string, memberId: string) {
   if (!user) return { error: 'Not authenticated' }
 
   const { data: self } = await supabase
-    .from('space_members').select('space_id, role').eq('user_id', user.id).eq('status', 'current').single()
+    .from('space_members').select('space_id, role').eq('user_id', user.id).in('status', ['current', 'unverified', 'late']).single()
   if (!self || (self.role !== 'admin' && self.role !== 'board' && self.role !== 'treasurer')) {
     return { error: 'Treasurer access required' }
   }
@@ -542,7 +541,7 @@ export async function importPaymentsCsv(rows: Array<{
   if (!user) return { error: 'Not authenticated' }
 
   const { data: member } = await supabase
-    .from('space_members').select('space_id, role').eq('user_id', user.id).eq('status', 'current').single()
+    .from('space_members').select('space_id, role').eq('user_id', user.id).in('status', ['current', 'unverified', 'late']).single()
   if (!member || (member.role !== 'admin' && member.role !== 'board' && member.role !== 'treasurer')) {
     return { error: 'Treasurer access required' }
   }
@@ -582,7 +581,7 @@ export async function createKbEntry(formData: {
   if (!user) return { error: 'Not authenticated' }
 
   const { data: member } = await supabase
-    .from('space_members').select('space_id, display_name, handle').eq('user_id', user.id).eq('status', 'current').single()
+    .from('space_members').select('space_id, display_name, handle').eq('user_id', user.id).in('status', ['current', 'unverified', 'late']).single()
   if (!member) return { error: 'No active membership' }
 
   const { data, error } = await supabase.from('knowledge_base').insert({
@@ -616,7 +615,7 @@ export async function updateKbEntry(entryId: string, updates: {
   if (!user) return { error: 'Not authenticated' }
 
   const { data: member } = await supabase
-    .from('space_members').select('space_id, display_name').eq('user_id', user.id).eq('status', 'current').single()
+    .from('space_members').select('space_id, display_name').eq('user_id', user.id).in('status', ['current', 'unverified', 'late']).single()
   if (!member) return { error: 'No active membership' }
 
   // Only pass columns that actually exist in the DB
@@ -640,7 +639,7 @@ export async function deleteKbEntry(entryId: string) {
   if (!user) return { error: 'Not authenticated' }
 
   const { data: member } = await supabase
-    .from('space_members').select('space_id').eq('user_id', user.id).eq('status', 'current').single()
+    .from('space_members').select('space_id').eq('user_id', user.id).in('status', ['current', 'unverified', 'late']).single()
   if (!member) return { error: 'No active membership' }
 
   const { error } = await supabase.from('knowledge_base').delete()
@@ -665,7 +664,7 @@ export async function createSecret(formData: {
   if (!user) return { error: 'Not authenticated' }
 
   const { data: member } = await supabase
-    .from('space_members').select('space_id, role').eq('user_id', user.id).eq('status', 'current').single()
+    .from('space_members').select('space_id, role').eq('user_id', user.id).in('status', ['current', 'unverified', 'late']).single()
   if (!member || (member.role !== 'admin' && member.role !== 'board')) return { error: 'Admin access required' }
 
   const { data, error } = await supabase.from('secrets').insert({
@@ -688,7 +687,7 @@ export async function deleteSecret(secretId: string) {
   if (!user) return { error: 'Not authenticated' }
 
   const { data: member } = await supabase
-    .from('space_members').select('space_id, role').eq('user_id', user.id).eq('status', 'current').single()
+    .from('space_members').select('space_id, role').eq('user_id', user.id).in('status', ['current', 'unverified', 'late']).single()
   if (!member || member.role !== 'admin') return { error: 'Admin access required' }
 
   const { error } = await supabase.from('secrets').delete()
@@ -713,7 +712,7 @@ export async function upsertAreaLead(formData: {
   if (!user) return { error: 'Not authenticated' }
 
   const { data: member } = await supabase
-    .from('space_members').select('space_id, role').eq('user_id', user.id).eq('status', 'current').single()
+    .from('space_members').select('space_id, role').eq('user_id', user.id).in('status', ['current', 'unverified', 'late']).single()
   if (!member || (member.role !== 'admin' && member.role !== 'board')) return { error: 'Admin access required' }
 
   const { data, error } = await supabase.from('area_leads').upsert({
@@ -745,7 +744,7 @@ export async function updateSpaceSettings(updates: {
   if (!user) return { error: 'Not authenticated' }
 
   const { data: member } = await supabase
-    .from('space_members').select('space_id, role').eq('user_id', user.id).eq('status', 'current').single()
+    .from('space_members').select('space_id, role').eq('user_id', user.id).in('status', ['current', 'unverified', 'late']).single()
   if (!member || member.role !== 'admin') return { error: 'Admin access required' }
 
   const { error } = await supabase.from('spaces').update({
@@ -764,7 +763,7 @@ export async function rotateWebhookSecret() {
   if (!user) return { error: 'Not authenticated' }
 
   const { data: member } = await supabase
-    .from('space_members').select('space_id, role').eq('user_id', user.id).eq('status', 'current').single()
+    .from('space_members').select('space_id, role').eq('user_id', user.id).in('status', ['current', 'unverified', 'late']).single()
   if (!member || member.role !== 'admin') return { error: 'Admin access required' }
 
   // Generate a new webhook secret
@@ -785,7 +784,7 @@ export async function saveIntegration(platform: string, config: Record<string, s
   if (!user) return { error: 'Not authenticated' }
 
   const { data: member } = await supabase
-    .from('space_members').select('space_id, role').eq('user_id', user.id).eq('status', 'current').single()
+    .from('space_members').select('space_id, role').eq('user_id', user.id).in('status', ['current', 'unverified', 'late']).single()
   if (!member || member.role !== 'admin') return { error: 'Admin access required' }
 
   // Mask sensitive values — store but indicate they're set
@@ -815,7 +814,7 @@ export async function disconnectIntegration(platform: string) {
   if (!user) return { error: 'Not authenticated' }
 
   const { data: member } = await supabase
-    .from('space_members').select('space_id, role').eq('user_id', user.id).eq('status', 'current').single()
+    .from('space_members').select('space_id, role').eq('user_id', user.id).in('status', ['current', 'unverified', 'late']).single()
   if (!member || member.role !== 'admin') return { error: 'Admin access required' }
 
   const { error } = await supabase.from('integrations').update({
@@ -845,7 +844,7 @@ export async function importMembers(rows: Array<{
   if (!user) return { error: 'Not authenticated' }
 
   const { data: member } = await supabase
-    .from('space_members').select('space_id, role').eq('user_id', user.id).eq('status', 'current').single()
+    .from('space_members').select('space_id, role').eq('user_id', user.id).in('status', ['current', 'unverified', 'late']).single()
   if (!member || (member.role !== 'admin' && member.role !== 'board')) return { error: 'Admin access required' }
 
   const inserts = rows.map(r => ({

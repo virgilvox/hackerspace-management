@@ -137,7 +137,7 @@ function KbModal({
               required
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="font-sans text-xs font-medium text-muted-foreground block mb-1.5">Area</label>
               <input
@@ -531,7 +531,7 @@ export function OpsClient({ member, spaceId, kbEntries: initial, areaLeads: init
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="bg-sidebar px-6 py-3 flex items-center justify-between">
+      <div className="bg-sidebar px-4 md:px-6 py-3 flex items-center justify-between">
         <h1 className="text-white font-sans text-lg font-semibold">Ops & Facilities</h1>
         <div className="flex items-center gap-2">
           {(activeTab === 'kb' || activeTab === 'processes') && (
@@ -562,7 +562,7 @@ export function OpsClient({ member, spaceId, kbEntries: initial, areaLeads: init
       </div>
 
       {/* Tabs */}
-      <div className="bg-card border-b border-border px-6 flex gap-6">
+      <div className="bg-card border-b border-border px-4 md:px-6 flex gap-4 md:gap-6 overflow-x-auto">
         {TABS.map(tab => (
           <button
             key={tab.id}
@@ -577,7 +577,7 @@ export function OpsClient({ member, spaceId, kbEntries: initial, areaLeads: init
         ))}
       </div>
 
-      <div className="p-6 max-w-5xl">
+      <div className="p-4 md:p-6 max-w-5xl">
         {/* Search */}
         {(activeTab === 'kb' || activeTab === 'processes' || activeTab === 'secrets') && (
           <div className="relative mb-6">

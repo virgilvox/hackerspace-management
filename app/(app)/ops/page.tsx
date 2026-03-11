@@ -7,7 +7,7 @@ export default async function OpsPage() {
   if (!user) return null
 
   const { data: member } = await supabase
-    .from('space_members').select('space_id, role, display_name, user_id').eq('user_id', user.id).eq('status', 'current').single()
+    .from('space_members').select('space_id, role, display_name, user_id').eq('user_id', user.id).in('status', ['current', 'unverified', 'late']).single()
   if (!member) return null
 
   const canSeeSecrets = member.role === 'admin' || member.role === 'board'
