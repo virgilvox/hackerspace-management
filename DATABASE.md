@@ -1,5 +1,7 @@
 ## Database Setup
 
+> For full deployment instructions (Vercel, DigitalOcean App Platform, Docker on a Droplet), see [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md).
+
 ### Fresh deployment
 
 Run **one file**:
