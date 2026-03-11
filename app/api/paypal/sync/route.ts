@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { data: member } = await supabase
-    .from('space_members').select('space_id, role').eq('user_id', user.id).eq('status', 'current').single()
+    .from('space_members').select('space_id, role').eq('user_id', user.id).in('status', ['current', 'unverified', 'late']).single()
   if (!member || !['admin', 'board', 'treasurer'].includes(member.role)) {
     return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
   }

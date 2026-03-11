@@ -7,7 +7,7 @@ export default async function ImportPage() {
   if (!user) return null
 
   const { data: member } = await supabase
-    .from('space_members').select('space_id, role').eq('user_id', user.id).eq('status', 'current').single()
+    .from('space_members').select('space_id, role').eq('user_id', user.id).in('status', ['current', 'unverified', 'late']).single()
 
   const isAdmin = member?.role === 'admin' || member?.role === 'board' || member?.role === 'treasurer'
 

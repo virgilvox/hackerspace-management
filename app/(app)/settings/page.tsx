@@ -8,7 +8,7 @@ export default async function SettingsPage() {
   if (!user) redirect('/login')
 
   const { data: member } = await supabase
-    .from('space_members').select('space_id, role').eq('user_id', user.id).eq('status', 'current').single()
+    .from('space_members').select('space_id, role').eq('user_id', user.id).in('status', ['current', 'unverified', 'late']).single()
 
   if (!member) redirect('/login')
 

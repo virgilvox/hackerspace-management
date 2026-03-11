@@ -53,10 +53,13 @@ export function TasksClient({ tasks: initialTasks, members, currentUserId, space
   const [formError, setFormError] = useState('')
   const [formLoading, setFormLoading] = useState(false)
 
-  // Ongoing = tasks with a recurrence (not 'none')
+  // Ongoing = recurring tasks (recurrence != 'none')
+  // Chores = chore type OR regular tasks without recurrence (the general open pool)
+  // Mine = tasks claimed/assigned to me
+  // Done = completed
   const isDone = (t: any) => t.status === 'done' || t.status === 'completed'
   const isOpen = (t: any) => !isDone(t)
-  const chores = tasks.filter(t => (t.type === 'chore' || t.task_type === 'chore') && isOpen(t) && (!t.recurrence || t.recurrence === 'none'))
+  const chores = tasks.filter(t => isOpen(t) && (!t.recurrence || t.recurrence === 'none'))
   const ongoing = tasks.filter(t => t.recurrence && t.recurrence !== 'none' && isOpen(t))
   const mine = tasks.filter(t => (t.claimed_by === currentUserId || t.assigned_to === currentUserId) && isOpen(t))
   const done = tasks.filter(isDone)
@@ -154,7 +157,7 @@ export function TasksClient({ tasks: initialTasks, members, currentUserId, space
               activeTab === tab ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >
-            {tab === 'mine' ? 'My Tasks' : tab.charAt(0).toUpperCase() + tab.slice(1)}{' '}
+            {tab === 'mine' ? 'My Tasks' : tab === 'chores' ? 'Open Tasks' : tab.charAt(0).toUpperCase() + tab.slice(1)}{' '}
             {tabCounts[tab] > 0 && (
               <span className={`ml-1 text-[10px] font-mono px-1.5 py-0.5 rounded ${
                 activeTab === tab ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
@@ -235,7 +238,7 @@ export function TasksClient({ tasks: initialTasks, members, currentUserId, space
             </div>
           )) : (
             <div className="px-4 py-10 text-center">
-              <p className="font-sans text-sm text-muted-foreground">No {activeTab === 'done' ? 'completed' : 'open'} tasks in this view</p>
+              <p className="font-sans text-sm text-muted-foreground">No {activeTab === 'done' ? 'completed' : activeTab === 'chores' ? 'open' : activeTab} tasks in this view</p>
               <button
                 onClick={() => setShowCreate(true)}
                 className="font-mono text-xs text-primary mt-2 hover:underline"

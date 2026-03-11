@@ -10,7 +10,7 @@ export default async function MembersPage() {
     .from('space_members')
     .select('space_id, role')
     .eq('user_id', user.id)
-    .eq('status', 'current')
+    .in('status', ['current', 'unverified', 'late'])
     .single()
 
   if (!self) return null
