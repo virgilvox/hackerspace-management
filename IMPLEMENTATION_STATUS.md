@@ -1,137 +1,200 @@
-# Hackerspace.sh Implementation Status
+# Hackerspace.sh - Implementation Status
 
-## Critical Issues to Fix
+> **Last Updated**: 2026-03-10  
+> **Documentation**: See `/docs` folder for complete reference
 
-### 1. **Auth/Signup Flow** ❌ BROKEN
-- Problem: Signup tries to insert records directly but RLS blocks it
-- Solution: Use trigger-based signup (already created in 003_signup_trigger.sql)
-- Need to: Simplify signup to just create auth user with metadata, let trigger handle space/member creation
+---
 
-### 2. **CLASP Attribution** ❌ REMOVE
-- Currently shows "powered by CLASP" but we're using Supabase Realtime
-- Remove CLASP mentions from comms UI
+## Feature Matrix
 
-### 3. **Payment Integrations** ❌ NOT IMPLEMENTED
-- PayPal, Zeffy, Venmo connections show as UI only
-- Need: OAuth flows or API key management
-- Need: Webhook handlers for transaction sync
-- Need: Manual transaction import
+### Core Features
 
-### 4. **Import/Export** ❌ UI ONLY
-- CSV import shows column mapping UI but doesn't actually import
-- Database connector shows form but doesn't connect
-- Need: Actual file parsing and database inserts
+| Feature | UI | Backend | Real-time | Notes |
+|---------|----|---------|-----------| ------|
+| Authentication | DONE | DONE | - | Email/password, session management |
+| Space Management | DONE | DONE | - | Create, join, settings |
+| Dashboard | DONE | DONE | - | Stats, tasks, projects, activity |
+| Tasks & Chores | DONE | DONE | - | Full CRUD, claim, complete |
+| Projects | DONE | DONE | - | Kanban, status changes |
+| Members | DONE | DONE | - | CRUD, approve, roles |
+| Payments | DONE | PARTIAL | - | Log cash, link members |
+| Comms | DONE | DONE | DONE | Real-time chat |
+| Contacts | DONE | DONE | - | Full CRUD |
+| Knowledge Base | DONE | PARTIAL | - | View only, no edit UI |
+| Secrets | PARTIAL | DONE | - | List only, no CRUD UI |
+| Area Leads | PARTIAL | DONE | - | View only |
+| Settings | DONE | DONE | - | Space config, integrations |
+| Import | PARTIAL | MISSING | - | UI only |
 
-### 5. **Settings Actions** ❌ UI ONLY
-- Integration "Connect" buttons do nothing
-- Webhook endpoint management doesn't work
-- Need: OAuth flows, API key storage, webhook secret management
+### Integrations
 
-### 6. **Member Management** ❌ INCOMPLETE
-- Add member button doesn't work
-- Approve/deny pending members not functional
-- Edit member details not working
+| Platform | Config Storage | OAuth | API Sync | Webhooks |
+|----------|---------------|-------|----------|----------|
+| PayPal | DONE | MISSING | MISSING | MISSING |
+| Zeffy | DONE | N/A | MISSING | MISSING |
+| Venmo | DONE | MISSING | MISSING | MISSING |
+| Stripe | DONE | MISSING | MISSING | MISSING |
 
-### 7. **Task/Project CRUD** ❌ UI ONLY
-- Cannot create new tasks/chores
-- Cannot update task status
-- Cannot create/update projects
-- Kanban drag-and-drop not functional
+### Authentication
 
-### 8. **Ops & KB** ❌ UI ONLY
-- Cannot add knowledge base entries
-- Cannot add secrets
-- Area lead assignment doesn't work
+| Method | Status | Notes |
+|--------|--------|-------|
+| Email/Password | DONE | Working |
+| GitHub OAuth | UI ONLY | Button exists, not wired |
+| Google OAuth | UI ONLY | Button exists, not wired |
+| Magic Link | MISSING | Not implemented |
 
-### 9. **Contacts CRUD** ❌ UI ONLY
-- Add contact button doesn't work
-- Cannot edit/delete contacts
+---
 
-### 10. **Dashboard Stats** ❌ FAKE DATA
-- All numbers are hardcoded
-- Need: Real database queries
+## Server Actions Status
 
-## What Works ✅
+### Fully Implemented
 
-- Database schema (13 tables, all RLS policies)
-- Auth infrastructure (Supabase client/server/proxy)
-- Comms real-time messaging (Supabase Realtime)
-- UI/UX design matches mockups exactly
-- Dark theme with correct colors
-- Sidebar navigation
+| Action | File | Works |
+|--------|------|-------|
+| signIn | auth-actions.ts | Yes |
+| signUp | auth-actions.ts | Yes |
+| signOut | auth-actions.ts | Yes |
+| createSpace | auth-actions.ts | Yes |
+| joinSpace | auth-actions.ts | Yes |
+| getCurrentMembership | auth-actions.ts | Yes |
+| createTask | actions.ts | Yes |
+| claimTask | actions.ts | Yes |
+| completeTask | actions.ts | Yes |
+| deleteTask | actions.ts | Yes |
+| createProject | actions.ts | Yes |
+| updateProjectStatus | actions.ts | Yes |
+| deleteProject | actions.ts | Yes |
+| addMember | actions.ts | Yes |
+| updateMember | actions.ts | Yes |
+| approveMember | actions.ts | Yes |
+| removeMember | actions.ts | Yes |
+| logCashPayment | actions.ts | Yes |
+| linkPaymentToMember | actions.ts | Yes |
+| createContact | actions.ts | Yes |
+| updateContact | actions.ts | Yes |
+| deleteContact | actions.ts | Yes |
+| createKbEntry | actions.ts | Yes |
+| updateKbEntry | actions.ts | Yes |
+| deleteKbEntry | actions.ts | Yes |
+| createSecret | actions.ts | Yes |
+| deleteSecret | actions.ts | Yes |
+| upsertAreaLead | actions.ts | Yes |
+| updateSpaceSettings | actions.ts | Yes |
+| saveIntegration | actions.ts | Yes |
+| disconnectIntegration | actions.ts | Yes |
+| rotateWebhookSecret | actions.ts | Yes |
+| importMembers | actions.ts | Yes |
+| importPaymentsCsv | actions.ts | Yes |
 
-## Implementation Plan
+### Missing Actions
 
-### Phase 1: Fix Auth (PRIORITY 1)
-1. Remove direct database inserts from signup
-2. Rely on trigger for space/member creation
-3. Handle "join via invite" properly
-4. Add proper error handling and loading states
+| Action | Description | Priority |
+|--------|-------------|----------|
+| syncPayPalTransactions | Fetch from PayPal API | High |
+| syncZeffyDonations | Fetch from Zeffy API | High |
+| createCommsChannel | Create new chat channel | Medium |
+| updateCommsChannel | Edit channel | Medium |
+| deleteCommsChannel | Remove channel | Medium |
+| exportMembers | CSV export | Medium |
+| exportPayments | CSV export | Medium |
 
-### Phase 2: Make All CRUD Functional
-1. Tasks: Create, update, claim, complete
-2. Projects: Create, update, change status
-3. Members: Add, edit, approve/deny, remove
-4. Contacts: Full CRUD
-5. KB: Add, edit, delete entries
-6. Secrets: Add, edit, delete (admins only)
+---
 
-### Phase 3: Payment Integration
-1. Build OAuth flow for PayPal/Venmo
-2. API key storage for Zeffy
-3. Webhook handlers for transaction sync
-4. Manual transaction logging
-5. Auto-link transactions to members
+## Pages Status
 
-### Phase 4: Import/Export
-1. CSV parser for member data
-2. Database connector (PostgreSQL, MySQL)
-3. Export functionality
+| Page | Route | Server Data | Client UI | Actions |
+|------|-------|-------------|-----------|---------|
+| Landing | `/` | Redirect | - | - |
+| Login | `/login` | - | DONE | signIn |
+| Signup | `/signup` | - | DONE | signUp |
+| Dashboard | `/dashboard` | DONE | DONE | - |
+| Tasks | `/tasks` | DONE | DONE | task CRUD |
+| Projects | `/projects` | DONE | DONE | project CRUD |
+| Members | `/members` | DONE | DONE | member CRUD |
+| Payments | `/payments` | DONE | DONE | payment actions |
+| Comms | `/comms` | DONE | DONE | send message |
+| Contacts | `/contacts` | DONE | DONE | contact CRUD |
+| Ops | `/ops` | DONE | PARTIAL | view only |
+| Import | `/import` | DONE | PARTIAL | UI only |
+| Settings | `/settings` | DONE | DONE | settings actions |
 
-### Phase 5: Settings & Admin
-1. Integration OAuth flows
-2. Webhook secret rotation
-3. Space settings updates
-4. Role/permission management
+---
 
-### Phase 6: Testing
-1. Unit tests for all server actions
-2. Integration tests for auth flow
-3. E2E tests for critical paths
-4. Payment webhook testing
+## Database Migrations
 
-## Testing Strategy
+| Script | Status | Description |
+|--------|--------|-------------|
+| 001_create_schema.sql | EXECUTED | Initial schema |
+| 002_schema_fixes.sql | EXECUTED | Trigger fixes |
+| 003_signup_trigger.sql | EXECUTED | Auth trigger |
+| 003_add_approved_column.sql | EXECUTED | Approved column |
+| 004_fix_rls_recursion.sql | EXECUTED | RLS helper |
+| 005_fix_spaces_insert.sql | EXECUTED | Insert policy |
+| 006_comprehensive_rls_fix.sql | EXECUTED | RLS rewrite |
+| 007_schema_audit_fixes.sql | EXECUTED | Column additions |
+| 008_fix_approved_default.sql | EXECUTED | Default value |
+| 009_fix_member_insert_rls.sql | EXECUTED | Insert RLS |
+| 010_fix_channel_trigger.sql | EXECUTED | Trigger fix |
+| 011_fix_member_status_enum.sql | EXECUTED | Enum values |
 
-### Unit Tests (Vitest)
-- Server actions (auth, CRUD)
-- Utility functions
-- Form validation
+---
 
-### Integration Tests
-- Auth flows
-- Database operations with RLS
-- Webhook handlers
+## Security Implementation
 
-### E2E Tests (Playwright)
-- Full signup flow
-- Task creation and claiming
-- Project management
-- Member management
-- Payment reconciliation
+| Feature | Status | Details |
+|---------|--------|---------|
+| RLS Policies | DONE | All tables protected |
+| Auth Middleware | DONE | Session refresh |
+| Role Checks | DONE | In server actions |
+| Input Validation | MISSING | Need Zod schemas |
+| Rate Limiting | MISSING | Need Upstash |
+| CSRF Protection | PARTIAL | Need origin check |
+| Secrets Encryption | MISSING | Plain text storage |
 
-## API Documentation Needed
+---
 
-### PayPal
-- OAuth 2.0 for transaction access
-- Webhook events for payments
-- REST API for transaction history
+## Testing Status
 
-### Zeffy
-- API key authentication
-- Transaction sync endpoint
-- Webhook for donations
+| Type | Coverage | Notes |
+|------|----------|-------|
+| Unit Tests | 0% | Not implemented |
+| Integration Tests | 0% | Not implemented |
+| E2E Tests | 0% | Not implemented |
+| Manual Testing | DONE | All features tested manually |
 
-### Venmo
-- Business API (if available)
-- OAuth flow
-- Transaction webhooks
+---
+
+## Performance
+
+| Metric | Status | Notes |
+|--------|--------|-------|
+| Server Components | DONE | All pages are RSC |
+| Parallel Queries | PARTIAL | Dashboard optimized |
+| Caching | PARTIAL | revalidatePath used |
+| Image Optimization | N/A | No images |
+| Bundle Size | UNKNOWN | Not audited |
+
+---
+
+## Deployment Checklist
+
+### Pre-Production
+
+- [ ] All CRITICAL security issues fixed
+- [ ] Error boundaries added
+- [ ] Loading states added
+- [ ] Social auth working
+- [ ] Email notifications working
+- [ ] Test suite passing
+- [ ] Security audit complete
+
+### Production Launch
+
+- [ ] Production database provisioned
+- [ ] Environment variables set
+- [ ] Domain configured
+- [ ] SSL certificate valid
+- [ ] Monitoring configured
+- [ ] Backup strategy in place
+- [ ] Support documentation ready

@@ -1,6 +1,8 @@
-# DB Schema Map — Complete Reference
+# DB Schema Map — Quick Reference
 
-Last updated: 2026-03-10. Source of truth: **LIVE DB** (queried directly via supabase_execute_sql).
+> **Last Updated**: 2026-03-10  
+> **Full Documentation**: See [docs/DATABASE_SCHEMA.md](./docs/DATABASE_SCHEMA.md) for complete reference  
+> **Source of Truth**: Live database schema
 
 ---
 

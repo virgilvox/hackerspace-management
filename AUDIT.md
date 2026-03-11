@@ -1,185 +1,128 @@
-# Hackerspace.sh - Full Audit & Implementation Plan
+# Hackerspace.sh - Audit Summary
 
-## Critical Auth/Signup Issues (BLOCKING)
-
-### 1. Signup Flow Completely Broken ❌
-**Problem**: Signup page tries to manually insert spaces/members after auth.signUp, but RLS blocks it because user isn't confirmed yet (no session, auth.uid() = null)
-
-**Fix**: Update signup to pass ALL metadata to trigger, remove manual inserts
-- Pass `space_action`, `space_name`, `space_slug`, `space_city`, `invite_code` (for create)
-- Pass `space_action`, `join_invite_code` (for join)
-- Remove all manual supabase.from() inserts
-- Trigger (003_signup_trigger.sql) already handles everything with security definer
-
-**Files**: `/app/signup/page.tsx`
-
-### 2. App Layout References Non-Existent Column ❌
-**Problem**: Layout queries `approved` column but schema only has `status`
-
-**Fix**: Change `.eq('approved', true)` to `.eq('status', 'active')`
-
-**Files**: `/app/(app)/layout.tsx`
-
-### 3. Login/Signup UI Changed from V5 ❌
-**Problem**: User says login/signup UI changed from mockup version
-
-**Fix**: Restore exact dark theme with lime-yellow accent (#d4f53c), grid background, monospace everything
-- Login: same styling as mockup screenshot
-- Signup: single-step form with inline "Create/Join" toggle, not two-step flow
-
-**Files**: `/app/login/page.tsx`, `/app/signup/page.tsx`
+> **Last Updated**: 2026-03-10  
+> **Full Documentation**: See `/docs` folder
 
 ---
 
-## UI/UX Issues
+## Quick Status
 
-### 4. Dashboard Has Undefined Variables ❌
-**Problem**: Dashboard references `activeMembers`, `openPayments`, `openTasks`, `tasks`, `projects`, `activity` but never queries them
-
-**Fix**: Add proper Supabase queries for all stats and data
-
-**Files**: `/app/(app)/dashboard/page.tsx`
-
-### 5. Comms Incorrectly Attributes CLASP ❌
-**Problem**: Comms says "powered by CLASP" but we're using Supabase Realtime, not the CLASP relay
-
-**Fix**: Remove CLASP attribution entirely
-
-**Files**: `/app/(app)/comms/comms-client.tsx`
-
-### 6. App Shell Component Not Used ❌
-**Problem**: AppShell component exists but layout doesn't use it
-
-**Fix**: Update layout to use AppShell wrapper
-
-**Files**: `/app/(app)/layout.tsx`, `/components/app-shell.tsx`
+| Category | Status | Details |
+|----------|--------|---------|
+| **Database** | STABLE | 13 tables, RLS enabled, migrations complete |
+| **Authentication** | WORKING | Signup, login, session management |
+| **Core Features** | FUNCTIONAL | Tasks, projects, members, payments, comms |
+| **Integrations** | UI ONLY | Payment platforms need API implementation |
+| **Security** | NEEDS WORK | Input validation, rate limiting, encryption |
+| **Testing** | MISSING | No test suite |
 
 ---
 
-## Non-Functional Features (UI-Only, No Backend)
+## Critical Path to Production
 
-### 7. Payment Integration Buttons Do Nothing ❌
-**Problem**: PayPal/Zeffy/Venmo "Connect" buttons are placeholders
+### Must Fix Before Launch
 
-**Fix**: Implement OAuth flows + API key management for each:
-- **PayPal**: OAuth 2.0 → store credentials encrypted → sync transactions API
-- **Zeffy**: API key input → store encrypted → webhook listener
-- **Venmo**: Business API (if available) or manual CSV import fallback
+1. **Input Validation** - Add Zod schemas to all server actions
+2. **Rate Limiting** - Implement via Upstash
+3. **Secrets Encryption** - Encrypt stored credentials
+4. **Error Boundaries** - Add to all routes
+5. **Social Auth** - Wire up GitHub/Google buttons
 
-**Files**: `/app/(app)/settings/settings-client.tsx`, create `/app/api/integrations/[platform]/route.ts`
+### Should Fix Before Launch
 
-### 8. Payment Reconciliation "Link Member" Buttons Do Nothing ❌
-**Problem**: Clicking "+ Link member" does nothing
-
-**Fix**: Create modal/dialog with member search/select, update payment.member_id
-
-**Files**: `/app/(app)/payments/page.tsx`
-
-### 9. Sync Platforms Button Does Nothing ❌
-**Problem**: "Sync Platforms" button is placeholder
-
-**Fix**: Call APIs for connected platforms, fetch recent transactions, insert/update payments table
-
-**Files**: `/app/(app)/payments/page.tsx`
-
-### 10. Log Cash Button Does Nothing ❌
-**Problem**: "Log Cash" button is placeholder
-
-**Fix**: Create dialog to manually log cash payment with amount, member, date, note
-
-**Files**: `/app/(app)/payments/page.tsx`
-
-### 11. Settings "Save Changes" Doesn't Actually Save ❌
-**Problem**: Settings has client-side state but doesn't persist beyond current session
-
-**Fix**: Verify Update queries are working, add error handling
-
-**Files**: `/app/(app)/settings/settings-client.tsx`
-
-### 12. Import/Sync CSV Upload Does Nothing ❌
-**Problem**: CSV upload UI exists but file handling is incomplete
-
-**Fix**: Add file upload → parse CSV → preview → map columns → validate → batch insert with error handling
-
-**Files**: `/app/(app)/import/page.tsx`
-
-### 13. Database Connector Doesn't Connect ❌
-**Problem**: "Connect & Map Schema" button placeholder
-
-**Fix**: Implement connection string parsing → test connection → fetch schema → generate mapping → preview import
-
-**Files**: `/app/(app)/import/page.tsx`
-
-### 14. Task/Chore "Claim" Buttons Don't Work ❌
-**Problem**: Claim buttons are placeholders
-
-**Fix**: Update task status to 'claimed', set claimed_by to current user, refresh data
-
-**Files**: `/app/(app)/dashboard/page.tsx`, `/app/(app)/tasks/page.tsx`
-
-### 15. Quick Task Button Goes Nowhere ❌
-**Problem**: "+ Quick Task" button links to non-existent `/tasks/new`
-
-**Fix**: Create task creation modal or page
-
-**Files**: `/app/(app)/dashboard/page.tsx`, create `/app/(app)/tasks/new/page.tsx` or modal
-
-### 16. Members Page "Add Member" Does Nothing ❌
-**Problem**: "+ Add Member" button placeholder
-
-**Fix**: Create modal to manually add member or send invite
-
-**Files**: `/app/(app)/members/page.tsx`
-
-### 17. Projects "New Project" Does Nothing ❌
-**Problem**: "+ New Project" button placeholder
-
-**Fix**: Create project creation modal/page
-
-**Files**: `/app/(app)/projects/page.tsx`
-
-### 18. Contacts "Add Contact" Does Nothing ❌
-**Problem**: "+ Add Contact" button placeholder
-
-**Fix**: Create contact creation modal/page
-
-**Files**: `/app/(app)/contacts/page.tsx`
-
-### 19. Ops & Facilities "Add Entry" Does Nothing ❌
-**Problem**: "+ Add Entry" button placeholder
-
-**Fix**: Create KB/secret entry creation modal/page with access control
-
-**Files**: `/app/(app)/ops/page.tsx`
+6. Payment platform API integrations
+7. Email notifications
+8. CSV import functionality
+9. Webhook endpoint
+10. Loading states
 
 ---
 
-## Testing
+## Documentation
 
-### 20. No Tests Exist ❌
-**Problem**: User requested tests for everything
+Comprehensive documentation is available in `/docs`:
 
-**Fix**: Add Vitest + React Testing Library, write:
-- Unit tests for all utility functions
-- Integration tests for auth flows
-- Component tests for critical UI
-- E2E tests for happy paths (signup → dashboard → claim task → etc)
-
-**Files**: Create `/tests/*`, add vitest config
+| Document | Purpose |
+|----------|---------|
+| [docs/README.md](./docs/README.md) | Documentation index and quick start |
+| [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | System design and tech stack |
+| [docs/DATABASE_SCHEMA.md](./docs/DATABASE_SCHEMA.md) | Complete database reference |
+| [docs/API_REFERENCE.md](./docs/API_REFERENCE.md) | All server actions |
+| [docs/COMPONENT_REFERENCE.md](./docs/COMPONENT_REFERENCE.md) | React components |
+| [docs/PRODUCTION_AUDIT.md](./docs/PRODUCTION_AUDIT.md) | Full security/functionality audit |
 
 ---
 
-## Summary Stats
-- **Blocking Issues**: 3 (signup broken, layout SQL error, UI mismatch)
-- **Non-Functional Features**: 17
-- **Total Issues**: 20
+## What Works
 
-## Implementation Priority
-1. Fix signup flow (trigger-based)
-2. Fix app layout SQL query
-3. Restore auth page UI to match mockups
-4. Add all missing queries to dashboard
-5. Remove CLASP attribution
-6. Implement payment platform integrations
-7. Make all buttons functional
-8. Write comprehensive test suite
+- User signup (create space / join space)
+- User login
+- Dashboard with real data
+- Task CRUD (create, claim, complete, delete)
+- Project CRUD with kanban
+- Member management (add, edit, approve, remove)
+- Payment logging and linking
+- Real-time chat
+- Contacts CRUD
+- Knowledge base viewing
+- Settings management
+- Integration config storage
+
+---
+
+## What Needs Work
+
+### High Priority
+- [ ] Social auth (GitHub, Google)
+- [ ] CSV import processing
+- [ ] Payment API integrations
+- [ ] Webhook endpoint
+- [ ] Error boundaries
+- [ ] Email notifications
+
+### Medium Priority
+- [ ] Knowledge base CRUD UI
+- [ ] Secrets CRUD UI
+- [ ] Area leads management
+- [ ] Task recurrence automation
+- [ ] Database connector
+
+### Low Priority
+- [ ] Mobile optimization
+- [ ] Keyboard shortcuts
+- [ ] Data export
+- [ ] PWA support
+
+---
+
+## Database Health
+
+All tables verified via live schema query (2026-03-10):
+
+| Table | Rows | RLS | Status |
+|-------|------|-----|--------|
+| spaces | - | Yes | OK |
+| space_members | - | Yes | OK |
+| tasks | - | Yes | OK |
+| projects | - | Yes | OK |
+| knowledge_base | - | Yes | OK |
+| secrets | - | Yes | OK |
+| area_leads | - | Yes | OK |
+| contacts | - | Yes | OK |
+| payments | - | Yes | OK |
+| comms_channels | - | Yes | OK |
+| comms_messages | - | Yes | OK |
+| integrations | - | Yes | OK |
+| activity_log | - | Yes | OK |
+
+---
+
+## Next Steps
+
+1. Review `/docs/PRODUCTION_AUDIT.md` for full issue list
+2. Prioritize CRITICAL issues (security)
+3. Implement fixes per action plan
+4. Write test suite
+5. Security penetration test
+6. Load testing
+7. Production deployment
