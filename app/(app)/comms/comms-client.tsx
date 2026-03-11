@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Hash, Users2 } from 'lucide-react'
+import { Hash, Users2, Send } from 'lucide-react'
 
 interface Props {
   member: any
@@ -20,18 +20,50 @@ export default function CommsClient({ member, space, channels }: Props) {
   useEffect(() => {
     if (!selectedChannel) return
     loadMessages()
-    
+
     const supabase = createClient()
     const subscription = supabase
       .channel(`channel:${selectedChannel.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'comms_messages', filter: `channel_id=eq.${selectedChannel.id}` }, payload => {
-        if (payload.eventType === 'INSERT') {
-          setMessages(prev => [...prev, payload.new])
-        }
-      })
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'comms_messages',
+          filter: `channel_id=eq.${selectedChannel.id}`,
+        },
+        payload => {
+          setMessages(prev => {
+            // Dedup: don't add if we already have a message with this id
+            // (e.g. from the optimistic update that was then confirmed)
+            if (prev.some(m => m.id === payload.new.id)) return prev
+            // Also replace any temp message from same user sent at ~same time
+            const hasTempForThisUser = prev.some(
+              m =>
+                typeof m.id === 'string' &&
+                m.id.startsWith('temp-') &&
+                m.user_id === payload.new.user_id &&
+                m.content === payload.new.content,
+            )
+            if (hasTempForThisUser) {
+              return prev.map(m =>
+                typeof m.id === 'string' &&
+                m.id.startsWith('temp-') &&
+                m.user_id === payload.new.user_id &&
+                m.content === payload.new.content
+                  ? payload.new
+                  : m,
+              )
+            }
+            return [...prev, payload.new]
+          })
+        },
+      )
       .subscribe()
 
-    return () => { subscription.unsubscribe() }
+    return () => {
+      subscription.unsubscribe()
+    }
   }, [selectedChannel])
 
   useEffect(() => {
@@ -51,19 +83,56 @@ export default function CommsClient({ member, space, channels }: Props) {
 
   async function sendMessage(e: React.FormEvent) {
     e.preventDefault()
-    if (!newMessage.trim() || sending) return
+    const content = newMessage.trim()
+    if (!content || sending) return
     setSending(true)
-    const supabase = createClient()
-    await supabase.from('comms_messages').insert({
+
+    // Optimistic insert — message appears immediately for the sender
+    const tempId = `temp-${Date.now()}`
+    const optimisticMsg = {
+      id: tempId,
       channel_id: selectedChannel.id,
       space_id: space?.id ?? member.space_id,
       user_id: member.user_id,
       display_name: member.display_name,
       handle: member.handle,
-      content: newMessage.trim(),
-    })
+      content,
+      created_at: new Date().toISOString(),
+    }
+    setMessages(prev => [...prev, optimisticMsg])
     setNewMessage('')
+
+    const supabase = createClient()
+    const { data, error } = await supabase
+      .from('comms_messages')
+      .insert({
+        channel_id: selectedChannel.id,
+        space_id: space?.id ?? member.space_id,
+        user_id: member.user_id,
+        display_name: member.display_name,
+        handle: member.handle,
+        content,
+      })
+      .select()
+      .single()
+
+    if (error) {
+      // Roll back optimistic message on failure
+      setMessages(prev => prev.filter(m => m.id !== tempId))
+      setNewMessage(content)
+    } else if (data) {
+      // Replace temp with confirmed message (realtime may also fire — dedup handles it)
+      setMessages(prev => prev.map(m => (m.id === tempId ? data : m)))
+    }
+
     setSending(false)
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      sendMessage(e as unknown as React.FormEvent)
+    }
   }
 
   const generalChannels = channels.filter(c => c.channel_type === 'general')
@@ -151,7 +220,7 @@ export default function CommsClient({ member, space, channels }: Props) {
                     }`}
                   >
                     <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
                     </svg>
                     <span className="truncate">{channel.name}</span>
                   </button>
@@ -161,12 +230,12 @@ export default function CommsClient({ member, space, channels }: Props) {
           </div>
         </aside>
 
-        {/* Messages area */}
+        {/* Main chat area */}
         {selectedChannel ? (
-          <div className="flex-1 flex flex-col">
+          <div className="flex-1 flex flex-col overflow-hidden">
             {/* Channel header */}
-            <div className="px-4 py-3 border-b border-border flex items-center gap-2">
-              <Hash className="w-5 h-5 text-primary" />
+            <div className="bg-card border-b border-border px-4 py-3 flex items-center gap-2">
+              <Hash className="w-4 h-4 text-muted-foreground" />
               <div>
                 <p className="font-sans text-sm font-medium text-foreground">{selectedChannel.name}</p>
                 {selectedChannel.description && (
@@ -181,33 +250,41 @@ export default function CommsClient({ member, space, channels }: Props) {
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {messages.map((msg, i) => {
-                const showAvatar = i === 0 || messages[i - 1]?.user_id !== msg.user_id
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {messages.length === 0 && (
+                <div className="flex items-center justify-center h-full">
+                  <p className="font-sans text-sm text-muted-foreground">No messages yet. Say hello!</p>
+                </div>
+              )}
+              {messages.map(msg => {
+                const isMe = msg.user_id === member.user_id
+                const isTemp = typeof msg.id === 'string' && msg.id.startsWith('temp-')
                 return (
-                    <div key={msg.id} className={`flex items-start gap-3 ${showAvatar ? '' : 'pl-[52px]'}`}>
-                    {showAvatar && (
-                      <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center text-[10px] font-mono font-bold text-primary flex-shrink-0">
-                        {(msg.display_name || 'U').split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      {showAvatar && (
-                        <div className="flex items-baseline gap-2 mb-0.5">
-                          <span className="font-sans text-sm font-medium text-foreground">{msg.display_name || 'Unknown'}</span>
-                          {msg.handle && <span className="font-mono text-[10px] text-muted-foreground">@{msg.handle}</span>}
-                          <span className="font-mono text-[10px] text-muted-foreground">
-                            {new Date(msg.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                  <div key={msg.id} className={`flex gap-3 ${isMe ? 'flex-row-reverse' : ''}`}>
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-mono font-bold flex-shrink-0 ${
+                      isMe ? 'bg-primary text-white' : 'bg-muted text-muted-foreground'
+                    }`}>
+                      {(msg.display_name || msg.handle || '?').slice(0, 2).toUpperCase()}
+                    </div>
+                    <div className={`max-w-[65%] ${isMe ? 'items-end' : 'items-start'} flex flex-col gap-0.5`}>
+                      <div className="flex items-center gap-2">
+                        {!isMe && (
+                          <span className="font-sans text-xs font-medium text-foreground">
+                            {msg.display_name || msg.handle}
                           </span>
-                        </div>
-                      )}
-                      <p className="font-sans text-sm text-foreground leading-relaxed break-words">
-                        {(msg.content || '').split(/(@\w+|#\w+)/g).map((part: string, j: number) => {
-                          if (part.startsWith('@')) return <span key={j} className="text-primary font-medium">{part}</span>
-                          if (part.startsWith('#')) return <span key={j} className="text-blue-600 font-medium">{part}</span>
-                          return part
-                        })}
-                      </p>
+                        )}
+                        <span className="font-mono text-[10px] text-muted-foreground/60">
+                          {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {isTemp && ' · sending...'}
+                        </span>
+                      </div>
+                      <div className={`px-3 py-2 rounded-2xl font-sans text-sm leading-relaxed ${
+                        isMe
+                          ? `bg-primary text-white rounded-tr-sm ${isTemp ? 'opacity-70' : ''}`
+                          : 'bg-card border border-border text-foreground rounded-tl-sm'
+                      }`}>
+                        {msg.content}
+                      </div>
                     </div>
                   </div>
                 )
@@ -215,29 +292,35 @@ export default function CommsClient({ member, space, channels }: Props) {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Input */}
-            <div className="p-4 border-t border-border">
+            {/* Message input */}
+            <div className="p-4 border-t border-border bg-card">
               <form onSubmit={sendMessage} className="flex gap-2">
                 <input
                   type="text"
                   value={newMessage}
                   onChange={e => setNewMessage(e.target.value)}
+                  onKeyDown={handleKeyDown}
                   placeholder={`Message #${selectedChannel.name}`}
-                  className="flex-1 bg-muted border border-border rounded px-3 py-2 font-sans text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition"
+                  className="flex-1 bg-background border border-border rounded-full px-4 py-2 font-sans text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition"
+                  disabled={sending}
                 />
                 <button
                   type="submit"
                   disabled={!newMessage.trim() || sending}
-                  className="bg-primary text-white px-4 py-2 rounded font-sans text-sm hover:bg-primary/90 transition disabled:opacity-40"
+                  className="w-9 h-9 bg-primary text-white rounded-full flex items-center justify-center hover:bg-primary/90 transition disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
+                  aria-label="Send message"
                 >
-                  Send
+                  <Send className="w-4 h-4" />
                 </button>
               </form>
+              <p className="font-mono text-[10px] text-muted-foreground/50 mt-1.5 px-2">
+                Press Enter to send
+              </p>
             </div>
           </div>
         ) : (
-          <div className="flex-1 flex items-center justify-center text-muted-foreground">
-            <p className="font-sans text-sm">Select a channel to view messages</p>
+          <div className="flex-1 flex items-center justify-center">
+            <p className="font-sans text-sm text-muted-foreground">Select a channel to start messaging</p>
           </div>
         )}
       </div>

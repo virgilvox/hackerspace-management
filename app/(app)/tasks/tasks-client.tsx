@@ -54,10 +54,12 @@ export function TasksClient({ tasks: initialTasks, members, currentUserId, space
   const [formLoading, setFormLoading] = useState(false)
 
   // Ongoing = tasks with a recurrence (not 'none')
-  const chores = tasks.filter(t => (t.type === 'chore' || t.task_type === 'chore') && t.status !== 'done' && (!t.recurrence || t.recurrence === 'none'))
-  const ongoing = tasks.filter(t => t.recurrence && t.recurrence !== 'none' && t.status !== 'done')
-  const mine = tasks.filter(t => (t.claimed_by === currentUserId || t.assigned_to === currentUserId) && t.status !== 'done')
-  const done = tasks.filter(t => t.status === 'done')
+  const isDone = (t: any) => t.status === 'done' || t.status === 'completed'
+  const isOpen = (t: any) => !isDone(t)
+  const chores = tasks.filter(t => (t.type === 'chore' || t.task_type === 'chore') && isOpen(t) && (!t.recurrence || t.recurrence === 'none'))
+  const ongoing = tasks.filter(t => t.recurrence && t.recurrence !== 'none' && isOpen(t))
+  const mine = tasks.filter(t => (t.claimed_by === currentUserId || t.assigned_to === currentUserId) && isOpen(t))
+  const done = tasks.filter(isDone)
 
   const filtered = (list: Task[]) => filterArea ? list.filter(t => t.area === filterArea) : list
 
@@ -100,7 +102,7 @@ export function TasksClient({ tasks: initialTasks, members, currentUserId, space
   async function handleComplete(taskId: string) {
     const result = await completeTask(taskId)
     if (!result.error) {
-      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'done' } : t))
+      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'completed' } : t))
     }
   }
 
@@ -123,7 +125,7 @@ export function TasksClient({ tasks: initialTasks, members, currentUserId, space
       <div className="bg-sidebar px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h1 className="text-white font-sans text-lg font-semibold">Tasks & Chores</h1>
-          <span className="font-mono text-xs text-white/50">{tasks.filter(t => t.status !== 'done').length} open</span>
+            <span className="font-mono text-xs text-white/50">{tasks.filter(t => !isDone(t)).length} open</span>
         </div>
         <div className="flex items-center gap-2">
           <select
@@ -168,12 +170,12 @@ export function TasksClient({ tasks: initialTasks, members, currentUserId, space
         <div className="bg-card rounded border border-border divide-y divide-border">
           {currentList.length > 0 ? currentList.map(task => (
             <div key={task.id} className={`flex items-center gap-3 px-4 py-3 ${
-              task.status === 'done' ? 'opacity-60' : ''
+              task.status === 'done' || task.status === 'completed' ? 'opacity-60' : ''
             }`}>
               <div className={`w-4 h-4 rounded flex-shrink-0 flex items-center justify-center ${
-                task.status === 'done' ? 'bg-primary' : 'border-2 border-border'
+                isDone(task) ? 'bg-primary' : 'border-2 border-border'
               }`}>
-                {task.status === 'done' && (
+                {isDone(task) && (
                   <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                   </svg>
@@ -181,7 +183,7 @@ export function TasksClient({ tasks: initialTasks, members, currentUserId, space
               </div>
 
               <div className="flex-1 min-w-0">
-                <p className={`font-sans text-sm ${task.status === 'done' ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                <p className={`font-sans text-sm ${isDone(task) ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
                   {task.title}
                 </p>
                 <p className="font-mono text-[10px] text-muted-foreground mt-0.5">
@@ -199,7 +201,7 @@ export function TasksClient({ tasks: initialTasks, members, currentUserId, space
                 task.status === 'claimed' ? 'text-primary bg-primary/10' :
                 task.status === 'in_progress' ? 'text-blue-600 bg-blue-50' :
                 task.status === 'blocked' ? 'text-orange-600 bg-orange-50' :
-                task.status === 'done' ? 'text-muted-foreground bg-muted' :
+                isDone(task) ? 'text-muted-foreground bg-muted' :
                 'text-muted-foreground bg-muted'
               }`}>
                 {task.status.toUpperCase().replace('_', ' ')}
