@@ -154,23 +154,25 @@ export function PaymentsClient({ payments: initialPayments, members, integration
                   <p className={`font-mono text-[10px] tracking-widest font-bold ${platformColors[platform]}`}>
                     {platform.toUpperCase()}
                   </p>
-                  {platform !== 'cash' && (
-                    <span className={`font-mono text-[10px] px-1.5 py-0.5 rounded border ${
-                      integration?.is_connected ? 'text-primary border-primary/30 bg-primary/5' : 'text-muted-foreground border-border bg-muted'
-                    }`}>
-                {integration?.is_connected ? 'LIVE' : 'NOT CONNECTED'}
-                </span>
-                )}
-                {platform === 'paypal' && integration?.is_connected && canEdit(currentRole) && (
-                  <button
-                    onClick={handlePayPalSync}
-                    disabled={syncing}
-                    className="flex items-center gap-1 font-mono text-[10px] border border-blue-300 text-blue-600 bg-blue-50 px-2 py-0.5 rounded hover:bg-blue-100 transition disabled:opacity-50"
-                  >
-                    <RefreshCcw className={`w-2.5 h-2.5 ${syncing ? 'animate-spin' : ''}`} />
-                    {syncing ? 'Syncing...' : 'Sync Now'}
-                  </button>
-                )}
+                  <div className="flex items-center gap-2">
+                    {platform !== 'cash' && (
+                      <span className={`font-mono text-[10px] px-1.5 py-0.5 rounded border ${
+                        integration?.is_connected ? 'text-primary border-primary/30 bg-primary/5' : 'text-muted-foreground border-border bg-muted'
+                      }`}>
+                        {integration?.is_connected ? 'LIVE' : 'NOT CONNECTED'}
+                      </span>
+                    )}
+                    {platform === 'paypal' && integration?.is_connected && canEdit(currentRole) && (
+                      <button
+                        onClick={handlePayPalSync}
+                        disabled={syncing}
+                        className="flex items-center gap-1 font-mono text-[10px] border border-blue-300 text-blue-600 bg-blue-50 px-2 py-0.5 rounded hover:bg-blue-100 transition disabled:opacity-50"
+                      >
+                        <RefreshCcw className={`w-2.5 h-2.5 ${syncing ? 'animate-spin' : ''}`} />
+                        {syncing ? 'Syncing...' : 'Sync Now'}
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <p className="text-2xl font-sans font-bold text-foreground">${total.toFixed(0)}</p>
                 <p className="font-mono text-[10px] text-muted-foreground mt-1">
