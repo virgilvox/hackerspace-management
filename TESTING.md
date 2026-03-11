@@ -5,34 +5,68 @@ This project uses **Vitest** for unit/integration tests and **Playwright** for e
 ## Quick Start
 
 ```bash
+# Install Playwright browsers (first time only)
+npx playwright install
+
 # Run unit tests (watch mode)
-npm test
+pnpm test
 
 # Run unit tests with UI
-npm run test:ui
+pnpm test:ui
 
 # Run E2E tests
-npm run test:e2e
+pnpm test:e2e
 
 # Run E2E tests with UI
-npm run test:e2e:ui
+pnpm test:e2e:ui
 ```
+
+## Test Coverage
+
+| Category | Tests | Coverage |
+|----------|-------|----------|
+| Actions | 50+ | Auth, Tasks, Projects, Members, Payments, Contacts, KB, Secrets |
+| Components | 30+ | Badges, Tabs, Cards, Status, Toast, Empty, Loading |
+| Utilities | 40+ | Date, String, Number, Array, Validation, URL |
+| E2E Flows | 50+ | Auth, Dashboard, Tasks, Ops, Members, Payments, Projects |
 
 ## Unit Tests (Vitest)
 
-Unit tests are located in `__tests__/` directory and test individual functions, hooks, and components in isolation.
+Unit tests are located in `__tests__/` directory.
 
 ### Test Structure
 
-- **`__tests__/actions.test.ts`** - Tests for server actions and business logic
-  - Member status validation
-  - Task filtering logic
-  - Database constraints
+- **`__tests__/actions.test.ts`** - Server actions and business logic (50+ tests)
+  - Authentication (signIn, signOut, getUser)
+  - Member status validation (current, unverified, late)
+  - Task CRUD and filtering
+  - Project management
+  - Member management (role-based access)
+  - Payment management (treasurer access)
+  - Contact management
+  - Knowledge base operations
+  - Secrets management
+  - Activity logging
+  - RLS policy validation
 
-- **`__tests__/components.test.tsx`** - Tests for React components
-  - Component rendering
-  - User interactions
-  - State management
+- **`__tests__/components.test.tsx`** - React components (30+ tests)
+  - TaskBadge (count display, overflow)
+  - TabButton (active states, click handlers)
+  - TaskCard (claim, complete, delete actions)
+  - StatusBadge (color coding by status)
+  - Toast notifications
+  - Empty states
+  - Loading spinners
+  - Task filtering logic
+
+- **`__tests__/utils.test.ts`** - Utility functions (40+ tests)
+  - Date formatting and comparison
+  - String manipulation (initials, codes, truncation)
+  - Number formatting (currency)
+  - Array operations (groupBy, sortBy, unique)
+  - Validation (email, phone, required fields)
+  - URL utilities
+  - Status and role checks
 
 ### Writing Tests
 
@@ -72,15 +106,33 @@ it('should fetch data', async () => {
 
 ## E2E Tests (Playwright)
 
-E2E tests are located in `e2e/` directory and test complete user flows across the entire application.
+E2E tests are located in `e2e/` directory and test complete user flows.
 
 ### Test Structure
 
-- **`e2e/critical-flows.spec.ts`** - Critical user journeys
-  - Authentication and dashboard access
-  - Task creation and management
-  - Member operations
-  - Secrets/ops management
+- **`e2e/critical-flows.spec.ts`** - Critical user journeys (40+ tests)
+  - Landing & authentication
+  - Dashboard loading and navigation
+  - Tasks management (tabs, filtering, creation)
+  - Operations & knowledge base
+  - Members management
+  - Payments management
+  - Projects management
+  - Contacts management
+  - Communications
+  - Settings
+  - Mobile navigation
+  - Error handling
+  - Performance (load time checks)
+  - Accessibility (headings, alt text, focus)
+
+- **`e2e/auth.spec.ts`** - Authentication flows (15+ tests)
+  - Login form display and validation
+  - Signup flow
+  - Session management
+  - Protected route access
+  - Password reset
+  - OAuth (if configured)
 
 ### Writing E2E Tests
 
