@@ -170,6 +170,7 @@ export function PaymentsClient({ payments: initialPayments, members, integration
                     <RefreshCcw className={`w-2.5 h-2.5 ${syncing ? 'animate-spin' : ''}`} />
                     {syncing ? 'Syncing...' : 'Sync Now'}
                   </button>
+                )}
                 </div>
                 <p className="text-2xl font-sans font-bold text-foreground">${total.toFixed(0)}</p>
                 <p className="font-mono text-[10px] text-muted-foreground mt-1">
