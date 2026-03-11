@@ -13,7 +13,7 @@
 | `member_role` | `admin`, `board`, `treasurer`, `member`, `associate` |
 | `member_tier` | `plus`, `basic`, `associate` |
 | `member_status` | `current`, `late`, `inactive`, `unverified` — **NOT** `active` or `pending` |
-| `task_type` | `chore`, `task` — column is named **`type`**, NOT `task_type`. NO `ongoing` |
+| `task_type` | `chore`, `task` — DB column is **`task_type`** (enum name and column name match) |
 | `task_status` | `open`, `claimed`, `in_progress`, `overdue`, `due_today`, `completed`, `done`, `blocked` |
 | `recurrence_type` | `daily`, `weekly`, `biweekly`, `monthly`, `none` — NO `quarterly` |
 | `project_status` | `backlog`, `in_progress`, `review`, `done`, `blocked` |
@@ -66,13 +66,14 @@
 | `payment_status` | text | nullable |
 | `payment_note` | text | nullable |
 | `joined_at` | timestamptz | |
-| `last_paid_at` | timestamptz | nullable — **NOT** `last_payment_at` |
+| `last_payment_at` | timestamptz | nullable — legacy, **also has `last_paid_at`** |
+| `last_paid_at` | timestamptz | nullable — added script 013; used by importMembers / linkPaymentToMember |
 | `has_card_access` | boolean | default false |
 | `approved` | boolean | default **true** (fixed script 008) |
 | UNIQUE | `(space_id, user_id)` | |
 | UNIQUE | `(space_id, email)` | added script 009 |
 
-**Does NOT have:** `last_payment_at`, `approved_at`, `bio`, `avatar_url`
+**Does NOT have:** `last_payment_at` (has both `last_payment_at` and `last_paid_at`), `approved_at`, `bio`, `avatar_url`
 
 ---
 
@@ -83,7 +84,7 @@
 | `space_id` | uuid FK → spaces | NOT NULL |
 | `title` | text NOT NULL | |
 | `description` | text | nullable |
-| `type` | task_type | default `'task'` — column is **`type`**, NOT `task_type` |
+| `task_type` | task_type | default `'task'` — column is **`task_type`**, matching the enum name |
 | `status` | task_status | default `'open'` — use `'completed'` not `'done'` |
 | `area` | text | nullable |
 | `recurrence` | recurrence_type | default `'none'` |
@@ -101,7 +102,7 @@
 | `created_at` | timestamptz | |
 | `updated_at` | timestamptz | |
 
-**Does NOT have:** `task_type`, `progress`, `blocked`, `priority`
+**Does NOT have:** `type` (use `task_type`), `progress`, `blocked`, `priority`
 
 ---
 
@@ -386,3 +387,6 @@ Default channels created by trigger on space INSERT: `general`, `announcements`,
 | 008 | space_members.approved default=true; backfilled NULLs — fixed login loop |
 | 009 | space_members INSERT RLS: allow admin/board inserts; added UNIQUE(space_id,email) |
 | 010 | Fixed create_default_channels trigger — removed non-existent `description` column |
+| 011 | Renamed tasks `type` column to `task_type` (canonical enum column name) |
+| 012 | Canonical sync — task_type enum, cleaned duplicate columns |
+| 013 | Added `space_members.last_paid_at` timestamptz — required by importMembers and linkPaymentToMember |

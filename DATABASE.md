@@ -12,20 +12,6 @@ scripts/schema.sql
 
 This creates the entire schema from scratch — all tables, enums, indexes, RLS policies, functions, and triggers. Idempotent, can be run multiple times safely.
 
-### Existing deployment migration
-
-If you have a legacy Hackerspace database and want to sync it to the canonical schema:
-
-```
-scripts/012_canonical_sync.sql
-```
-
-This migration adds all missing columns, renames `full_name` → `display_name`, creates missing constraints, fixes the auth trigger, and updates all other tables to match the canonical schema. Also idempotent — safe to run multiple times.
-
-### Migration history (reference only)
-
-Scripts `001_*` through `011_*` represent the evolution of the live database. **Do not re-run them.** They exist for historical reference.
-
 ### What `schema.sql` contains
 
 | Section | Contents |

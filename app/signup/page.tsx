@@ -59,7 +59,7 @@ export default function SignupPage() {
     setLoading(true)
     setError('')
 
-    // Returning user — call server actions (runs server-side, bypasses any client RLS issues)
+    // Returning user — already has a session, just create/join
     if (isReturningUser) {
       const result = mode === 'create'
         ? await createSpace({ spaceName, spaceSlug, spaceCity, displayName: fullName })
@@ -70,8 +70,8 @@ export default function SignupPage() {
         setLoading(false)
         return
       }
-      router.push('/dashboard')
-      router.refresh()
+      // Hard navigate so server layout re-reads cookies fresh
+      window.location.href = '/dashboard'
       return
     }
 
@@ -111,7 +111,14 @@ export default function SignupPage() {
     // disabled — the user is fully signed up AND signed in in one step.
     // We still need to create the space/member record via the server action.
     if (authData.session) {
-      // User is now authenticated — create the space or join via server action
+      // Manually set the session so server-side cookies are flushed before
+      // we call the server action (which needs auth.getUser() to succeed).
+      const supabaseClient = createClient()
+      await supabaseClient.auth.setSession({
+        access_token: authData.session.access_token,
+        refresh_token: authData.session.refresh_token,
+      })
+
       const result = mode === 'create'
         ? await createSpace({ spaceName, spaceSlug, spaceCity, displayName: fullName })
         : await joinSpace({ inviteCode, displayName: fullName })
@@ -121,8 +128,9 @@ export default function SignupPage() {
         setLoading(false)
         return
       }
-      router.push('/dashboard')
-      router.refresh()
+
+      // Hard navigate so the server re-reads cookies and picks up the session
+      window.location.href = '/dashboard'
       return
     }
 

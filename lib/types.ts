@@ -49,7 +49,7 @@ export interface SpaceMember {
 export interface Task {
   id: string
   space_id: string
-  type: TaskType
+  task_type: TaskType
   title: string
   description?: string
   status: TaskStatus
