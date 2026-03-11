@@ -145,38 +145,44 @@ $$;
 -- ── spaces ───────────────────────────────────────────────────────────────────
 -- Top-level tenant. Each hackerspace is one row.
 CREATE TABLE IF NOT EXISTS public.spaces (
-  id                     uuid        PRIMARY KEY DEFAULT uuid_generate_v4(),
-  name                   text        NOT NULL,
-  slug                   text        NOT NULL UNIQUE,
-  city                   text,
-  require_approval       boolean     NOT NULL DEFAULT true,
-  public_member_directory boolean    NOT NULL DEFAULT false,
-  invite_code            text        NOT NULL UNIQUE,
-  webhook_secret         text,
-  created_at             timestamptz NOT NULL DEFAULT now(),
-  updated_at             timestamptz NOT NULL DEFAULT now()
+  id                      uuid        PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name                    text        NOT NULL,
+  slug                    text        NOT NULL UNIQUE,
+  description             text,
+  logo_url                text,
+  city                    text,
+  address                 text,
+  timezone                text        DEFAULT 'America/Phoenix',
+  invite_code             text,
+  require_approval        boolean     NOT NULL DEFAULT true,
+  public_member_directory boolean     NOT NULL DEFAULT false,
+  webhook_secret          text,
+  settings                jsonb       DEFAULT '{}',
+  created_at              timestamptz NOT NULL DEFAULT now(),
+  updated_at              timestamptz NOT NULL DEFAULT now()
 );
 
 -- ── space_members ─────────────────────────────────────────────────────────────
 -- One row per (user × space). A user may belong to multiple spaces.
 CREATE TABLE IF NOT EXISTS public.space_members (
-  id               uuid         PRIMARY KEY DEFAULT uuid_generate_v4(),
-  space_id         uuid         NOT NULL REFERENCES public.spaces(id) ON DELETE CASCADE,
-  user_id          uuid         REFERENCES auth.users(id) ON DELETE SET NULL,
-  display_name     text         NOT NULL,
-  handle           text,
-  email            text,
-  phone            text,
-  role             member_role  NOT NULL DEFAULT 'member',
-  tier             member_tier  NOT NULL DEFAULT 'basic',
-  status           member_status NOT NULL DEFAULT 'current',
-  approved         boolean      NOT NULL DEFAULT true,
-  has_card_access  boolean      NOT NULL DEFAULT false,
-  payment_status   text,
-  payment_note     text,
-  last_payment_at  timestamptz,
-  last_paid_at     timestamptz,
-  joined_at        timestamptz  NOT NULL DEFAULT now()
+  id                 uuid          PRIMARY KEY DEFAULT uuid_generate_v4(),
+  space_id           uuid          NOT NULL REFERENCES public.spaces(id) ON DELETE CASCADE,
+  user_id            uuid          NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  role               public.member_role   NOT NULL DEFAULT 'member',
+  tier               public.member_tier   NOT NULL DEFAULT 'basic',
+  status             public.member_status NOT NULL DEFAULT 'unverified',
+  approved           boolean       NOT NULL DEFAULT true,
+  full_name          text,
+  email              text,
+  phone              text,
+  bio                text,
+  avatar_url         text,
+  joined_at          timestamptz   DEFAULT now(),
+  dues_paid_until    timestamptz,
+  stripe_customer_id text,
+  created_at         timestamptz   NOT NULL DEFAULT now(),
+  updated_at         timestamptz   NOT NULL DEFAULT now(),
+  UNIQUE (space_id, user_id)
 );
 
 -- ── tasks ────────────────────────────────────────────────────────────────────

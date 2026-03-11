@@ -107,12 +107,26 @@ export default function SignupPage() {
 
     if (authError) { setError(authError.message); setLoading(false); return }
 
+    // If Supabase returns a session immediately it means email confirmation is
+    // disabled — the user is fully signed up AND signed in in one step.
+    // We still need to create the space/member record via the server action.
     if (authData.session) {
+      // User is now authenticated — create the space or join via server action
+      const result = mode === 'create'
+        ? await createSpace({ spaceName, spaceSlug, spaceCity, displayName: fullName })
+        : await joinSpace({ inviteCode, displayName: fullName })
+
+      if (result.error) {
+        setError(result.error)
+        setLoading(false)
+        return
+      }
       router.push('/dashboard')
       router.refresh()
       return
     }
 
+    // Email confirmation is required — redirect to the confirm page
     router.push('/signup/confirm?email=' + encodeURIComponent(email))
   }
 
