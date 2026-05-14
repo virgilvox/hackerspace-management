@@ -26,3 +26,7 @@ playwright-report/
 # Supabase CLI local state
 supabase/.branches/
 supabase/.temp/
+
+# Production deployment secrets (never commit)
+secrets/
+*.pem
