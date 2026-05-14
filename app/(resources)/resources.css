@@ -15,9 +15,14 @@
   --res-text-muted:   #404040;
   --res-accent:       #d4ff00;
 
+  /* next/font/google sets --font-ibm-plex-mono and --font-libre-baskerville
+   * on this element's classlist. Use them so the loaded webfonts actually
+   * render; fall back to the user's system "IBM Plex Mono" / Libre
+   * Baskerville if present, then to generic mono / serif.
+   */
   background: var(--res-bg);
   color: var(--res-text);
-  font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-ibm-plex-mono), 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 16px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
@@ -124,7 +129,7 @@
 }
 
 .resources-root .resources-hero-title {
-  font-family: 'Libre Baskerville', Georgia, serif;
+  font-family: var(--font-libre-baskerville), 'Libre Baskerville', Georgia, serif;
   font-size: clamp(1.75rem, 4vw, 2.5rem);
   font-weight: 400;
   line-height: 1.15;
@@ -227,7 +232,7 @@
 }
 
 .resources-root .resources-card-title {
-  font-family: 'Libre Baskerville', Georgia, serif;
+  font-family: var(--font-libre-baskerville), 'Libre Baskerville', Georgia, serif;
   font-size: 1.625rem;
   font-weight: 400;
   letter-spacing: -0.01em;
@@ -342,7 +347,7 @@
 }
 
 .resources-root .resources-author-name {
-  font-family: 'Libre Baskerville', Georgia, serif;
+  font-family: var(--font-libre-baskerville), 'Libre Baskerville', Georgia, serif;
   font-size: 1.5rem;
   font-weight: 400;
 }

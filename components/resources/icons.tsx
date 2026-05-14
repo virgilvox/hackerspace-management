@@ -15,10 +15,13 @@ export function Wordmark(props: IconProps) {
       className="wordmark"
       {...props}
     >
+      {/* font-family pulls from the parent's CSS, which is the next/font
+        * variable set by `(resources)/layout.tsx`. Falls back through
+        * system mono if for any reason the var is unset. */}
       <text
         x="0"
         y="34"
-        fontFamily="'IBM Plex Mono', monospace"
+        style={{ fontFamily: 'var(--font-ibm-plex-mono), "IBM Plex Mono", ui-monospace, monospace' }}
         fontSize="28"
         fontWeight="500"
         fill="currentColor"
