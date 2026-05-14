@@ -2,7 +2,25 @@ import { updateSession } from '@/lib/supabase/proxy'
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-const PUBLIC_ROUTES = ['/', '/login', '/signup', '/auth', '/api/health']
+// Public routes are reachable without an authenticated session. The
+// /resources subsite is the legacy hackerspace.sh content baked in; the
+// five individual resource routes (/zine, /governance, /space-after-dark,
+// /proposal-duel, /atlas) must keep these exact paths so existing deep
+// links and bookmarks survive the domain switch-over.
+const PUBLIC_ROUTES = [
+  '/',
+  '/login',
+  '/signup',
+  '/auth',
+  '/api/health',
+  '/resources',
+  '/zine',
+  '/governance',
+  '/space-after-dark',
+  '/proposal-duel',
+  '/atlas',
+  '/atlas.html',
+]
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl

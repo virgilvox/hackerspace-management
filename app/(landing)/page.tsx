@@ -315,6 +315,9 @@ export default function LandingPage() {
             <span className="font-mono text-sm font-bold text-white truncate">hackerspace.sh</span>
           </div>
           <div className="flex items-center gap-2 shrink-0">
+            <Link href="/resources" className="hidden sm:inline-flex font-sans text-sm text-sidebar-foreground hover:text-white transition px-3 py-1.5">
+              Resources
+            </Link>
             <Link href="/login" className="font-sans text-sm text-sidebar-foreground hover:text-white transition px-3 py-1.5">
               Log in
             </Link>
@@ -482,6 +485,12 @@ export default function LandingPage() {
               Log in
             </Link>
           </div>
+          <p className="mt-6 font-mono text-xs text-sidebar-foreground/60">
+            Not running a space? Read the{' '}
+            <Link href="/resources" className="text-primary hover:underline">
+              hackerspace research and games →
+            </Link>
+          </p>
         </div>
       </section>
 
