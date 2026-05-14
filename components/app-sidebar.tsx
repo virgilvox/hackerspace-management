@@ -12,6 +12,7 @@ type Space = Tables<'spaces'>
 import {
   Menu, X, LayoutDashboard, ListChecks, FolderKanban, Settings2,
   MessageSquare, Users, CreditCard, BookUser, Download, LogOut,
+  Vote, ShieldAlert, ScrollText, LineChart, UserCircle, UserSearch,
 } from 'lucide-react'
 
 interface NavLinkProps {
@@ -94,11 +95,23 @@ export function AppSidebar({ member, taskBadge = 0, commsBadge = 0, paymentBadge
         <NavLink href="/comms" label="Comms" icon={MessageSquare} active={isActive('/comms')} badge={commsBadge} onClick={onNav} />
 
         <div className="px-3 mt-4 mb-1">
+          <p className="text-[10px] uppercase tracking-widest text-[var(--sidebar-foreground)]/30 px-2 py-1 font-mono">Governance</p>
+        </div>
+        <NavLink href="/proposals" label="Proposals" icon={Vote} active={isActive('/proposals')} onClick={onNav} />
+        <NavLink href="/incidents" label="Incidents" icon={ShieldAlert} active={isActive('/incidents')} onClick={onNav} />
+        <NavLink href="/policies" label="Policies" icon={ScrollText} active={isActive('/policies')} onClick={onNav} />
+
+        <div className="px-3 mt-4 mb-1">
           <p className="text-[10px] uppercase tracking-widest text-[var(--sidebar-foreground)]/30 px-2 py-1 font-mono">People</p>
         </div>
         <NavLink href="/members" label="Members" icon={Users} active={isActive('/members')} onClick={onNav} />
         <NavLink href="/payments" label="Payments" icon={CreditCard} active={isActive('/payments')} badge={paymentBadge} onClick={onNav} />
+        <NavLink href="/financials" label="Financials" icon={LineChart} active={isActive('/financials')} onClick={onNav} />
         <NavLink href="/contacts" label="Contacts" icon={BookUser} active={isActive('/contacts')} onClick={onNav} />
+        <NavLink href="/profile" label="My profile" icon={UserCircle} active={isActive('/profile')} onClick={onNav} />
+        {isAdmin && (
+          <NavLink href="/recruitment" label="Recruitment" icon={UserSearch} active={isActive('/recruitment')} onClick={onNav} />
+        )}
 
         {isAdmin && (
           <>

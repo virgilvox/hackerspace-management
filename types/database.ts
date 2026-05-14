@@ -7,10 +7,30 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.1"
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
   public: {
     Tables: {
@@ -102,6 +122,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "area_leads_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "inactive_members"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "area_leads_lead_id_fkey"
             columns: ["lead_id"]
@@ -309,6 +336,156 @@ export type Database = {
           },
         ]
       }
+      incident_updates: {
+        Row: {
+          author_id: string | null
+          author_name: string | null
+          body: string
+          created_at: string
+          id: string
+          incident_id: string
+          visibility: Database["public"]["Enums"]["incident_update_visibility"]
+        }
+        Insert: {
+          author_id?: string | null
+          author_name?: string | null
+          body: string
+          created_at?: string
+          id?: string
+          incident_id: string
+          visibility?: Database["public"]["Enums"]["incident_update_visibility"]
+        }
+        Update: {
+          author_id?: string | null
+          author_name?: string | null
+          body?: string
+          created_at?: string
+          id?: string
+          incident_id?: string
+          visibility?: Database["public"]["Enums"]["incident_update_visibility"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "incident_updates_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "inactive_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incident_updates_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "space_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incident_updates_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "incidents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      incidents: {
+        Row: {
+          acknowledged_at: string | null
+          appeal_proposal_id: string | null
+          body: string
+          category: string
+          closed_at: string | null
+          created_at: string
+          decided_at: string | null
+          decision_maker_ids: string[]
+          disposition: string | null
+          id: string
+          is_anonymous: boolean
+          reporter_id: string | null
+          reporter_token: string | null
+          severity: Database["public"]["Enums"]["incident_severity"]
+          sla_response_by: string | null
+          space_id: string
+          status: Database["public"]["Enums"]["incident_status"]
+          subjects: string[]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          appeal_proposal_id?: string | null
+          body: string
+          category?: string
+          closed_at?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decision_maker_ids?: string[]
+          disposition?: string | null
+          id?: string
+          is_anonymous?: boolean
+          reporter_id?: string | null
+          reporter_token?: string | null
+          severity?: Database["public"]["Enums"]["incident_severity"]
+          sla_response_by?: string | null
+          space_id: string
+          status?: Database["public"]["Enums"]["incident_status"]
+          subjects?: string[]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          appeal_proposal_id?: string | null
+          body?: string
+          category?: string
+          closed_at?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decision_maker_ids?: string[]
+          disposition?: string | null
+          id?: string
+          is_anonymous?: boolean
+          reporter_id?: string | null
+          reporter_token?: string | null
+          severity?: Database["public"]["Enums"]["incident_severity"]
+          sla_response_by?: string | null
+          space_id?: string
+          status?: Database["public"]["Enums"]["incident_status"]
+          subjects?: string[]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "incidents_appeal_proposal_fk"
+            columns: ["appeal_proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incidents_reporter_id_fkey"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "inactive_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incidents_reporter_id_fkey"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "space_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incidents_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       integrations: {
         Row: {
           config: Json | null
@@ -372,7 +549,9 @@ export type Database = {
           created_by: string | null
           icon: string | null
           id: string
+          is_meeting_minutes: boolean
           is_pinned: boolean
+          meeting_date: string | null
           pinned: boolean
           space_id: string
           tags: string[] | null
@@ -392,7 +571,9 @@ export type Database = {
           created_by?: string | null
           icon?: string | null
           id?: string
+          is_meeting_minutes?: boolean
           is_pinned?: boolean
+          meeting_date?: string | null
           pinned?: boolean
           space_id: string
           tags?: string[] | null
@@ -412,7 +593,9 @@ export type Database = {
           created_by?: string | null
           icon?: string | null
           id?: string
+          is_meeting_minutes?: boolean
           is_pinned?: boolean
+          meeting_date?: string | null
           pinned?: boolean
           space_id?: string
           tags?: string[] | null
@@ -429,6 +612,13 @@ export type Database = {
             columns: ["space_id"]
             isOneToOne: false
             referencedRelation: "spaces"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "knowledge_base_updated_by_id_fkey"
+            columns: ["updated_by_id"]
+            isOneToOne: false
+            referencedRelation: "inactive_members"
             referencedColumns: ["id"]
           },
           {
@@ -512,11 +702,101 @@ export type Database = {
             foreignKeyName: "payments_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
+            referencedRelation: "inactive_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
             referencedRelation: "space_members"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "payments_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      policies: {
+        Row: {
+          adopted_by_proposal_id: string | null
+          body_formal: string
+          body_plain: string | null
+          created_at: string
+          effective_at: string | null
+          id: string
+          parent_policy_id: string | null
+          prior_version_id: string | null
+          section_ref: string | null
+          slug: string
+          space_id: string
+          status: Database["public"]["Enums"]["policy_status"]
+          title: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          adopted_by_proposal_id?: string | null
+          body_formal?: string
+          body_plain?: string | null
+          created_at?: string
+          effective_at?: string | null
+          id?: string
+          parent_policy_id?: string | null
+          prior_version_id?: string | null
+          section_ref?: string | null
+          slug: string
+          space_id: string
+          status?: Database["public"]["Enums"]["policy_status"]
+          title: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          adopted_by_proposal_id?: string | null
+          body_formal?: string
+          body_plain?: string | null
+          created_at?: string
+          effective_at?: string | null
+          id?: string
+          parent_policy_id?: string | null
+          prior_version_id?: string | null
+          section_ref?: string | null
+          slug?: string
+          space_id?: string
+          status?: Database["public"]["Enums"]["policy_status"]
+          title?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "policies_adopted_by_proposal_fk"
+            columns: ["adopted_by_proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "policies_parent_policy_id_fkey"
+            columns: ["parent_policy_id"]
+            isOneToOne: false
+            referencedRelation: "policies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "policies_prior_version_id_fkey"
+            columns: ["prior_version_id"]
+            isOneToOne: false
+            referencedRelation: "policies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "policies_space_id_fkey"
             columns: ["space_id"]
             isOneToOne: false
             referencedRelation: "spaces"
@@ -598,6 +878,181 @@ export type Database = {
           },
         ]
       }
+      proposal_votes: {
+        Row: {
+          comment: string | null
+          id: string
+          member_id: string
+          position: Database["public"]["Enums"]["vote_position"]
+          proposal_id: string
+          recusal_reason: string | null
+          voted_at: string
+        }
+        Insert: {
+          comment?: string | null
+          id?: string
+          member_id: string
+          position: Database["public"]["Enums"]["vote_position"]
+          proposal_id: string
+          recusal_reason?: string | null
+          voted_at?: string
+        }
+        Update: {
+          comment?: string | null
+          id?: string
+          member_id?: string
+          position?: Database["public"]["Enums"]["vote_position"]
+          proposal_id?: string
+          recusal_reason?: string | null
+          voted_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_votes_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "inactive_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposal_votes_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "space_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposal_votes_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      proposals: {
+        Row: {
+          body: string
+          created_at: string
+          decided_at: string | null
+          id: string
+          outcome_abstain: number
+          outcome_no: number
+          outcome_recused: number
+          outcome_yes: number
+          parent_incident_id: string | null
+          passed: boolean | null
+          policy_ref_id: string | null
+          proposal_type: Database["public"]["Enums"]["proposal_type"]
+          proposer_id: string | null
+          proposer_name: string | null
+          quorum_floor: number
+          quorum_met: boolean | null
+          quorum_percent: number
+          quorum_required: number
+          space_id: string
+          status: Database["public"]["Enums"]["proposal_status"]
+          threshold: Database["public"]["Enums"]["threshold_rule"]
+          title: string
+          total_voters: number
+          updated_at: string
+          voting_closes_at: string | null
+          voting_opens_at: string | null
+        }
+        Insert: {
+          body?: string
+          created_at?: string
+          decided_at?: string | null
+          id?: string
+          outcome_abstain?: number
+          outcome_no?: number
+          outcome_recused?: number
+          outcome_yes?: number
+          parent_incident_id?: string | null
+          passed?: boolean | null
+          policy_ref_id?: string | null
+          proposal_type?: Database["public"]["Enums"]["proposal_type"]
+          proposer_id?: string | null
+          proposer_name?: string | null
+          quorum_floor?: number
+          quorum_met?: boolean | null
+          quorum_percent?: number
+          quorum_required?: number
+          space_id: string
+          status?: Database["public"]["Enums"]["proposal_status"]
+          threshold?: Database["public"]["Enums"]["threshold_rule"]
+          title: string
+          total_voters?: number
+          updated_at?: string
+          voting_closes_at?: string | null
+          voting_opens_at?: string | null
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          decided_at?: string | null
+          id?: string
+          outcome_abstain?: number
+          outcome_no?: number
+          outcome_recused?: number
+          outcome_yes?: number
+          parent_incident_id?: string | null
+          passed?: boolean | null
+          policy_ref_id?: string | null
+          proposal_type?: Database["public"]["Enums"]["proposal_type"]
+          proposer_id?: string | null
+          proposer_name?: string | null
+          quorum_floor?: number
+          quorum_met?: boolean | null
+          quorum_percent?: number
+          quorum_required?: number
+          space_id?: string
+          status?: Database["public"]["Enums"]["proposal_status"]
+          threshold?: Database["public"]["Enums"]["threshold_rule"]
+          title?: string
+          total_voters?: number
+          updated_at?: string
+          voting_closes_at?: string | null
+          voting_opens_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposals_parent_incident_fk"
+            columns: ["parent_incident_id"]
+            isOneToOne: false
+            referencedRelation: "incidents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_policy_ref_fk"
+            columns: ["policy_ref_id"]
+            isOneToOne: false
+            referencedRelation: "policies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_proposer_id_fkey"
+            columns: ["proposer_id"]
+            isOneToOne: false
+            referencedRelation: "inactive_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_proposer_id_fkey"
+            columns: ["proposer_id"]
+            isOneToOne: false
+            referencedRelation: "space_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       secrets: {
         Row: {
           area: string | null
@@ -654,11 +1109,57 @@ export type Database = {
           },
         ]
       }
+      space_areas: {
+        Row: {
+          code: string
+          created_at: string
+          icon: string | null
+          id: string
+          is_archived: boolean
+          name: string
+          sort_order: number
+          space_id: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          icon?: string | null
+          id?: string
+          is_archived?: boolean
+          name: string
+          sort_order?: number
+          space_id: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          icon?: string | null
+          id?: string
+          is_archived?: boolean
+          name?: string
+          sort_order?: number
+          space_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "space_areas_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       space_members: {
         Row: {
+          affiliations: string[]
           approved: boolean
           avatar_url: string | null
           bio: string | null
+          coi_last_disclosed_at: string | null
           created_at: string
           display_name: string | null
           dues_paid_until: string | null
@@ -666,6 +1167,7 @@ export type Database = {
           handle: string | null
           has_card_access: boolean
           id: string
+          interests: string[]
           joined_at: string | null
           last_paid_at: string | null
           last_payment_at: string | null
@@ -673,17 +1175,21 @@ export type Database = {
           payment_status: string | null
           phone: string | null
           role: Database["public"]["Enums"]["member_role"]
+          skills: string[]
           space_id: string
           status: Database["public"]["Enums"]["member_status"]
           stripe_customer_id: string | null
           tier: Database["public"]["Enums"]["member_tier"]
           updated_at: string
-          user_id: string
+          user_id: string | null
+          willing_to: string[]
         }
         Insert: {
+          affiliations?: string[]
           approved?: boolean
           avatar_url?: string | null
           bio?: string | null
+          coi_last_disclosed_at?: string | null
           created_at?: string
           display_name?: string | null
           dues_paid_until?: string | null
@@ -691,6 +1197,7 @@ export type Database = {
           handle?: string | null
           has_card_access?: boolean
           id?: string
+          interests?: string[]
           joined_at?: string | null
           last_paid_at?: string | null
           last_payment_at?: string | null
@@ -698,17 +1205,21 @@ export type Database = {
           payment_status?: string | null
           phone?: string | null
           role?: Database["public"]["Enums"]["member_role"]
+          skills?: string[]
           space_id: string
           status?: Database["public"]["Enums"]["member_status"]
           stripe_customer_id?: string | null
           tier?: Database["public"]["Enums"]["member_tier"]
           updated_at?: string
-          user_id: string
+          user_id?: string | null
+          willing_to?: string[]
         }
         Update: {
+          affiliations?: string[]
           approved?: boolean
           avatar_url?: string | null
           bio?: string | null
+          coi_last_disclosed_at?: string | null
           created_at?: string
           display_name?: string | null
           dues_paid_until?: string | null
@@ -716,6 +1227,7 @@ export type Database = {
           handle?: string | null
           has_card_access?: boolean
           id?: string
+          interests?: string[]
           joined_at?: string | null
           last_paid_at?: string | null
           last_payment_at?: string | null
@@ -723,12 +1235,14 @@ export type Database = {
           payment_status?: string | null
           phone?: string | null
           role?: Database["public"]["Enums"]["member_role"]
+          skills?: string[]
           space_id?: string
           status?: Database["public"]["Enums"]["member_status"]
           stripe_customer_id?: string | null
           tier?: Database["public"]["Enums"]["member_tier"]
           updated_at?: string
-          user_id?: string
+          user_id?: string | null
+          willing_to?: string[]
         }
         Relationships: [
           {
@@ -745,10 +1259,18 @@ export type Database = {
           address: string | null
           city: string | null
           created_at: string
+          default_quorum_floor: number
+          default_quorum_percent: number
+          default_threshold: Database["public"]["Enums"]["threshold_rule"]
+          default_voting_window_hours: number
           description: string | null
+          financial_visibility: Database["public"]["Enums"]["financial_visibility"]
           id: string
+          incident_sla_hours: number
           invite_code: string | null
           logo_url: string | null
+          member_directory_visibility: Database["public"]["Enums"]["directory_visibility"]
+          mission_statement: string | null
           name: string
           public_member_directory: boolean | null
           require_approval: boolean | null
@@ -762,10 +1284,18 @@ export type Database = {
           address?: string | null
           city?: string | null
           created_at?: string
+          default_quorum_floor?: number
+          default_quorum_percent?: number
+          default_threshold?: Database["public"]["Enums"]["threshold_rule"]
+          default_voting_window_hours?: number
           description?: string | null
+          financial_visibility?: Database["public"]["Enums"]["financial_visibility"]
           id?: string
+          incident_sla_hours?: number
           invite_code?: string | null
           logo_url?: string | null
+          member_directory_visibility?: Database["public"]["Enums"]["directory_visibility"]
+          mission_statement?: string | null
           name: string
           public_member_directory?: boolean | null
           require_approval?: boolean | null
@@ -779,10 +1309,18 @@ export type Database = {
           address?: string | null
           city?: string | null
           created_at?: string
+          default_quorum_floor?: number
+          default_quorum_percent?: number
+          default_threshold?: Database["public"]["Enums"]["threshold_rule"]
+          default_voting_window_hours?: number
           description?: string | null
+          financial_visibility?: Database["public"]["Enums"]["financial_visibility"]
           id?: string
+          incident_sla_hours?: number
           invite_code?: string | null
           logo_url?: string | null
+          member_directory_visibility?: Database["public"]["Enums"]["directory_visibility"]
+          mission_statement?: string | null
           name?: string
           public_member_directory?: boolean | null
           require_approval?: boolean | null
@@ -898,9 +1436,51 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      inactive_members: {
+        Row: {
+          affiliations: string[] | null
+          approved: boolean | null
+          avatar_url: string | null
+          bio: string | null
+          coi_last_disclosed_at: string | null
+          created_at: string | null
+          display_name: string | null
+          dues_paid_until: string | null
+          email: string | null
+          handle: string | null
+          has_card_access: boolean | null
+          id: string | null
+          interests: string[] | null
+          joined_at: string | null
+          last_activity_at: string | null
+          last_paid_at: string | null
+          last_payment_at: string | null
+          payment_note: string | null
+          payment_status: string | null
+          phone: string | null
+          role: Database["public"]["Enums"]["member_role"] | null
+          skills: string[] | null
+          space_id: string | null
+          status: Database["public"]["Enums"]["member_status"] | null
+          stripe_customer_id: string | null
+          tier: Database["public"]["Enums"]["member_tier"] | null
+          updated_at: string | null
+          user_id: string | null
+          willing_to: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "space_members_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
+      expire_proposals: { Args: never; Returns: number }
       get_user_space_ids: { Args: { uid: string }; Returns: string[] }
       user_has_role_in_space: {
         Args: { allowed_roles: string[]; sid: string; uid: string }
@@ -911,13 +1491,39 @@ export type Database = {
       area_lead_status: "active" | "vacant" | "handoff"
       channel_type: "general" | "area" | "ops" | "project"
       contact_type: "vendor" | "supplier" | "partner" | "landlord" | "city"
+      directory_visibility:
+        | "board_only"
+        | "member_count_visible"
+        | "members_visible"
+        | "public_members_visible"
+      financial_visibility:
+        | "treasurer_only"
+        | "board_visible"
+        | "all_members_visible"
+      incident_severity: "low" | "medium" | "high" | "critical"
+      incident_status:
+        | "received"
+        | "under_review"
+        | "decided"
+        | "appealed"
+        | "closed"
+      incident_update_visibility: "reporter_only" | "all_parties" | "board_only"
       kb_visibility: "all_members" | "board" | "admin_only"
       member_role: "admin" | "board" | "treasurer" | "member" | "associate"
       member_status: "current" | "late" | "inactive" | "unverified"
       member_tier: "plus" | "basic" | "associate"
       payment_link_status: "linked" | "unlinked"
       payment_platform: "paypal" | "zeffy" | "venmo" | "cash"
+      policy_status: "draft" | "active" | "deprecated" | "superseded"
       project_status: "backlog" | "in_progress" | "review" | "done" | "blocked"
+      proposal_status: "draft" | "open" | "decided" | "withdrawn" | "expired"
+      proposal_type:
+        | "bylaw_change"
+        | "board_action"
+        | "membership_vote"
+        | "advisory_poll"
+        | "recall"
+        | "budget"
       recurrence_type: "daily" | "weekly" | "biweekly" | "monthly" | "none"
       task_status:
         | "open"
@@ -929,6 +1535,12 @@ export type Database = {
         | "done"
         | "blocked"
       task_type: "chore" | "task"
+      threshold_rule:
+        | "simple_majority"
+        | "two_thirds"
+        | "three_fourths"
+        | "unanimous"
+      vote_position: "yes" | "no" | "abstain" | "recused"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1035,3 +1647,94 @@ export type Enums<
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
     ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
     : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
+  public: {
+    Enums: {
+      area_lead_status: ["active", "vacant", "handoff"],
+      channel_type: ["general", "area", "ops", "project"],
+      contact_type: ["vendor", "supplier", "partner", "landlord", "city"],
+      directory_visibility: [
+        "board_only",
+        "member_count_visible",
+        "members_visible",
+        "public_members_visible",
+      ],
+      financial_visibility: [
+        "treasurer_only",
+        "board_visible",
+        "all_members_visible",
+      ],
+      incident_severity: ["low", "medium", "high", "critical"],
+      incident_status: [
+        "received",
+        "under_review",
+        "decided",
+        "appealed",
+        "closed",
+      ],
+      incident_update_visibility: [
+        "reporter_only",
+        "all_parties",
+        "board_only",
+      ],
+      kb_visibility: ["all_members", "board", "admin_only"],
+      member_role: ["admin", "board", "treasurer", "member", "associate"],
+      member_status: ["current", "late", "inactive", "unverified"],
+      member_tier: ["plus", "basic", "associate"],
+      payment_link_status: ["linked", "unlinked"],
+      payment_platform: ["paypal", "zeffy", "venmo", "cash"],
+      policy_status: ["draft", "active", "deprecated", "superseded"],
+      project_status: ["backlog", "in_progress", "review", "done", "blocked"],
+      proposal_status: ["draft", "open", "decided", "withdrawn", "expired"],
+      proposal_type: [
+        "bylaw_change",
+        "board_action",
+        "membership_vote",
+        "advisory_poll",
+        "recall",
+        "budget",
+      ],
+      recurrence_type: ["daily", "weekly", "biweekly", "monthly", "none"],
+      task_status: [
+        "open",
+        "claimed",
+        "in_progress",
+        "overdue",
+        "due_today",
+        "completed",
+        "done",
+        "blocked",
+      ],
+      task_type: ["chore", "task"],
+      threshold_rule: [
+        "simple_majority",
+        "two_thirds",
+        "three_fourths",
+        "unanimous",
+      ],
+      vote_position: ["yes", "no", "abstain", "recused"],
+    },
+  },
+} as const
+

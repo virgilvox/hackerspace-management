@@ -1,0 +1,50 @@
+# -----------------------------------------------------------------------------
+# DigitalOcean App Platform spec for hackerspace-management.
+# -----------------------------------------------------------------------------
+# Apply with:
+#   doctl apps create --spec .do/app.yaml
+# Or import via the App Platform UI: Create App -> "From an existing app spec".
+# Replace REPO_OWNER/REPO_NAME and the placeholder env values before applying.
+# -----------------------------------------------------------------------------
+name: hackerspace-management
+region: nyc
+features:
+  - buildpack-stack=ubuntu-22
+
+services:
+  - name: web
+    github:
+      repo: REPO_OWNER/REPO_NAME
+      branch: main
+      deploy_on_push: true
+    source_dir: /
+    build_command: corepack enable && pnpm install --frozen-lockfile && pnpm build
+    run_command: pnpm start
+    http_port: 3000
+    instance_size_slug: basic-xs
+    instance_count: 1
+    health_check:
+      http_path: /api/health
+      initial_delay_seconds: 20
+      period_seconds: 30
+      timeout_seconds: 5
+      failure_threshold: 3
+    routes:
+      - path: /
+    envs:
+      - key: NODE_ENV
+        scope: RUN_TIME
+        value: production
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        scope: RUN_AND_BUILD_TIME
+        value: https://your-project-ref.supabase.co
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        scope: RUN_AND_BUILD_TIME
+        value: replace-with-anon-key
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        scope: RUN_TIME
+        type: SECRET
+        value: replace-with-service-role-key
+      - key: NEXT_PUBLIC_APP_URL
+        scope: RUN_AND_BUILD_TIME
+        value: https://your-app.ondigitalocean.app

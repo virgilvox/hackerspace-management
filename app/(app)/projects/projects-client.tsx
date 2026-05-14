@@ -14,9 +14,14 @@ const STATUS_COLS = [
   { key: 'done', label: 'DONE', color: 'text-muted-foreground', dot: 'bg-muted-foreground' },
 ]
 
-const AREAS = ['3D Printing', 'Electronics', 'Woodshop', 'Laser', 'Metal Shop', 'Facilities', 'Admin', 'Software', 'General']
+const DEFAULT_AREAS = ['3D Printing', 'Electronics', 'Woodshop', 'Laser', 'Metal Shop', 'Facilities', 'Admin', 'Software', 'General']
 
-export function ProjectsClient({ projects: initialProjects, spaceId }: { projects: Project[], spaceId: string }) {
+export function ProjectsClient({
+  projects: initialProjects,
+  spaceId,
+  areas,
+}: { projects: Project[]; spaceId: string; areas?: string[] }) {
+  const AREAS = areas && areas.length > 0 ? areas : DEFAULT_AREAS
   const [projects, setProjects] = useState<Project[]>(initialProjects)
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState({ title: '', description: '', area: '', tags: '', due_date: '' })

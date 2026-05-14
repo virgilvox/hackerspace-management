@@ -345,7 +345,7 @@ export default function SignupPage() {
                   </div>
                   <div className="bg-[#232323] border border-[#333] rounded p-4">
                     <p className="font-mono text-[10px] text-zinc-500 mb-1">You&apos;ll be the admin of this space.</p>
-                    <p className="font-mono text-[10px] text-zinc-500">Default channels (general, announcements, random) will be created automatically.</p>
+                    <p className="font-mono text-[10px] text-zinc-500">Default channels (general, announcements, ops) will be created automatically.</p>
                   </div>
                 </div>
               ) : (

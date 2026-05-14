@@ -10,8 +10,18 @@ export default async function ProjectsPage() {
     .from('space_members').select('space_id').eq('user_id', user.id).in('status', ['current', 'unverified', 'late']).single()
   if (!member) return null
 
-  const { data: projects } = await supabase
-    .from('projects').select('*').eq('space_id', member.space_id).order('created_at', { ascending: false })
+  const [{ data: projects }, { data: areasRaw }] = await Promise.all([
+    supabase.from('projects').select('*').eq('space_id', member.space_id).order('created_at', { ascending: false }),
+    supabase
+      .from('space_areas')
+      .select('name')
+      .eq('space_id', member.space_id)
+      .eq('is_archived', false)
+      .order('sort_order', { ascending: true })
+      .order('name', { ascending: true }),
+  ])
 
-  return <ProjectsClient projects={projects ?? []} spaceId={member.space_id} />
+  const areas = (areasRaw ?? []).map((a: { name: string }) => a.name)
+
+  return <ProjectsClient projects={projects ?? []} spaceId={member.space_id} areas={areas} />
 }

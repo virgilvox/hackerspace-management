@@ -16,10 +16,27 @@ export default async function TasksPage() {
   const spaceId = member?.space_id
   if (!spaceId) return null
 
-  const [{ data: tasks }, { data: members }] = await Promise.all([
+  const [{ data: tasks }, { data: members }, { data: areasRaw }] = await Promise.all([
     supabase.from('tasks').select('*').eq('space_id', spaceId).order('created_at', { ascending: false }),
     supabase.from('space_members').select('id, display_name, user_id').eq('space_id', spaceId).in('status', ['current', 'late']),
+    supabase
+      .from('space_areas')
+      .select('name')
+      .eq('space_id', spaceId)
+      .eq('is_archived', false)
+      .order('sort_order', { ascending: true })
+      .order('name', { ascending: true }),
   ])
 
-  return <TasksClient tasks={tasks ?? []} members={members ?? []} currentUserId={user.id} spaceId={spaceId} />
+  const areas = (areasRaw ?? []).map((a: { name: string }) => a.name)
+
+  return (
+    <TasksClient
+      tasks={tasks ?? []}
+      members={members ?? []}
+      currentUserId={user.id}
+      spaceId={spaceId}
+      areas={areas}
+    />
+  )
 }

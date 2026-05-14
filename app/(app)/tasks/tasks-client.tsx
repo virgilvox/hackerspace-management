@@ -12,12 +12,15 @@ interface Props {
   members: Pick<Tables<'space_members'>, 'id' | 'display_name' | 'user_id'>[]
   currentUserId: string
   spaceId: string
+  /** Per-space area names. Sourced from `space_areas` server-side. */
+  areas?: string[]
 }
 
-const AREAS = ['3D Printing', 'Electronics', 'Woodshop', 'Laser', 'Metal Shop', 'Facilities', 'Admin', 'Kitchen', 'General']
+const DEFAULT_AREAS = ['3D Printing', 'Electronics', 'Woodshop', 'Laser', 'Metal Shop', 'Facilities', 'Admin', 'Kitchen', 'General']
 const RECURRENCES = ['none', 'daily', 'weekly', 'biweekly', 'monthly']
 
-export function TasksClient({ tasks: initialTasks, members, currentUserId, spaceId }: Props) {
+export function TasksClient({ tasks: initialTasks, members, currentUserId, spaceId, areas }: Props) {
+  const AREAS = areas && areas.length > 0 ? areas : DEFAULT_AREAS
   const [tasks, setTasks] = useState<Task[]>(initialTasks)
   const [activeTab, setActiveTab] = useState<'chores' | 'ongoing' | 'mine' | 'done'>('chores')
   const [filterArea, setFilterArea] = useState('')

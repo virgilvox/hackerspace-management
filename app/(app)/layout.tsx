@@ -45,8 +45,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         taskBadge={taskCount ?? 0}
         paymentBadge={paymentCount ?? 0}
       />
-      <main className="flex-1 overflow-y-auto pt-[52px] md:pt-0">
-        {children}
+      <main className="flex-1 overflow-y-auto pt-[52px] md:pt-0 flex flex-col">
+        <div className="flex-1">{children}</div>
+        {member.spaces && (member.spaces as { mission_statement?: string | null }).mission_statement && (
+          <footer className="border-t border-border bg-card px-4 md:px-6 py-3">
+            <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-1">
+              {member.spaces.name}
+            </p>
+            <p className="font-sans text-xs text-muted-foreground italic">
+              {(member.spaces as { mission_statement: string }).mission_statement}
+            </p>
+          </footer>
+        )}
       </main>
     </div>
   )

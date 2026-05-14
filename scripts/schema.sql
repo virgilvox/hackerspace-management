@@ -64,10 +64,13 @@ CREATE TABLE IF NOT EXISTS public.spaces (
 );
 
 -- space_members ---------------------------------------------------------------
+-- user_id is NULLABLE on purpose. The application supports "offline" members
+-- (added by an admin without an auth account). addMember() and importMembers()
+-- both insert rows with user_id = NULL.
 CREATE TABLE IF NOT EXISTS public.space_members (
   id                 uuid                 PRIMARY KEY DEFAULT uuid_generate_v4(),
   space_id           uuid                 NOT NULL REFERENCES public.spaces(id) ON DELETE CASCADE,
-  user_id            uuid                 NOT NULL REFERENCES auth.users(id)    ON DELETE CASCADE,
+  user_id            uuid                 REFERENCES auth.users(id)             ON DELETE CASCADE,
   role               public.member_role   NOT NULL DEFAULT 'member',
   tier               public.member_tier   NOT NULL DEFAULT 'basic',
   status             public.member_status NOT NULL DEFAULT 'unverified',
@@ -384,7 +387,58 @@ $$;
 
 -- -----------------------------------------------------------------------------
 -- 6. ROW LEVEL SECURITY
+-- Drops first so re-runs do not fail with "policy already exists".
 -- -----------------------------------------------------------------------------
+DROP POLICY IF EXISTS spaces_select        ON public.spaces;
+DROP POLICY IF EXISTS spaces_insert        ON public.spaces;
+DROP POLICY IF EXISTS spaces_update        ON public.spaces;
+DROP POLICY IF EXISTS members_select       ON public.space_members;
+DROP POLICY IF EXISTS members_insert       ON public.space_members;
+DROP POLICY IF EXISTS members_update       ON public.space_members;
+DROP POLICY IF EXISTS members_delete       ON public.space_members;
+DROP POLICY IF EXISTS tasks_select         ON public.tasks;
+DROP POLICY IF EXISTS tasks_insert         ON public.tasks;
+DROP POLICY IF EXISTS tasks_update         ON public.tasks;
+DROP POLICY IF EXISTS tasks_delete         ON public.tasks;
+DROP POLICY IF EXISTS projects_select      ON public.projects;
+DROP POLICY IF EXISTS projects_insert      ON public.projects;
+DROP POLICY IF EXISTS projects_update      ON public.projects;
+DROP POLICY IF EXISTS projects_delete      ON public.projects;
+DROP POLICY IF EXISTS payments_select      ON public.payments;
+DROP POLICY IF EXISTS payments_insert      ON public.payments;
+DROP POLICY IF EXISTS payments_update      ON public.payments;
+DROP POLICY IF EXISTS payments_delete      ON public.payments;
+DROP POLICY IF EXISTS contacts_select      ON public.contacts;
+DROP POLICY IF EXISTS contacts_insert      ON public.contacts;
+DROP POLICY IF EXISTS contacts_update      ON public.contacts;
+DROP POLICY IF EXISTS contacts_delete      ON public.contacts;
+DROP POLICY IF EXISTS kb_select            ON public.knowledge_base;
+DROP POLICY IF EXISTS kb_insert            ON public.knowledge_base;
+DROP POLICY IF EXISTS kb_update            ON public.knowledge_base;
+DROP POLICY IF EXISTS kb_delete            ON public.knowledge_base;
+DROP POLICY IF EXISTS secrets_select       ON public.secrets;
+DROP POLICY IF EXISTS secrets_insert       ON public.secrets;
+DROP POLICY IF EXISTS secrets_update       ON public.secrets;
+DROP POLICY IF EXISTS secrets_delete       ON public.secrets;
+DROP POLICY IF EXISTS area_leads_select    ON public.area_leads;
+DROP POLICY IF EXISTS area_leads_insert    ON public.area_leads;
+DROP POLICY IF EXISTS area_leads_update    ON public.area_leads;
+DROP POLICY IF EXISTS area_leads_delete    ON public.area_leads;
+DROP POLICY IF EXISTS integrations_select  ON public.integrations;
+DROP POLICY IF EXISTS integrations_insert  ON public.integrations;
+DROP POLICY IF EXISTS integrations_update  ON public.integrations;
+DROP POLICY IF EXISTS integrations_delete  ON public.integrations;
+DROP POLICY IF EXISTS channels_select      ON public.comms_channels;
+DROP POLICY IF EXISTS channels_insert      ON public.comms_channels;
+DROP POLICY IF EXISTS channels_update      ON public.comms_channels;
+DROP POLICY IF EXISTS channels_delete      ON public.comms_channels;
+DROP POLICY IF EXISTS messages_select      ON public.comms_messages;
+DROP POLICY IF EXISTS messages_insert      ON public.comms_messages;
+DROP POLICY IF EXISTS messages_update      ON public.comms_messages;
+DROP POLICY IF EXISTS messages_delete      ON public.comms_messages;
+DROP POLICY IF EXISTS activity_select      ON public.activity_log;
+DROP POLICY IF EXISTS activity_insert      ON public.activity_log;
+
 ALTER TABLE public.spaces           ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.space_members    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tasks            ENABLE ROW LEVEL SECURITY;
@@ -620,9 +674,669 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_space_signup();
 
+-- Privilege-escalation guard.
+-- RLS lets a member update their own space_members row (so they can fix their
+-- own display_name, handle, phone, etc.). Without this trigger, a member
+-- could PATCH role = 'admin' on themselves via a direct PostgREST call.
+-- The trigger fires on every UPDATE: if the user updating their own row is
+-- not already an admin/board/treasurer, any change to role/tier/status/
+-- approved is rejected. SECURITY DEFINER so it can read space_members
+-- regardless of RLS during the check.
+CREATE OR REPLACE FUNCTION public.prevent_member_self_role_change()
+  RETURNS trigger
+  LANGUAGE plpgsql SECURITY DEFINER
+  SET search_path = public
+AS $$
+DECLARE
+  v_is_privileged boolean;
+BEGIN
+  -- Service role (no auth.uid) and inserts handled elsewhere: skip.
+  IF auth.uid() IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  -- If the row being updated does not belong to the current user, the
+  -- existing RLS already requires admin/board/treasurer. Nothing to add.
+  IF NEW.user_id IS DISTINCT FROM auth.uid() THEN
+    RETURN NEW;
+  END IF;
+
+  -- Self-update. If the user already holds a privileged role IN THIS SPACE
+  -- they may update anything (an admin editing their own row is fine).
+  SELECT public.user_has_role_in_space(auth.uid(), NEW.space_id, ARRAY['admin','board','treasurer'])
+    INTO v_is_privileged;
+
+  IF v_is_privileged THEN
+    RETURN NEW;
+  END IF;
+
+  -- Non-privileged self-update: protected columns must not change.
+  IF NEW.role     IS DISTINCT FROM OLD.role
+  OR NEW.tier     IS DISTINCT FROM OLD.tier
+  OR NEW.status   IS DISTINCT FROM OLD.status
+  OR NEW.approved IS DISTINCT FROM OLD.approved
+  OR NEW.has_card_access IS DISTINCT FROM OLD.has_card_access
+  OR NEW.space_id IS DISTINCT FROM OLD.space_id THEN
+    RAISE EXCEPTION 'Members cannot change their own role, tier, status, approval, card access, or space.'
+      USING ERRCODE = '42501';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_prevent_member_self_role_change ON public.space_members;
+CREATE TRIGGER trg_prevent_member_self_role_change
+  BEFORE UPDATE ON public.space_members
+  FOR EACH ROW EXECUTE FUNCTION public.prevent_member_self_role_change();
+
 
 -- -----------------------------------------------------------------------------
 -- 8. REALTIME
+-- Wrapped in DO blocks so re-running this file is safe: ADD TABLE errors when
+-- the table is already a member of the publication.
 -- -----------------------------------------------------------------------------
-ALTER PUBLICATION supabase_realtime ADD TABLE public.comms_messages;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.comms_channels;
+DO $$ BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.comms_messages;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.comms_channels;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+
+-- =============================================================================
+-- 9. GOVERNANCE KERNEL
+-- Source of truth: scripts/016_governance_kernel.sql.
+-- Tier 1 from docs/GOVERNANCE_FEATURES.md.
+-- Adds proposals + proposal_votes, incidents + incident_updates, policies.
+-- =============================================================================
+
+-- 9.1 Enums ------------------------------------------------------------------
+DO $$ BEGIN CREATE TYPE public.proposal_type   AS ENUM ('bylaw_change','board_action','membership_vote','advisory_poll','recall','budget'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE TYPE public.proposal_status AS ENUM ('draft','open','decided','withdrawn','expired');                                    EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE TYPE public.threshold_rule  AS ENUM ('simple_majority','two_thirds','three_fourths','unanimous');                       EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE TYPE public.vote_position   AS ENUM ('yes','no','abstain','recused');                                                   EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE TYPE public.incident_status AS ENUM ('received','under_review','decided','appealed','closed');                          EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE TYPE public.incident_severity AS ENUM ('low','medium','high','critical');                                               EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE TYPE public.incident_update_visibility AS ENUM ('reporter_only','all_parties','board_only');                            EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE TYPE public.policy_status   AS ENUM ('draft','active','deprecated','superseded');                                       EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- 9.2 Spaces extensions ------------------------------------------------------
+ALTER TABLE public.spaces ADD COLUMN IF NOT EXISTS default_quorum_percent      integer NOT NULL DEFAULT 10;
+ALTER TABLE public.spaces ADD COLUMN IF NOT EXISTS default_quorum_floor        integer NOT NULL DEFAULT 1;
+ALTER TABLE public.spaces ADD COLUMN IF NOT EXISTS default_voting_window_hours integer NOT NULL DEFAULT 216;
+ALTER TABLE public.spaces ADD COLUMN IF NOT EXISTS default_threshold           public.threshold_rule NOT NULL DEFAULT 'simple_majority';
+ALTER TABLE public.spaces ADD COLUMN IF NOT EXISTS incident_sla_hours          integer NOT NULL DEFAULT 72;
+ALTER TABLE public.spaces ADD COLUMN IF NOT EXISTS mission_statement           text;
+
+-- 9.3 Tables -----------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.proposals (
+  id                   uuid                    PRIMARY KEY DEFAULT uuid_generate_v4(),
+  space_id             uuid                    NOT NULL REFERENCES public.spaces(id) ON DELETE CASCADE,
+  proposer_id          uuid                    REFERENCES public.space_members(id) ON DELETE SET NULL,
+  proposer_name        text,
+  title                text                    NOT NULL,
+  body                 text                    NOT NULL DEFAULT '',
+  proposal_type        public.proposal_type    NOT NULL DEFAULT 'advisory_poll',
+  status               public.proposal_status  NOT NULL DEFAULT 'draft',
+  quorum_required      integer                 NOT NULL DEFAULT 0,
+  quorum_percent       integer                 NOT NULL DEFAULT 10,
+  quorum_floor         integer                 NOT NULL DEFAULT 1,
+  threshold            public.threshold_rule   NOT NULL DEFAULT 'simple_majority',
+  voting_opens_at      timestamptz,
+  voting_closes_at     timestamptz,
+  policy_ref_id        uuid,
+  parent_incident_id   uuid,
+  outcome_yes          integer                 NOT NULL DEFAULT 0,
+  outcome_no           integer                 NOT NULL DEFAULT 0,
+  outcome_abstain      integer                 NOT NULL DEFAULT 0,
+  outcome_recused      integer                 NOT NULL DEFAULT 0,
+  total_voters         integer                 NOT NULL DEFAULT 0,
+  quorum_met           boolean,
+  passed               boolean,
+  created_at           timestamptz             NOT NULL DEFAULT now(),
+  updated_at           timestamptz             NOT NULL DEFAULT now(),
+  decided_at           timestamptz
+);
+
+CREATE TABLE IF NOT EXISTS public.proposal_votes (
+  id              uuid                  PRIMARY KEY DEFAULT uuid_generate_v4(),
+  proposal_id     uuid                  NOT NULL REFERENCES public.proposals(id) ON DELETE CASCADE,
+  member_id       uuid                  NOT NULL REFERENCES public.space_members(id) ON DELETE CASCADE,
+  position        public.vote_position  NOT NULL,
+  recusal_reason  text,
+  comment         text,
+  voted_at        timestamptz           NOT NULL DEFAULT now(),
+  UNIQUE (proposal_id, member_id),
+  CONSTRAINT recused_requires_reason
+    CHECK (position <> 'recused' OR (recusal_reason IS NOT NULL AND length(trim(recusal_reason)) > 0))
+);
+
+CREATE TABLE IF NOT EXISTS public.incidents (
+  id                   uuid                       PRIMARY KEY DEFAULT uuid_generate_v4(),
+  space_id             uuid                       NOT NULL REFERENCES public.spaces(id) ON DELETE CASCADE,
+  reporter_id          uuid                       REFERENCES public.space_members(id) ON DELETE SET NULL,
+  reporter_token       text                       UNIQUE,
+  is_anonymous         boolean                    NOT NULL DEFAULT false,
+  subjects             uuid[]                     NOT NULL DEFAULT '{}'::uuid[],
+  category             text                       NOT NULL DEFAULT 'general',
+  severity             public.incident_severity   NOT NULL DEFAULT 'medium',
+  title                text                       NOT NULL,
+  body                 text                       NOT NULL,
+  status               public.incident_status     NOT NULL DEFAULT 'received',
+  disposition          text,
+  decision_maker_ids   uuid[]                     NOT NULL DEFAULT '{}'::uuid[],
+  appeal_proposal_id   uuid,
+  sla_response_by      timestamptz,
+  created_at           timestamptz                NOT NULL DEFAULT now(),
+  updated_at           timestamptz                NOT NULL DEFAULT now(),
+  acknowledged_at      timestamptz,
+  decided_at           timestamptz,
+  closed_at            timestamptz
+);
+
+CREATE TABLE IF NOT EXISTS public.incident_updates (
+  id           uuid                                 PRIMARY KEY DEFAULT uuid_generate_v4(),
+  incident_id  uuid                                 NOT NULL REFERENCES public.incidents(id) ON DELETE CASCADE,
+  author_id    uuid                                 REFERENCES public.space_members(id) ON DELETE SET NULL,
+  author_name  text,
+  body         text                                 NOT NULL,
+  visibility   public.incident_update_visibility    NOT NULL DEFAULT 'all_parties',
+  created_at   timestamptz                          NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.policies (
+  id                       uuid                  PRIMARY KEY DEFAULT uuid_generate_v4(),
+  space_id                 uuid                  NOT NULL REFERENCES public.spaces(id) ON DELETE CASCADE,
+  slug                     text                  NOT NULL,
+  section_ref              text,
+  parent_policy_id         uuid                  REFERENCES public.policies(id) ON DELETE SET NULL,
+  title                    text                  NOT NULL,
+  body_formal              text                  NOT NULL DEFAULT '',
+  body_plain               text,
+  version                  integer               NOT NULL DEFAULT 1,
+  prior_version_id         uuid                  REFERENCES public.policies(id) ON DELETE SET NULL,
+  status                   public.policy_status  NOT NULL DEFAULT 'draft',
+  effective_at             timestamptz,
+  adopted_by_proposal_id   uuid,
+  created_at               timestamptz           NOT NULL DEFAULT now(),
+  updated_at               timestamptz           NOT NULL DEFAULT now(),
+  UNIQUE (space_id, slug, version)
+);
+
+-- 9.4 Circular FKs -----------------------------------------------------------
+DO $$ BEGIN
+  ALTER TABLE public.proposals ADD CONSTRAINT proposals_policy_ref_fk
+    FOREIGN KEY (policy_ref_id) REFERENCES public.policies(id) ON DELETE SET NULL;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE public.proposals ADD CONSTRAINT proposals_parent_incident_fk
+    FOREIGN KEY (parent_incident_id) REFERENCES public.incidents(id) ON DELETE SET NULL;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE public.incidents ADD CONSTRAINT incidents_appeal_proposal_fk
+    FOREIGN KEY (appeal_proposal_id) REFERENCES public.proposals(id) ON DELETE SET NULL;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE public.policies ADD CONSTRAINT policies_adopted_by_proposal_fk
+    FOREIGN KEY (adopted_by_proposal_id) REFERENCES public.proposals(id) ON DELETE SET NULL;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- 9.5 Indexes ----------------------------------------------------------------
+CREATE INDEX IF NOT EXISTS idx_proposals_space         ON public.proposals (space_id);
+CREATE INDEX IF NOT EXISTS idx_proposals_status        ON public.proposals (status);
+CREATE INDEX IF NOT EXISTS idx_proposals_proposer      ON public.proposals (proposer_id);
+CREATE INDEX IF NOT EXISTS idx_proposals_closes        ON public.proposals (voting_closes_at);
+CREATE INDEX IF NOT EXISTS idx_proposal_votes_proposal ON public.proposal_votes (proposal_id);
+CREATE INDEX IF NOT EXISTS idx_proposal_votes_member   ON public.proposal_votes (member_id);
+CREATE INDEX IF NOT EXISTS idx_incidents_space         ON public.incidents (space_id);
+CREATE INDEX IF NOT EXISTS idx_incidents_reporter      ON public.incidents (reporter_id);
+CREATE INDEX IF NOT EXISTS idx_incidents_status        ON public.incidents (status);
+CREATE INDEX IF NOT EXISTS idx_incidents_subjects      ON public.incidents USING GIN (subjects);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_incidents_token_unique
+  ON public.incidents (reporter_token) WHERE reporter_token IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_incident_updates_incident ON public.incident_updates (incident_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_policies_space_slug     ON public.policies (space_id, slug);
+CREATE INDEX IF NOT EXISTS idx_policies_status         ON public.policies (status);
+
+-- 9.6 Triggers ---------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.compute_proposal_quorum()
+  RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_member_count integer;
+  v_quorum_percent integer;
+  v_quorum_floor integer;
+  v_voting_window_hours integer;
+BEGIN
+  IF NEW.status = 'open' AND (TG_OP = 'INSERT' OR OLD.status = 'draft') THEN
+    SELECT default_quorum_percent, default_quorum_floor, default_voting_window_hours
+      INTO v_quorum_percent, v_quorum_floor, v_voting_window_hours
+      FROM public.spaces WHERE id = NEW.space_id;
+    SELECT count(*) INTO v_member_count
+      FROM public.space_members
+      WHERE space_id = NEW.space_id AND status IN ('current','late') AND approved = true;
+    NEW.quorum_percent := COALESCE(v_quorum_percent, 10);
+    NEW.quorum_floor   := COALESCE(v_quorum_floor, 1);
+    NEW.quorum_required := GREATEST(NEW.quorum_floor, CEIL(v_member_count * NEW.quorum_percent / 100.0)::integer);
+    IF NEW.voting_opens_at IS NULL THEN NEW.voting_opens_at := now(); END IF;
+    IF NEW.voting_closes_at IS NULL THEN
+      NEW.voting_closes_at := NEW.voting_opens_at + (v_voting_window_hours || ' hours')::interval;
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_compute_proposal_quorum ON public.proposals;
+CREATE TRIGGER trg_compute_proposal_quorum
+  BEFORE INSERT OR UPDATE ON public.proposals
+  FOR EACH ROW EXECUTE FUNCTION public.compute_proposal_quorum();
+
+CREATE OR REPLACE FUNCTION public.refresh_proposal_tally()
+  RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_proposal_id uuid; v_yes integer; v_no integer; v_abstain integer; v_recused integer; v_total integer;
+  v_quorum_required integer; v_threshold public.threshold_rule; v_status public.proposal_status;
+  v_quorum_met boolean; v_passed boolean;
+BEGIN
+  v_proposal_id := COALESCE(NEW.proposal_id, OLD.proposal_id);
+  SELECT count(*) FILTER (WHERE position='yes'), count(*) FILTER (WHERE position='no'),
+         count(*) FILTER (WHERE position='abstain'), count(*) FILTER (WHERE position='recused'), count(*)
+    INTO v_yes, v_no, v_abstain, v_recused, v_total
+    FROM public.proposal_votes WHERE proposal_id = v_proposal_id;
+  SELECT quorum_required, threshold, status INTO v_quorum_required, v_threshold, v_status
+    FROM public.proposals WHERE id = v_proposal_id;
+  v_quorum_met := (v_yes + v_no + v_abstain) >= COALESCE(v_quorum_required, 0);
+  v_passed := CASE
+    WHEN NOT v_quorum_met THEN false
+    WHEN v_yes + v_no = 0 THEN false
+    WHEN v_threshold = 'simple_majority' THEN v_yes > v_no
+    WHEN v_threshold = 'two_thirds'      THEN v_yes * 3 >= (v_yes + v_no) * 2
+    WHEN v_threshold = 'three_fourths'   THEN v_yes * 4 >= (v_yes + v_no) * 3
+    WHEN v_threshold = 'unanimous'       THEN v_no = 0 AND v_yes > 0
+    ELSE false END;
+  UPDATE public.proposals
+    SET outcome_yes=v_yes, outcome_no=v_no, outcome_abstain=v_abstain, outcome_recused=v_recused,
+        total_voters=v_total, quorum_met=v_quorum_met, passed=v_passed, updated_at=now()
+    WHERE id = v_proposal_id;
+  RETURN COALESCE(NEW, OLD);
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_refresh_proposal_tally ON public.proposal_votes;
+CREATE TRIGGER trg_refresh_proposal_tally
+  AFTER INSERT OR UPDATE OR DELETE ON public.proposal_votes
+  FOR EACH ROW EXECUTE FUNCTION public.refresh_proposal_tally();
+
+CREATE OR REPLACE FUNCTION public.compute_incident_sla()
+  RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_hours integer;
+BEGIN
+  IF NEW.sla_response_by IS NULL THEN
+    SELECT incident_sla_hours INTO v_hours FROM public.spaces WHERE id = NEW.space_id;
+    NEW.sla_response_by := COALESCE(NEW.created_at, now()) + (COALESCE(v_hours, 72) || ' hours')::interval;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_compute_incident_sla ON public.incidents;
+CREATE TRIGGER trg_compute_incident_sla
+  BEFORE INSERT ON public.incidents
+  FOR EACH ROW EXECUTE FUNCTION public.compute_incident_sla();
+
+CREATE OR REPLACE FUNCTION public.touch_updated_at()
+  RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN NEW.updated_at := now(); RETURN NEW; END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_proposals_touch ON public.proposals;
+CREATE TRIGGER trg_proposals_touch BEFORE UPDATE ON public.proposals FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
+DROP TRIGGER IF EXISTS trg_incidents_touch ON public.incidents;
+CREATE TRIGGER trg_incidents_touch BEFORE UPDATE ON public.incidents FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
+DROP TRIGGER IF EXISTS trg_policies_touch ON public.policies;
+CREATE TRIGGER trg_policies_touch BEFORE UPDATE ON public.policies FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
+
+-- 9.7 RLS --------------------------------------------------------------------
+ALTER TABLE public.proposals        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.proposal_votes   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.incidents        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.incident_updates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.policies         ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS proposals_select        ON public.proposals;
+DROP POLICY IF EXISTS proposals_insert        ON public.proposals;
+DROP POLICY IF EXISTS proposals_update        ON public.proposals;
+DROP POLICY IF EXISTS proposals_delete        ON public.proposals;
+DROP POLICY IF EXISTS votes_select            ON public.proposal_votes;
+DROP POLICY IF EXISTS votes_insert            ON public.proposal_votes;
+DROP POLICY IF EXISTS votes_update            ON public.proposal_votes;
+DROP POLICY IF EXISTS incidents_select        ON public.incidents;
+DROP POLICY IF EXISTS incidents_insert        ON public.incidents;
+DROP POLICY IF EXISTS incidents_update        ON public.incidents;
+DROP POLICY IF EXISTS incident_updates_select ON public.incident_updates;
+DROP POLICY IF EXISTS incident_updates_insert ON public.incident_updates;
+DROP POLICY IF EXISTS policies_select         ON public.policies;
+DROP POLICY IF EXISTS policies_insert         ON public.policies;
+DROP POLICY IF EXISTS policies_update         ON public.policies;
+
+CREATE POLICY proposals_select ON public.proposals FOR SELECT
+  USING (space_id IN (SELECT public.get_user_space_ids(auth.uid())));
+CREATE POLICY proposals_insert ON public.proposals FOR INSERT
+  WITH CHECK (space_id IN (SELECT public.get_user_space_ids(auth.uid())));
+CREATE POLICY proposals_update ON public.proposals FOR UPDATE
+  USING (
+    public.user_has_role_in_space(auth.uid(), space_id, ARRAY['admin','board'])
+    OR (status = 'draft' AND proposer_id IN (SELECT id FROM public.space_members WHERE user_id = auth.uid()))
+  );
+CREATE POLICY proposals_delete ON public.proposals FOR DELETE
+  USING (public.user_has_role_in_space(auth.uid(), space_id, ARRAY['admin','board']));
+
+CREATE POLICY votes_select ON public.proposal_votes FOR SELECT
+  USING (EXISTS (SELECT 1 FROM public.proposals p WHERE p.id = proposal_votes.proposal_id
+                   AND p.space_id IN (SELECT public.get_user_space_ids(auth.uid()))));
+CREATE POLICY votes_insert ON public.proposal_votes FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1
+      FROM public.proposals p
+      JOIN public.space_members m ON m.id = proposal_votes.member_id
+      WHERE p.id = proposal_votes.proposal_id
+        AND m.user_id = auth.uid()
+        AND m.space_id = p.space_id
+        AND p.status = 'open'
+        AND p.voting_opens_at <= now()
+        AND p.voting_closes_at > now()
+    )
+  );
+CREATE POLICY votes_update ON public.proposal_votes FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1
+      FROM public.proposals p
+      JOIN public.space_members m ON m.id = proposal_votes.member_id
+      WHERE p.id = proposal_votes.proposal_id
+        AND m.user_id = auth.uid()
+        AND m.space_id = p.space_id
+        AND p.status = 'open'
+        AND p.voting_closes_at > now()
+    )
+  );
+
+CREATE POLICY incidents_select ON public.incidents FOR SELECT
+  USING (
+    public.user_has_role_in_space(auth.uid(), space_id, ARRAY['admin','board'])
+    OR reporter_id IN (SELECT id FROM public.space_members WHERE user_id = auth.uid())
+  );
+CREATE POLICY incidents_insert ON public.incidents FOR INSERT
+  WITH CHECK (
+    space_id IN (SELECT public.get_user_space_ids(auth.uid()))
+    AND (
+      reporter_id IS NULL
+      OR EXISTS (
+        SELECT 1 FROM public.space_members m
+        WHERE m.id = incidents.reporter_id
+          AND m.user_id = auth.uid()
+          AND m.space_id = incidents.space_id
+      )
+    )
+  );
+CREATE POLICY incidents_update ON public.incidents FOR UPDATE
+  USING (public.user_has_role_in_space(auth.uid(), space_id, ARRAY['admin','board']));
+
+CREATE POLICY incident_updates_select ON public.incident_updates FOR SELECT
+  USING (
+    EXISTS (SELECT 1 FROM public.incidents i WHERE i.id = incident_updates.incident_id
+              AND (public.user_has_role_in_space(auth.uid(), i.space_id, ARRAY['admin','board'])
+                   OR (incident_updates.visibility <> 'board_only'
+                       AND i.reporter_id IN (SELECT id FROM public.space_members WHERE user_id = auth.uid()))))
+  );
+CREATE POLICY incident_updates_insert ON public.incident_updates FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.incidents i
+      WHERE i.id = incident_updates.incident_id
+        AND (
+          public.user_has_role_in_space(auth.uid(), i.space_id, ARRAY['admin','board'])
+          OR i.reporter_id IN (
+            SELECT m.id FROM public.space_members m
+            WHERE m.user_id = auth.uid() AND m.space_id = i.space_id
+          )
+        )
+    )
+    AND (
+      author_id IS NULL
+      OR EXISTS (
+        SELECT 1 FROM public.space_members m, public.incidents i
+        WHERE i.id = incident_updates.incident_id
+          AND m.id = incident_updates.author_id
+          AND m.user_id = auth.uid()
+          AND m.space_id = i.space_id
+      )
+    )
+  );
+
+CREATE POLICY policies_select ON public.policies FOR SELECT
+  USING (space_id IN (SELECT public.get_user_space_ids(auth.uid())));
+CREATE POLICY policies_insert ON public.policies FOR INSERT
+  WITH CHECK (public.user_has_role_in_space(auth.uid(), space_id, ARRAY['admin','board']));
+CREATE POLICY policies_update ON public.policies FOR UPDATE
+  USING (public.user_has_role_in_space(auth.uid(), space_id, ARRAY['admin','board']));
+
+-- 9.8 Active-policy uniqueness ------------------------------------------------
+-- A race between two admins concurrently activating two different drafts of
+-- the same slug could leave two `active` rows. Partial unique index forbids
+-- it at the storage layer.
+DROP INDEX IF EXISTS public.policies_one_active_per_slug;
+CREATE UNIQUE INDEX policies_one_active_per_slug
+  ON public.policies (space_id, slug)
+  WHERE status = 'active';
+
+
+-- =============================================================================
+-- 10. MEMBER STATE + VISIBILITY (Tier 2 + Tier 3 of GOVERNANCE_FEATURES.md)
+-- Source of truth: scripts/018_member_state_and_visibility.sql.
+-- =============================================================================
+
+-- 10.1 Enums
+DO $$ BEGIN
+  CREATE TYPE public.financial_visibility AS ENUM ('treasurer_only','board_visible','all_members_visible');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  CREATE TYPE public.directory_visibility AS ENUM ('board_only','member_count_visible','members_visible','public_members_visible');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- 10.2 Spaces visibility settings
+ALTER TABLE public.spaces
+  ADD COLUMN IF NOT EXISTS financial_visibility        public.financial_visibility NOT NULL DEFAULT 'board_visible';
+ALTER TABLE public.spaces
+  ADD COLUMN IF NOT EXISTS member_directory_visibility public.directory_visibility  NOT NULL DEFAULT 'members_visible';
+
+-- 10.3 Space-members opt-in profile and COI
+ALTER TABLE public.space_members ADD COLUMN IF NOT EXISTS skills       text[]      NOT NULL DEFAULT '{}'::text[];
+ALTER TABLE public.space_members ADD COLUMN IF NOT EXISTS interests    text[]      NOT NULL DEFAULT '{}'::text[];
+ALTER TABLE public.space_members ADD COLUMN IF NOT EXISTS willing_to   text[]      NOT NULL DEFAULT '{}'::text[];
+ALTER TABLE public.space_members ADD COLUMN IF NOT EXISTS affiliations text[]      NOT NULL DEFAULT '{}'::text[];
+ALTER TABLE public.space_members ADD COLUMN IF NOT EXISTS coi_last_disclosed_at timestamptz;
+
+CREATE INDEX IF NOT EXISTS idx_space_members_willing_to ON public.space_members USING GIN (willing_to);
+CREATE INDEX IF NOT EXISTS idx_space_members_skills     ON public.space_members USING GIN (skills);
+
+-- 10.4 Knowledge-base meeting minutes flag
+ALTER TABLE public.knowledge_base ADD COLUMN IF NOT EXISTS is_meeting_minutes boolean     NOT NULL DEFAULT false;
+ALTER TABLE public.knowledge_base ADD COLUMN IF NOT EXISTS meeting_date       timestamptz;
+CREATE INDEX IF NOT EXISTS idx_knowledge_base_meeting_date
+  ON public.knowledge_base (meeting_date DESC)
+  WHERE is_meeting_minutes = true;
+
+-- 10.5 Card-access mid-tenure review trigger
+CREATE OR REPLACE FUNCTION public.schedule_card_review()
+  RETURNS trigger
+  LANGUAGE plpgsql SECURITY DEFINER
+  SET search_path = public
+AS $$
+DECLARE
+  v_review_date timestamptz;
+  v_old_card boolean;
+BEGIN
+  v_old_card := COALESCE(OLD.has_card_access, false);
+  IF NEW.has_card_access = true AND (TG_OP = 'INSERT' OR v_old_card = false) THEN
+    v_review_date := now() + interval '180 days';
+    INSERT INTO public.tasks (
+      space_id, title, description, task_type, status, area, due_date, requested_by_name
+    ) VALUES (
+      NEW.space_id,
+      'Card-access review: ' || COALESCE(NULLIF(NEW.display_name, ''), 'member'),
+      'Auto-generated 6-month review. Confirm card-access should continue. Any concerns from area leads, station champions, or hosts?',
+      'task',
+      'open',
+      'Admin',
+      v_review_date,
+      'System'
+    );
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_schedule_card_review ON public.space_members;
+CREATE TRIGGER trg_schedule_card_review
+  AFTER INSERT OR UPDATE OF has_card_access ON public.space_members
+  FOR EACH ROW EXECUTE FUNCTION public.schedule_card_review();
+
+-- 10.6 Inactive members view
+CREATE OR REPLACE VIEW public.inactive_members AS
+SELECT m.*,
+       a.last_activity_at
+FROM public.space_members m
+LEFT JOIN LATERAL (
+  SELECT max(created_at) AS last_activity_at
+  FROM public.activity_log al
+  WHERE al.user_id = m.user_id AND al.space_id = m.space_id
+) a ON true
+WHERE m.status IN ('current', 'late')
+  AND m.approved = true
+  AND (a.last_activity_at IS NULL OR a.last_activity_at < now() - interval '180 days');
+
+
+-- =============================================================================
+-- 11. PROPOSAL EXPIRY
+-- Source: scripts/019_proposal_expiry.sql.
+-- Call public.expire_proposals() on a schedule to auto-close open proposals
+-- whose voting_closes_at has passed.
+-- =============================================================================
+CREATE OR REPLACE FUNCTION public.expire_proposals()
+  RETURNS integer
+  LANGUAGE plpgsql SECURITY DEFINER
+  SET search_path = public
+AS $$
+DECLARE
+  v_decided integer;
+  v_expired integer;
+BEGIN
+  WITH updated AS (
+    UPDATE public.proposals
+       SET status = 'decided', decided_at = now()
+     WHERE status = 'open'
+       AND voting_closes_at IS NOT NULL
+       AND voting_closes_at < now()
+       AND quorum_met = true
+    RETURNING 1
+  )
+  SELECT count(*) INTO v_decided FROM updated;
+
+  WITH updated AS (
+    UPDATE public.proposals
+       SET status = 'expired'
+     WHERE status = 'open'
+       AND voting_closes_at IS NOT NULL
+       AND voting_closes_at < now()
+       AND COALESCE(quorum_met, false) = false
+    RETURNING 1
+  )
+  SELECT count(*) INTO v_expired FROM updated;
+
+  RETURN v_decided + v_expired;
+END;
+$$;
+
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
+    PERFORM cron.unschedule(jobid) FROM cron.job WHERE jobname = 'expire-proposals-hourly';
+    PERFORM cron.schedule('expire-proposals-hourly', '0 * * * *', $cron$SELECT public.expire_proposals();$cron$);
+  END IF;
+EXCEPTION WHEN OTHERS THEN
+  NULL;
+END $$;
+
+
+-- =============================================================================
+-- 12. SPACE AREAS
+-- Source: scripts/020_areas.sql.
+-- Each space gets its own list of physical areas / shops / categories.
+-- A trigger seeds ten sensible defaults when a space is created. Admin and
+-- board members manage the list afterwards.
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS public.space_areas (
+  id          uuid        PRIMARY KEY DEFAULT uuid_generate_v4(),
+  space_id    uuid        NOT NULL REFERENCES public.spaces(id) ON DELETE CASCADE,
+  code        text        NOT NULL,
+  name        text        NOT NULL,
+  icon        text,
+  sort_order  integer     NOT NULL DEFAULT 100,
+  is_archived boolean     NOT NULL DEFAULT false,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  updated_at  timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (space_id, code),
+  UNIQUE (space_id, name)
+);
+
+CREATE INDEX IF NOT EXISTS idx_space_areas_space_sort
+  ON public.space_areas (space_id, sort_order, name);
+
+ALTER TABLE public.space_areas ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS space_areas_select ON public.space_areas;
+DROP POLICY IF EXISTS space_areas_insert ON public.space_areas;
+DROP POLICY IF EXISTS space_areas_update ON public.space_areas;
+DROP POLICY IF EXISTS space_areas_delete ON public.space_areas;
+
+CREATE POLICY space_areas_select ON public.space_areas FOR SELECT
+  USING (space_id IN (SELECT public.get_user_space_ids(auth.uid())));
+CREATE POLICY space_areas_insert ON public.space_areas FOR INSERT
+  WITH CHECK (public.user_has_role_in_space(auth.uid(), space_id, ARRAY['admin','board']));
+CREATE POLICY space_areas_update ON public.space_areas FOR UPDATE
+  USING (public.user_has_role_in_space(auth.uid(), space_id, ARRAY['admin','board']));
+CREATE POLICY space_areas_delete ON public.space_areas FOR DELETE
+  USING (public.user_has_role_in_space(auth.uid(), space_id, ARRAY['admin']));
+
+DROP TRIGGER IF EXISTS trg_space_areas_touch ON public.space_areas;
+CREATE TRIGGER trg_space_areas_touch
+  BEFORE UPDATE ON public.space_areas
+  FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
+
+CREATE OR REPLACE FUNCTION public.seed_default_areas()
+  RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  INSERT INTO public.space_areas (space_id, code, name, sort_order) VALUES
+    (NEW.id, '3d-printing', '3D Printing',  10),
+    (NEW.id, 'electronics', 'Electronics',  20),
+    (NEW.id, 'woodshop',    'Woodshop',     30),
+    (NEW.id, 'laser',       'Laser',        40),
+    (NEW.id, 'metal-shop',  'Metal Shop',   50),
+    (NEW.id, 'facilities',  'Facilities',   60),
+    (NEW.id, 'software',    'Software',     70),
+    (NEW.id, 'kitchen',     'Kitchen',      80),
+    (NEW.id, 'admin',       'Admin',        90),
+    (NEW.id, 'general',     'General',     100)
+  ON CONFLICT (space_id, code) DO NOTHING;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_seed_default_areas ON public.spaces;
+CREATE TRIGGER trg_seed_default_areas
+  AFTER INSERT ON public.spaces
+  FOR EACH ROW EXECUTE FUNCTION public.seed_default_areas();

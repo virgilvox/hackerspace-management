@@ -19,3 +19,10 @@ playwright-report/
 
 # Vitest
 .vitest/
+
+# TypeScript incremental build cache
+*.tsbuildinfo
+
+# Supabase CLI local state
+supabase/.branches/
+supabase/.temp/

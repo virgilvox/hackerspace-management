@@ -1,6 +1,8 @@
 # Hackerspace.sh — Deployment Guide
 
-Complete instructions for every supported deployment target.
+Complete instructions for every supported deployment target that uses **managed Supabase Cloud** as the database / auth layer.
+
+For a fully self-hosted deployment where you run Supabase yourself on a DigitalOcean Droplet (Postgres, GoTrue, PostgREST, Realtime, Storage, Studio — all on your own server), see [DEPLOY_DO_SELFHOSTED.md](./DEPLOY_DO_SELFHOSTED.md). That guide is end-to-end and assumes nothing else.
 
 ---
 
@@ -111,27 +113,27 @@ WHERE email = 'your@email.com';
 
 ## 3. Environment Variables
 
-Create `.env.local` for local dev. For deployed environments, set these in your host's dashboard.
+The repo ships an `.env.example` file. Copy it locally:
 
 ```bash
-# ── Supabase ──────────────────────────────────────────────────
-NEXT_PUBLIC_SUPABASE_URL=https://xxxxxxxxxxxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGci...
-
-# ── App ───────────────────────────────────────────────────────
-NEXT_PUBLIC_APP_URL=https://yourdomain.com
-
-# ── PayPal (optional — set in app Settings UI too) ────────────
-# These are also stored per-space in the integrations table.
-# The API route reads from the DB, not from env vars.
-# No env vars needed for PayPal.
-
-# ── Node ──────────────────────────────────────────────────────
-NODE_ENV=production
+cp .env.example .env.local
 ```
 
-**Never commit `.env.local` to git.** The `.gitignore` already excludes it.
+Then fill in real values. For deployed environments, set the same keys in the host's dashboard.
+
+Required variables:
+
+| Key | Where it is used |
+|-----|------------------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Browser + server, in every request |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Browser + server |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server only. Bypasses RLS. Used by createSpace / joinSpace |
+| `NEXT_PUBLIC_APP_URL` | OAuth callback URLs |
+| `NODE_ENV` | Runtime mode |
+
+Per-space integration credentials (PayPal, Zeffy, Venmo, Stripe) are stored in the `integrations` table, not in env. The Settings UI writes them; `/api/paypal/sync` reads them.
+
+`.env.local` is git-ignored. Never commit real secrets.
 
 ---
 
@@ -190,24 +192,35 @@ git push origin feat/my-feature  # triggers preview deploy
 
 Managed container hosting. No Docker knowledge required. Scales automatically.
 
+The repo ships an App Platform spec at `.do/app.yaml`. You can either apply it directly with `doctl` or use the UI flow below.
+
 ### 5.1 Push your repo to GitHub
 
-DigitalOcean App Platform deploys directly from GitHub.
+App Platform deploys directly from GitHub.
 
 ```bash
 git remote add origin https://github.com/YOUR_ORG/hackerspace-management.git
 git push -u origin main
 ```
 
-### 5.2 Create the app
+### 5.2a Create the app via `doctl` (recommended)
+
+Edit `.do/app.yaml` and replace `REPO_OWNER/REPO_NAME` and the placeholder env values. Then:
+
+```bash
+doctl apps create --spec .do/app.yaml
+```
+
+### 5.2b Or create via the UI
 
 1. Go to [cloud.digitalocean.com/apps](https://cloud.digitalocean.com/apps)
-2. Click **Create App** → **GitHub** → authorize and select your repo
+2. Click **Create App** then **GitHub**, authorize and select your repo
 3. Select branch: `main`
-4. DigitalOcean auto-detects Next.js — confirm the build settings:
-   - **Build command**: `pnpm install && pnpm build`
+4. App Platform auto-detects Next.js. Confirm the build settings:
+   - **Build command**: `corepack enable && pnpm install --frozen-lockfile && pnpm build`
    - **Run command**: `pnpm start`
    - **HTTP port**: `3000`
+   - **Health check path**: `/api/health`
 
 ### 5.3 Set environment variables
 
@@ -305,102 +318,38 @@ sudo chown -R deploy:deploy /opt/hackerspace
 cd /opt/hackerspace
 ```
 
-### 6.6 Create the Docker Compose file
+### 6.6 Use the bundled Dockerfile and Compose file
 
-```bash
-cat > /opt/hackerspace/docker-compose.yml << 'EOF'
-version: "3.9"
+Both files ship in the repo root:
 
-services:
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: hackerspace_app
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    env_file:
-      - .env.production
-    environment:
-      NODE_ENV: production
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
-networks:
-  default:
-    name: hackerspace_net
-EOF
+```
+Dockerfile          (multi-stage build, standalone output, healthcheck)
+docker-compose.yml  (service definition, env_file, healthcheck)
+.dockerignore
 ```
 
-### 6.7 Create the Dockerfile
+You do not need to write your own. The Dockerfile sets `DOCKER_BUILD=1` during build so `next.config.mjs` emits standalone output. The compose file reads `.env.local` by default; for production swap that to `.env.production` (next step) or edit the compose file inline.
+
+### 6.7 Create the production env file
 
 ```bash
-cat > /opt/hackerspace/Dockerfile << 'EOF'
-FROM node:20-alpine AS base
-RUN corepack enable pnpm
-
-FROM base AS deps
-WORKDIR /app
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
-
-FROM base AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-RUN pnpm build
-
-FROM base AS runner
-WORKDIR /app
-ENV NODE_ENV=production
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
-
-COPY --from=builder /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
-USER nextjs
-EXPOSE 3000
-ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
-
-CMD ["node", "server.js"]
-EOF
+cp /opt/hackerspace/.env.example /opt/hackerspace/.env.production
+nano /opt/hackerspace/.env.production
 ```
 
-### 6.8 Enable standalone output in Next.js config
-
-Edit `next.config.mjs` and ensure it contains:
-
-```js
-const nextConfig = {
-  output: 'standalone',
-  // ...rest of your config
-}
-```
-
-### 6.9 Create the production env file
+Fill in the real Supabase URL, anon key, service role key, and your app URL. Then lock the file:
 
 ```bash
-cat > /opt/hackerspace/.env.production << 'EOF'
-NEXT_PUBLIC_SUPABASE_URL=https://xxxxxxxxxxxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGci...
-NEXT_PUBLIC_APP_URL=https://yourdomain.com
-NODE_ENV=production
-EOF
-
-# Lock down permissions — this file contains secrets
 chmod 600 /opt/hackerspace/.env.production
 ```
 
-### 6.10 Build and start the container
+Update `docker-compose.yml` to point at `.env.production` instead of `.env.local`, or symlink:
+
+```bash
+ln -sf .env.production /opt/hackerspace/.env.local
+```
+
+### 6.8 Build and start the container
 
 ```bash
 cd /opt/hackerspace
@@ -409,6 +358,10 @@ docker compose up -d
 
 # Check logs
 docker compose logs -f app
+
+# Verify health endpoint
+curl http://localhost:3000/api/health
+# {"status":"ok","timestamp":"..."}
 ```
 
 ### 6.11 Configure Nginx as reverse proxy
@@ -526,31 +479,34 @@ sudo ufw status
 
 Run through this after every fresh deployment:
 
-- [ ] App loads at your domain with HTTPS
+- [ ] App loads at your domain over HTTPS
+- [ ] `GET /api/health` returns `{ "status": "ok" }`
 - [ ] `/signup` creates a user and redirects to `/dashboard`
-- [ ] Dashboard shows "No members yet" (not an error)
-- [ ] Supabase dashboard → **Authentication → Users** shows the signup
-- [ ] `space_members` table has a row for the new user
-- [ ] Chat page loads channels (general, announcements, ops)
-- [ ] Send a message — it appears immediately without page refresh
-- [ ] Upgrade your user to admin via SQL (see section 2.6)
-- [ ] Settings page → save space settings → no error toast
-- [ ] PayPal integration → save credentials → "LIVE" badge appears
+- [ ] Dashboard renders without errors (counts may be zero)
+- [ ] Supabase dashboard, Authentication > Users shows the signup
+- [ ] `space_members` table has a row for the new user, with `role = 'admin'` for the first user (`createSpace` sets this)
+- [ ] Chat page loads the three default channels (`general`, `announcements`, `ops`)
+- [ ] Send a message and watch it appear in another tab without refresh (verifies realtime)
+- [ ] Settings page saves without error
+- [ ] PayPal integration accepts credentials and shows the connected badge
 
 ---
 
 ## 8. Upgrading
 
-When the schema changes, a new numbered script will be added to `scripts/`. For example `scripts/012_add_feature.sql`. Run only the new script in the Supabase SQL editor — do not re-run `schema.sql` on an existing database.
+When the schema changes, a new numbered script is added to `scripts/` (for example `scripts/014_member_user_id_nullable.sql`). On an existing database, run only the new script in the Supabase SQL editor.
 
 ```
 scripts/
-  schema.sql          ← fresh deployment only
-  012_add_feature.sql ← incremental upgrade
-  013_...sql
+  schema.sql                          fresh deployment, full schema
+  001_create_schema.sql               historical, not used for fresh deploys
+  ...
+  014_member_user_id_nullable.sql     most recent incremental
 ```
 
-For Vercel / App Platform: push to `main`, the build auto-deploys.
+`scripts/schema.sql` is also idempotent: it uses `IF NOT EXISTS` for tables and indexes, `DROP POLICY IF EXISTS` before recreating policies, and `EXCEPTION WHEN duplicate_object` for enums and realtime publications. Re-running it on an existing database is safe but unnecessary.
+
+For Vercel and App Platform: push to `main`, the build auto-deploys.
 
 For Droplet: `ssh deploy@IP '/opt/hackerspace/deploy.sh'`
 

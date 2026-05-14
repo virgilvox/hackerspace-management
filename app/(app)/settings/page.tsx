@@ -18,6 +18,13 @@ export default async function SettingsPage() {
   const { data: integrations } = await supabase
     .from('integrations').select('*').eq('space_id', member.space_id)
 
+  const { data: areas } = await supabase
+    .from('space_areas')
+    .select('id, code, name, icon, sort_order, is_archived')
+    .eq('space_id', member.space_id)
+    .order('sort_order', { ascending: true })
+    .order('name', { ascending: true })
+
   const isAdmin = member?.role === 'admin'
 
   return (
@@ -26,6 +33,14 @@ export default async function SettingsPage() {
       isAdmin={isAdmin}
       integrations={integrations ?? []}
       currentRole={member.role}
+      areas={(areas ?? []) as Array<{
+        id: string
+        code: string
+        name: string
+        icon: string | null
+        sort_order: number
+        is_archived: boolean
+      }>}
     />
   )
 }

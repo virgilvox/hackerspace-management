@@ -20,11 +20,10 @@ vi.mock('next/navigation', () => ({
 }))
 
 // Mock next/image
+// Using React.createElement avoids JSX in a .ts file (esbuild would refuse).
+import React from 'react'
 vi.mock('next/image', () => ({
-  default: (props: any) => {
-    // eslint-disable-next-line jsx-a11y/alt-text
-    return <img {...props} />
-  },
+  default: (props: any) => React.createElement('img', props),
 }))
 
 // Suppress console errors in tests (optional)

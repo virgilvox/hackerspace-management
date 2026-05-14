@@ -1,35 +1,85 @@
 # hackerspace-management
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [v0](https://v0.app).
+Multi-tenant member, payments, tasks, projects, ops, and comms platform for hackerspaces. Each tenant (a "space") owns its members, tasks, projects, payments, knowledge base, and chat channels. All access is row-level secured at the database.
 
-## Built with v0
+## Stack
 
-This repository is linked to a [v0](https://v0.app) project. You can continue developing by visiting the link below -- start new chats to make changes, and v0 will push commits directly to this repo. Every merge to `main` will automatically deploy.
+- Next.js 16 (App Router, React 19, TypeScript)
+- Tailwind v4 + shadcn/ui
+- Supabase (Postgres, Auth, Realtime)
+- Vitest + Playwright
 
-[Continue working on v0 →](https://v0.app/chat/projects/prj_WPJ8g7vA0mDSvNLcVg9Znrye43yM)
-
-## Getting Started
-
-First, run the development server:
+## Quick start (local)
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+git clone <repo-url>
+cd hackerspace-management
+pnpm install
+cp .env.example .env.local
+# Fill in Supabase URL, anon key, service role key in .env.local
+```
+
+Apply the database schema in your Supabase project:
+
+1. Supabase dashboard, SQL Editor, New query.
+2. Paste the contents of `scripts/schema.sql`.
+3. Run.
+
+Then:
+
+```bash
 pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`, sign up, create a space, land on `/dashboard`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Health probe: `curl http://localhost:3000/api/health`.
 
-## Learn More
+## Documentation
 
-To learn more, take a look at the following resources:
+| File | What it covers |
+|------|----------------|
+| [CLAUDE.md](./CLAUDE.md) | Working agreement for AI assistants in this repo |
+| [docs/AUDIT.md](./docs/AUDIT.md) | Latest deep audit (2026-05-13): findings, fixes applied, open issues |
+| [docs/HANDOFF.md](./docs/HANDOFF.md) | Session-by-session change log |
+| [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) | Local, Vercel, DigitalOcean App Platform, DigitalOcean Droplet (with managed Supabase) |
+| [docs/DEPLOY_DO_SELFHOSTED.md](./docs/DEPLOY_DO_SELFHOSTED.md) | End-to-end self-hosted on a single DigitalOcean Droplet (Supabase + app) |
+| [docs/LOCAL_DEV.md](./docs/LOCAL_DEV.md) | Fresh-clone to running app locally in five minutes, using the Supabase CLI |
+| [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | System design, project structure, auth flows |
+| [docs/DATABASE_SCHEMA.md](./docs/DATABASE_SCHEMA.md) | Full schema reference |
+| [DB_SCHEMA_MAP.md](./DB_SCHEMA_MAP.md) | Quick column-by-column lookup |
+| [docs/API_REFERENCE.md](./docs/API_REFERENCE.md) | Server actions |
+| [docs/COMPONENT_REFERENCE.md](./docs/COMPONENT_REFERENCE.md) | UI components |
+| [TESTING.md](./TESTING.md) | How to run tests |
+| [docs/GOVERNANCE_FEATURES.md](./docs/GOVERNANCE_FEATURES.md) | Diagnostic-to-feature roadmap for governance modules (proposals, incidents, policies) |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-- [v0 Documentation](https://v0.app/docs) - learn about v0 and how to use it.
+## Deployment
 
-<a href="https://v0.app/chat/api/kiro/clone/virgilvox/hackerspace-management" alt="Open in Kiro"><img src="https://pdgvvgmkdvyeydso.public.blob.vercel-storage.com/open%20in%20kiro.svg?sanitize=true" /></a>
+Four supported targets:
+
+- **Vercel** (managed Supabase): zero-config, connect the GitHub repo, set env vars. See [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md).
+- **DigitalOcean App Platform** (managed Supabase): spec ships at [.do/app.yaml](./.do/app.yaml). See [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md).
+- **DigitalOcean Droplet, app only** (managed Supabase): Dockerfile and docker-compose.yml ship in the repo root. See [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md).
+- **DigitalOcean Droplet, fully self-hosted** (your own Supabase, your own Postgres, your own data): full end-to-end guide in [docs/DEPLOY_DO_SELFHOSTED.md](./docs/DEPLOY_DO_SELFHOSTED.md).
+
+Required environment variables are in [.env.example](./.env.example).
+
+## Database migrations
+
+`scripts/schema.sql` is the canonical, idempotent, full-schema deploy. Run it once on a fresh Supabase project. For existing deployments, only run new incremental files (`scripts/NNN_description.sql`).
+
+## Scripts
+
+```bash
+pnpm dev          # development server
+pnpm build        # production build
+pnpm start        # serve production build
+pnpm lint         # eslint
+pnpm test         # vitest watch mode
+pnpm test:ui      # vitest UI
+pnpm test:e2e     # playwright
+```
+
+## Project status
+
+The system is feature-functional but pre-production. See [docs/AUDIT.md](./docs/AUDIT.md) section 4 for known gaps (validation schema enum drift, dead scripts, UI-only OAuth buttons, no secrets encryption at rest, CSV import not wired, etc.).

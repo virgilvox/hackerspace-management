@@ -26,7 +26,7 @@ export default async function DashboardPage() {
 
   const { data: member } = await supabase
     .from('space_members')
-    .select('space_id, display_name, role')
+    .select('id, space_id, display_name, role')
     .eq('user_id', user.id)
     .in('status', ['current', 'unverified', 'late'])
     .maybeSingle()
@@ -34,6 +34,8 @@ export default async function DashboardPage() {
   if (!member?.space_id) redirect('/signup')
 
   const spaceId = member.space_id
+  const memberId = (member as { id: string }).id
+  const isAdminOrBoard = member.role === 'admin' || member.role === 'board'
 
   const [
     { count: activeMembers },
@@ -42,14 +44,46 @@ export default async function DashboardPage() {
     { data: tasks },
     { data: projects },
     { data: activity },
+    { data: openProposalsRaw },
+    { data: myVotesRaw },
+    { data: pendingIncidentsRaw },
   ] = await Promise.all([
     supabase.from('space_members').select('*', { count: 'exact', head: true }).eq('space_id', spaceId).eq('status', 'current'),
     supabase.from('tasks').select('*', { count: 'exact', head: true }).eq('space_id', spaceId).in('status', ['open', 'claimed', 'in_progress']),
     supabase.from('payments').select('*', { count: 'exact', head: true }).eq('space_id', spaceId).eq('link_status', 'unlinked'),
-    supabase.from('tasks').select('*').eq('space_id', spaceId).neq('status', 'done').order('due_date', { ascending: true, nullsFirst: false }).limit(5),
+    supabase.from('tasks').select('*').eq('space_id', spaceId).in('status', ['open', 'claimed', 'in_progress', 'overdue', 'due_today', 'blocked']).order('due_date', { ascending: true, nullsFirst: false }).limit(5),
     supabase.from('projects').select('*').eq('space_id', spaceId).in('status', ['in_progress', 'blocked', 'review']).limit(3),
     supabase.from('activity_log').select('*').eq('space_id', spaceId).order('created_at', { ascending: false }).limit(6),
+    supabase.from('proposals').select('*').eq('space_id', spaceId).eq('status', 'open').order('voting_closes_at', { ascending: true, nullsFirst: false }).limit(10),
+    supabase.from('proposal_votes').select('proposal_id').eq('member_id', memberId),
+    isAdminOrBoard
+      ? supabase.from('incidents').select('*').eq('space_id', spaceId).in('status', ['received', 'under_review']).order('created_at', { ascending: false }).limit(5)
+      : Promise.resolve({ data: [] as unknown[] }),
   ])
+
+  const votedProposalIds = new Set(
+    ((myVotesRaw ?? []) as Array<{ proposal_id: string }>).map(v => v.proposal_id),
+  )
+  type ProposalSummary = {
+    id: string
+    title: string
+    voting_closes_at: string | null
+    proposal_type: string
+    quorum_required: number
+    total_voters: number
+    quorum_met: boolean | null
+  }
+  const pendingProposals = ((openProposalsRaw ?? []) as unknown as ProposalSummary[])
+    .filter(p => !votedProposalIds.has(p.id))
+    .slice(0, 5)
+  const pendingIncidents = (pendingIncidentsRaw ?? []) as unknown as Array<{
+    id: string
+    title: string
+    severity: string
+    status: string
+    sla_response_by: string | null
+    created_at: string
+  }>
 
   const overdueTasks = (tasks ?? []).filter((t) => t.due_date && new Date(t.due_date) < new Date())
 
@@ -83,6 +117,70 @@ export default async function DashboardPage() {
             </div>
           ))}
         </div>
+
+        {(pendingProposals.length > 0 || pendingIncidents.length > 0) && (
+          <div className="grid md:grid-cols-2 gap-4">
+            {pendingProposals.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase">Open proposals awaiting your vote</p>
+                  <Link href="/proposals" className="font-sans text-xs text-primary hover:underline">All</Link>
+                </div>
+                <div className="bg-card rounded border border-border divide-y divide-border">
+                  {pendingProposals.map(p => {
+                    const totalCounted = p.total_voters
+                    const quorumPct = p.quorum_required > 0
+                      ? Math.min(100, Math.round((totalCounted / p.quorum_required) * 100))
+                      : 0
+                    return (
+                      <Link key={p.id} href={`/proposals/${p.id}`} className="block px-4 py-3 hover:bg-muted transition">
+                        <p className="font-sans text-sm text-foreground truncate">{p.title}</p>
+                        <p className="font-mono text-[10px] text-muted-foreground mt-0.5">
+                          {p.proposal_type.replace(/_/g, ' ')}
+                          {p.voting_closes_at ? ` · closes ${new Date(p.voting_closes_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}` : ''}
+                          {' · '}
+                          <span className={p.quorum_met ? 'text-primary' : 'text-orange-600'}>
+                            quorum {quorumPct}%
+                          </span>
+                        </p>
+                      </Link>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {isAdminOrBoard && pendingIncidents.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase">Incidents needing response</p>
+                  <Link href="/incidents" className="font-sans text-xs text-primary hover:underline">All</Link>
+                </div>
+                <div className="bg-card rounded border border-border divide-y divide-border">
+                  {pendingIncidents.map(i => {
+                    const overdueSla = i.sla_response_by && new Date(i.sla_response_by) < new Date()
+                    return (
+                      <Link key={i.id} href={`/incidents/${i.id}`} className="block px-4 py-3 hover:bg-muted transition">
+                        <p className="font-sans text-sm text-foreground truncate">{i.title}</p>
+                        <p className="font-mono text-[10px] text-muted-foreground mt-0.5">
+                          {i.severity} · {i.status.replace(/_/g, ' ')}
+                          {i.sla_response_by && (
+                            <>
+                              {' · '}
+                              <span className={overdueSla ? 'text-red-600' : 'text-muted-foreground'}>
+                                respond by {new Date(i.sla_response_by).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                              </span>
+                            </>
+                          )}
+                        </p>
+                      </Link>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="grid lg:grid-cols-[1fr_280px] gap-6">
           <div className="space-y-6">
