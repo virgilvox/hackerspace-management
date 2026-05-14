@@ -38,7 +38,7 @@ This file is the standing brief for any Claude session in this repository. Read 
 ## Deployment rules
 
 - A fresh clone must produce a working app with no more than: clone, `pnpm install`, copy `.env.example` to `.env.local` with real values, run `scripts/schema.sql` in Supabase, `pnpm dev`.
-- A fresh production deploy (Vercel, DigitalOcean App Platform, Droplet) must be documented in `docs/DEPLOYMENT.md` step by step, no implicit knowledge required.
+- A fresh production deploy (self-hosted Supabase + app on a DigitalOcean Droplet) must be documented in `docs/DEPLOYMENT.md` step by step, no implicit knowledge required.
 - Any new environment variable must be added to `.env.example` in the same change that introduces it. Never let a deploy fail because an env var was only documented in a Slack thread.
 - The Dockerfile and docker-compose configuration in the repo are the source of truth for self-hosted deploys. Update them when the runtime requirements change.
 

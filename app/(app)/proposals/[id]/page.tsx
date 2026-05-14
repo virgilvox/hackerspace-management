@@ -92,7 +92,7 @@ export default async function ProposalDetailPage({ params }: { params: Promise<{
           <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-3">
             Tally
           </p>
-          <div className="grid grid-cols-4 gap-3 mb-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
             <Tally label="Yes" value={proposal.outcome_yes} accent="text-primary" />
             <Tally label="No" value={proposal.outcome_no} accent="text-orange-600" />
             <Tally label="Abstain" value={proposal.outcome_abstain} accent="text-muted-foreground" />

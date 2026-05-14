@@ -75,8 +75,8 @@ export function ProjectsClient({
       </div>
 
       <div className="p-4 md:p-6">
-        <div className="overflow-x-auto -mx-4 md:mx-0 px-4 md:px-0">
-        <div className="grid grid-cols-4 gap-4 min-w-[640px]">
+        <div className="md:overflow-x-auto md:-mx-0">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {STATUS_COLS.map(col => {
             const items = columns[col.key] ?? []
             return (

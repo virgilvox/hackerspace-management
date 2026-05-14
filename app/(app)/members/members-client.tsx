@@ -241,13 +241,13 @@ export function MembersClient({ members: initialMembers, currentRole }: Props) {
 
         <div className="bg-card rounded border border-border overflow-hidden">
           <div className="overflow-x-auto">
-          <table className="w-full min-w-[600px]">
+          <table className="w-full">
             <thead>
               <tr className="border-b border-border">
                 <th className="px-4 py-3 text-left font-mono text-[10px] tracking-widest text-muted-foreground">MEMBER</th>
                 <th className="px-4 py-3 text-left font-mono text-[10px] tracking-widest text-muted-foreground">TIER</th>
-                <th className="px-4 py-3 text-left font-mono text-[10px] tracking-widest text-muted-foreground">JOINED</th>
-                <th className="px-4 py-3 text-left font-mono text-[10px] tracking-widest text-muted-foreground">LAST PAYMENT</th>
+                <th className="px-4 py-3 text-left font-mono text-[10px] tracking-widest text-muted-foreground hidden md:table-cell">JOINED</th>
+                <th className="px-4 py-3 text-left font-mono text-[10px] tracking-widest text-muted-foreground hidden lg:table-cell">LAST PAYMENT</th>
                 <th className="px-4 py-3 text-left font-mono text-[10px] tracking-widest text-muted-foreground">STATUS</th>
                 {isAdmin(currentRole) && (
                   <th className="px-4 py-3 text-left font-mono text-[10px] tracking-widest text-muted-foreground">ACTIONS</th>
@@ -280,11 +280,11 @@ export function MembersClient({ members: initialMembers, currentRole }: Props) {
                         {m.tier?.toUpperCase()}
                       </span>
                     </td>
-                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
-                      {m.joined_at ? new Date(m.joined_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '—'}
+                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground hidden md:table-cell">
+                      {m.joined_at ? new Date(m.joined_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '-'}
                     </td>
-                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
-                      {(m.last_paid_at || m.last_payment_at) ? new Date((m.last_paid_at || m.last_payment_at)!).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '—'}
+                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground hidden lg:table-cell">
+                      {(m.last_paid_at || m.last_payment_at) ? new Date((m.last_paid_at || m.last_payment_at)!).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '-'}
                     </td>
                     <td className="px-4 py-3">
                       {m.status === 'unverified' ? (

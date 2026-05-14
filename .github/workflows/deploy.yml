@@ -21,8 +21,6 @@ jobs:
           username: deploy
           key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
           port: 22
-          # Strict host key checking would need us to pin a known_hosts;
-          # for now the droplet's host key is trusted on first use.
-          script_stop: true
           script: |
+            set -e
             /opt/hackerspace-ops/deploy.sh

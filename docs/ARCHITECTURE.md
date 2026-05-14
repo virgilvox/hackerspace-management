@@ -42,8 +42,9 @@ Hackerspace.sh is a comprehensive member management platform designed for hacker
 ### Infrastructure
 | Service | Purpose |
 |---------|---------|
-| Vercel | Hosting, Edge Functions |
-| Supabase Cloud | Database, Auth, Realtime subscriptions |
+| DigitalOcean Droplet | Self-hosted runtime (Docker, systemd, Caddy with Let's Encrypt) |
+| Self-hosted Supabase | Postgres, GoTrue (auth), PostgREST, Realtime, Studio |
+| Resend | Transactional email (SMTP) |
 
 ---
 

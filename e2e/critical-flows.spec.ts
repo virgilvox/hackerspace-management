@@ -11,7 +11,7 @@ async function waitForPageLoad(page: Page) {
 async function checkNoConsoleErrors(page: Page): Promise<string[]> {
   const errors: string[] = []
   page.on('console', msg => {
-    if (msg.type() === 'error' && !msg.text().includes('[v0]')) {
+    if (msg.type() === 'error') {
       errors.push(msg.text())
     }
   })

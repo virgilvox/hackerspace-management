@@ -197,12 +197,14 @@ export function PaymentsClient({ payments: initialPayments, members, integration
 
           <div className="bg-card rounded border border-border overflow-hidden">
             <div className="overflow-x-auto">
-            <table className="w-full min-w-[600px]">
+            <table className="w-full">
               <thead>
                 <tr className="border-b border-border">
-                  {['PLATFORM', 'AMOUNT', 'FROM / NOTE', 'DATE', 'MEMBER'].map(h => (
-                    <th key={h} className="px-4 py-3 text-left font-mono text-[10px] tracking-widest text-muted-foreground">{h}</th>
-                  ))}
+                  <th className="px-4 py-3 text-left font-mono text-[10px] tracking-widest text-muted-foreground">PLATFORM</th>
+                  <th className="px-4 py-3 text-left font-mono text-[10px] tracking-widest text-muted-foreground">AMOUNT</th>
+                  <th className="px-4 py-3 text-left font-mono text-[10px] tracking-widest text-muted-foreground hidden md:table-cell">FROM / NOTE</th>
+                  <th className="px-4 py-3 text-left font-mono text-[10px] tracking-widest text-muted-foreground hidden sm:table-cell">DATE</th>
+                  <th className="px-4 py-3 text-left font-mono text-[10px] tracking-widest text-muted-foreground">MEMBER</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -212,11 +214,11 @@ export function PaymentsClient({ payments: initialPayments, members, integration
                       {p.platform?.toUpperCase()}
                     </td>
                     <td className="px-4 py-3 font-sans text-sm font-medium">{'$'}{Number(p.amount).toFixed(2)}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground max-w-[200px] truncate">
-                      {p.from_identifier}{p.from_note ? ` — "${p.from_note}"` : ''}
+                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground max-w-[200px] truncate hidden md:table-cell">
+                      {p.from_identifier}{p.from_note ? ` - "${p.from_note}"` : ''}
                     </td>
-                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
-                      {p.transaction_date ? new Date(p.transaction_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
+                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground hidden sm:table-cell">
+                      {p.transaction_date ? new Date(p.transaction_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '-'}
                     </td>
                     <td className="px-4 py-3">
                       {p.link_status === 'linked' && p.space_members ? (

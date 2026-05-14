@@ -1,6 +1,5 @@
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
-import { Analytics } from '@vercel/analytics/next'
 import { Toaster } from 'sonner'
 import './globals.css'
 
@@ -10,7 +9,6 @@ const _geistMono = Geist_Mono({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: 'hackerspace.sh — Manage Your Space',
   description: 'The operating system for hackerspaces: members, tasks, projects, ops, payments, and comms.',
-  generator: 'v0.app',
   icons: {
     icon: [
       {
@@ -40,7 +38,6 @@ export default function RootLayout({
       <body className="font-sans antialiased">
         {children}
         <Toaster richColors position="bottom-right" />
-        <Analytics />
       </body>
     </html>
   )

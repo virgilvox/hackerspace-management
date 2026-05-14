@@ -1,72 +1,101 @@
 # hackerspace-management
 
-Multi-tenant member, payments, tasks, projects, ops, and comms platform for hackerspaces. Each tenant (a "space") owns its members, tasks, projects, payments, knowledge base, and chat channels. All access is row-level secured at the database.
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+[![Next.js](https://img.shields.io/badge/Next.js-16-black.svg)](https://nextjs.org)
+[![Supabase](https://img.shields.io/badge/Supabase-self--hosted-3FCF8E.svg)](https://supabase.com)
+
+A multi-tenant operating system for hackerspaces, makerspaces, and member-run shops. One installation can host many independent spaces. Each space owns its own members, tasks, projects, payments, knowledge base, proposals, incidents, policies, and chat channels. All data access is enforced at the database with row-level security.
+
+Source: <https://github.com/virgilvox/hackerspace-management>
+
+## Features
+
+- **Members and tiers.** Roster, tiers (Plus, Basic, Associate), roles (admin, board, treasurer, member, associate), state (current, late, inactive, unverified), per-member skills, certifications, and badges.
+- **Tasks and projects.** Project boards, task assignment, status, area tagging, priority, comments.
+- **Operations.** Knowledge base, secrets vault, area leads, equipment, maintenance log.
+- **Payments and financials.** Per-member payment ledger, integration credentials per space, exports, monthly financial summary.
+- **Governance.** Proposals with vote tracking and expiry, incident reports, policy library, area-of-interest configuration.
+- **Communications.** Multi-channel chat with realtime delivery.
+- **Recruitment.** Public-facing recruitment page per space.
+- **API.** PostgREST-generated REST for every table, gated by RLS. Optional webhooks with HMAC-signed deliveries.
 
 ## Stack
 
-- Next.js 16 (App Router, React 19, TypeScript)
-- Tailwind v4 + shadcn/ui
-- Supabase (Postgres, Auth, Realtime)
-- Vitest + Playwright
+| Layer | Technology |
+|-------|------------|
+| App | Next.js 16, React 19, TypeScript, Tailwind v4, shadcn/ui |
+| Data | PostgreSQL 17 via self-hosted Supabase |
+| Auth | Supabase GoTrue, JWT, email + password |
+| Realtime | Supabase Realtime (Phoenix channels over WebSocket) |
+| Storage | Block volume on the host (database), local FS (uploads) |
+| Email | Resend (SMTP) |
+| Reverse proxy | Caddy 2 (automatic Let's Encrypt) |
+| Tests | Vitest (unit), Playwright (end to end) |
 
-## Quick start (local)
+## Quick start (local development)
+
+Requirements: Node.js 20 or later, pnpm 10 or later, Docker (for the local Supabase CLI), git.
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/virgilvox/hackerspace-management.git
 cd hackerspace-management
 pnpm install
 cp .env.example .env.local
-# Fill in Supabase URL, anon key, service role key in .env.local
 ```
 
-Apply the database schema in your Supabase project:
-
-1. Supabase dashboard, SQL Editor, New query.
-2. Paste the contents of `scripts/schema.sql`.
-3. Run.
-
-Then:
+Edit `.env.local` with values from your local Supabase project (see `docs/LOCAL_DEV.md` to start one in seconds using the Supabase CLI), then:
 
 ```bash
 pnpm dev
 ```
 
-Open `http://localhost:3000`, sign up, create a space, land on `/dashboard`.
+Open `http://localhost:3000`, sign up, create a space, you land on the dashboard.
 
-Health probe: `curl http://localhost:3000/api/health`.
+Detailed local setup: [docs/LOCAL_DEV.md](./docs/LOCAL_DEV.md).
+
+## Production deployment
+
+The supported production target is a single DigitalOcean Droplet running self-hosted Supabase plus the Next.js app behind Caddy with Let's Encrypt. No managed Supabase, no third-party application data store.
+
+End-to-end guide: [docs/DEPLOY_DO_SELFHOSTED.md](./docs/DEPLOY_DO_SELFHOSTED.md).
+
+Summary:
+
+1. Provision a Droplet (4 GB RAM, 2 vCPU, 80 GB disk recommended).
+2. Attach a block volume mounted at `/mnt/data` for the Postgres data directory and backups.
+3. Point DNS A records for your domain, `www`, `supabase`, `studio` at the Droplet.
+4. Run the bootstrap script in `scripts/` to install Docker, Supabase, Node, Caddy, the app, the systemd unit, backup cron, and the deploy hook.
+5. Push to `main`. GitHub Actions runs `deploy.sh` on the Droplet over SSH: pull, install, apply pending migrations, build, restart.
+
+The deploy script is idempotent and tracked: every numbered migration in `scripts/` is recorded in `public._migrations_applied`. New migrations are applied automatically on push.
+
+## Database
+
+`scripts/schema.sql` is the canonical, idempotent, full schema. Run it once on a fresh Supabase project. Subsequent changes are added as numbered migrations (`scripts/021_*.sql`, `022_*.sql`, etc.) and applied incrementally.
+
+| Topic | Doc |
+|-------|-----|
+| Conventions | [scripts/README.md](./scripts/README.md) |
+| Full reference | [docs/DATABASE_SCHEMA.md](./docs/DATABASE_SCHEMA.md) |
+| Column map | [DB_SCHEMA_MAP.md](./DB_SCHEMA_MAP.md) |
 
 ## Documentation
 
-| File | What it covers |
-|------|----------------|
-| [CLAUDE.md](./CLAUDE.md) | Working agreement for AI assistants in this repo |
-| [docs/AUDIT.md](./docs/AUDIT.md) | Latest deep audit (2026-05-13): findings, fixes applied, open issues |
-| [docs/HANDOFF.md](./docs/HANDOFF.md) | Session-by-session change log |
-| [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) | Local, Vercel, DigitalOcean App Platform, DigitalOcean Droplet (with managed Supabase) |
-| [docs/DEPLOY_DO_SELFHOSTED.md](./docs/DEPLOY_DO_SELFHOSTED.md) | End-to-end self-hosted on a single DigitalOcean Droplet (Supabase + app) |
-| [docs/LOCAL_DEV.md](./docs/LOCAL_DEV.md) | Fresh-clone to running app locally in five minutes, using the Supabase CLI |
-| [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | System design, project structure, auth flows |
-| [docs/DATABASE_SCHEMA.md](./docs/DATABASE_SCHEMA.md) | Full schema reference |
-| [DB_SCHEMA_MAP.md](./DB_SCHEMA_MAP.md) | Quick column-by-column lookup |
-| [docs/API_REFERENCE.md](./docs/API_REFERENCE.md) | Server actions |
-| [docs/COMPONENT_REFERENCE.md](./docs/COMPONENT_REFERENCE.md) | UI components |
-| [TESTING.md](./TESTING.md) | How to run tests |
-| [docs/GOVERNANCE_FEATURES.md](./docs/GOVERNANCE_FEATURES.md) | Diagnostic-to-feature roadmap for governance modules (proposals, incidents, policies) |
-
-## Deployment
-
-Four supported targets:
-
-- **Vercel** (managed Supabase): zero-config, connect the GitHub repo, set env vars. See [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md).
-- **DigitalOcean App Platform** (managed Supabase): spec ships at [.do/app.yaml](./.do/app.yaml). See [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md).
-- **DigitalOcean Droplet, app only** (managed Supabase): Dockerfile and docker-compose.yml ship in the repo root. See [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md).
-- **DigitalOcean Droplet, fully self-hosted** (your own Supabase, your own Postgres, your own data): full end-to-end guide in [docs/DEPLOY_DO_SELFHOSTED.md](./docs/DEPLOY_DO_SELFHOSTED.md).
-
-Required environment variables are in [.env.example](./.env.example).
-
-## Database migrations
-
-`scripts/schema.sql` is the canonical, idempotent, full-schema deploy. Run it once on a fresh Supabase project. For existing deployments, only run new incremental files (`scripts/NNN_description.sql`).
+| File | Contents |
+|------|----------|
+| [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | System design, project structure, auth flow |
+| [docs/DATABASE_SCHEMA.md](./docs/DATABASE_SCHEMA.md) | Tables, enums, indexes, RLS policies |
+| [docs/API_REFERENCE.md](./docs/API_REFERENCE.md) | Server actions and REST endpoints |
+| [docs/COMPONENT_REFERENCE.md](./docs/COMPONENT_REFERENCE.md) | UI components and props |
+| [docs/DEPLOY_DO_SELFHOSTED.md](./docs/DEPLOY_DO_SELFHOSTED.md) | End to end production deploy |
+| [docs/LOCAL_DEV.md](./docs/LOCAL_DEV.md) | Fresh clone to running locally |
+| [docs/GOVERNANCE_FEATURES.md](./docs/GOVERNANCE_FEATURES.md) | Proposals, incidents, policies |
+| [docs/WEBHOOKS.md](./docs/WEBHOOKS.md) | Webhook payload, signing, verification |
+| [TESTING.md](./TESTING.md) | Test commands and coverage |
+| [CONTRIBUTING.md](./CONTRIBUTING.md) | How to contribute |
+| [CHANGELOG.md](./CHANGELOG.md) | Notable changes per release |
+| [SECURITY.md](./SECURITY.md) | Vulnerability disclosure |
+| [LICENSE](./LICENSE) | MIT |
 
 ## Scripts
 
@@ -77,9 +106,17 @@ pnpm start        # serve production build
 pnpm lint         # eslint
 pnpm test         # vitest watch mode
 pnpm test:ui      # vitest UI
-pnpm test:e2e     # playwright
+pnpm test:e2e     # playwright end-to-end
 ```
 
 ## Project status
 
-The system is feature-functional but pre-production. See [docs/AUDIT.md](./docs/AUDIT.md) section 4 for known gaps (validation schema enum drift, dead scripts, UI-only OAuth buttons, no secrets encryption at rest, CSV import not wired, etc.).
+The system is feature-functional and serving production traffic at `hackerspace.sh`. See [docs/AUDIT.md](./docs/AUDIT.md) for the latest audit and the open issues list.
+
+## Contributing
+
+Contributions are welcome. Please read [CONTRIBUTING.md](./CONTRIBUTING.md) before opening a pull request. Security issues: see [SECURITY.md](./SECURITY.md).
+
+## License
+
+MIT. See [LICENSE](./LICENSE).

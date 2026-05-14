@@ -53,13 +53,13 @@ export function ProposalActions({
           <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-3">
             {myVote ? 'Update your vote' : 'Cast your vote'}
           </p>
-          <div className="grid grid-cols-4 gap-2 mb-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
             {votePositions.map(p => (
               <button
                 key={p}
                 type="button"
                 onClick={() => setPosition(p)}
-                className={`font-mono text-xs tracking-widest uppercase py-2 rounded border transition ${
+                className={`font-mono text-xs tracking-widest uppercase py-2.5 rounded border transition ${
                   position === p
                     ? 'bg-primary text-white border-primary'
                     : 'border-border text-foreground hover:border-primary'

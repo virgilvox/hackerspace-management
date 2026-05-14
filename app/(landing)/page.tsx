@@ -34,6 +34,13 @@ function IcoEye({ className }: { className?: string }) {
 function IcoPin({ className }: { className?: string }) {
   return <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" /></svg>
 }
+function IcoGithub({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path fillRule="evenodd" clipRule="evenodd" d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.27-.01-1.01-.02-1.98-3.2.7-3.88-1.54-3.88-1.54-.52-1.33-1.27-1.69-1.27-1.69-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.18-3.09-.12-.29-.51-1.45.11-3.02 0 0 .97-.31 3.18 1.18.92-.26 1.91-.39 2.89-.39.98 0 1.97.13 2.89.39 2.2-1.49 3.17-1.18 3.17-1.18.63 1.57.23 2.73.11 3.02.74.8 1.18 1.83 1.18 3.09 0 4.42-2.69 5.4-5.25 5.68.41.35.78 1.04.78 2.11 0 1.52-.01 2.74-.01 3.11 0 .31.21.68.8.56 4.57-1.52 7.85-5.83 7.85-10.91C23.5 5.65 18.35.5 12 .5z" />
+    </svg>
+  )
+}
 
 // ─── Mini UI Previews ──────────────────────────────────────────────────────────
 
@@ -318,6 +325,15 @@ export default function LandingPage() {
             <Link href="/resources" className="hidden sm:inline-flex font-sans text-sm text-sidebar-foreground hover:text-white transition px-3 py-1.5">
               Resources
             </Link>
+            <a
+              href="https://github.com/virgilvox/hackerspace-management"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="View source on GitHub"
+              className="inline-flex items-center justify-center w-9 h-9 rounded text-sidebar-foreground hover:text-white hover:bg-white/5 transition"
+            >
+              <IcoGithub className="w-5 h-5" />
+            </a>
             <Link href="/login" className="font-sans text-sm text-sidebar-foreground hover:text-white transition px-3 py-1.5">
               Log in
             </Link>
@@ -502,9 +518,21 @@ export default function LandingPage() {
               <IcoTerminal className="w-4 h-4 text-primary" />
               <span className="font-mono text-xs text-sidebar-foreground">hackerspace.sh</span>
             </div>
-            <p className="font-mono text-[10px] text-sidebar-foreground/50">
-              Management software for makerspaces and community workshops.
-            </p>
+            <div className="flex items-center gap-4">
+              <p className="font-mono text-[10px] text-sidebar-foreground/50">
+                Management software for makerspaces and community workshops.
+              </p>
+              <a
+                href="https://github.com/virgilvox/hackerspace-management"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="View source on GitHub"
+                className="inline-flex items-center gap-1.5 text-sidebar-foreground/70 hover:text-white transition font-mono text-[10px]"
+              >
+                <IcoGithub className="w-3.5 h-3.5" />
+                source
+              </a>
+            </div>
           </div>
         </div>
       </footer>

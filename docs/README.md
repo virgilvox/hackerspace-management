@@ -74,7 +74,7 @@ A comprehensive member management platform for hackerspaces, makerspaces, and co
 | Database | Supabase PostgreSQL |
 | Auth | Supabase Auth |
 | Real-time | Supabase Realtime |
-| Hosting | Vercel |
+| Hosting | Self-hosted DigitalOcean Droplet (Docker, Caddy) |
 
 ---
 
@@ -174,11 +174,9 @@ All database access is protected by RLS policies:
 
 ## Deployment
 
-### Vercel
+### DigitalOcean Droplet (production)
 
-1. Connect GitHub repository
-2. Set environment variables in Vercel dashboard
-3. Deploy automatically on push to main
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for the at-a-glance flow and [DEPLOY_DO_SELFHOSTED.md](./DEPLOY_DO_SELFHOSTED.md) for the end-to-end provisioning procedure. Every push to `main` triggers GitHub Actions, which runs the deploy script on the Droplet over SSH.
 
 ### Database Migrations
 
@@ -205,10 +203,10 @@ Migrations must be run manually via Supabase SQL Editor:
 
 Add console logs in server actions:
 ```typescript
-console.log('[v0] User:', user?.id, 'Space:', member?.space_id)
+console.log('[app] User:', user?.id, 'Space:', member?.space_id)
 ```
 
-View logs in Vercel Function logs or terminal.
+View logs with `journalctl -u hackerspace-app -f` on the Droplet, or in the dev server terminal locally.
 
 ---
 

@@ -14,9 +14,10 @@ const ADMIN_ONLY = ['admin'] as const
 export async function updateSpaceSettings(updates: {
   name?: string
   slug?: string
-  city?: string
+  city?: string | null
   require_approval?: boolean
   public_member_directory?: boolean
+  mission_statement?: string | null
 }) {
   const v = parseInput(updateSpaceSettingsSchema, updates)
   if (!v.ok) return { error: v.error }
