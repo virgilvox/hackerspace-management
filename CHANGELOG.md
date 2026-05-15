@@ -4,7 +4,16 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### Changed
+- Landing page rebuilt in the `/resources` editorial aesthetic: scoped dark theme (IBM Plex Mono + Libre Baskerville, lime accent, faint grid), a server component (~150 lines, down from a 539-line client monolith), and split into `components/landing/*`. Added a single-row resource showcase of six square tiles with the project SVG logos.
+
+### Fixed
+- Knowledge base search no longer crashes the Ops page. `filteredLeads` referenced a non-existent `member_name` column; the resulting `undefined.toLowerCase()` threw on every keystroke because the filter memos recompute on shared search state across tabs. All Ops filter predicates are now null-safe.
+
 ### Added
+- `docs/PERMISSIONS_DESIGN.md`: design for customizable permissions, per-item Ops ACLs, and area-lead roles (next focused pass; security-sensitive RLS work, intentionally not bundled with UI changes).
+
+### Added (continued)
 - **Customize hub** at `/customize` (admin/board): a dedicated home for per-space customization with a section rail (Roles, Membership tiers, Areas, Invite codes, Onboarding), split into one focused module per panel. Replaces the overloaded Settings tab strip.
 - **Roles editor**: rename and recolor the five built-in roles, and create/edit/delete custom org-structure roles. Renamed roles now display (sidebar user card; helper `lib/role-labels.ts`).
 - **Invite share links**: copy a one-click `/signup?invite=CODE` link in addition to the bare code; the signup page prefills the code and preselects join mode from `?invite=`.

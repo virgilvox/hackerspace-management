@@ -4,6 +4,27 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-15 (pass 14) — Landing redesign + KB search fix
+
+Branch: `main`.
+
+### What shipped
+
+- **Landing rebuilt in the resources editorial aesthetic.** New scoped `app/(landing)/landing.css` mirrors the `/resources` palette (`#0c0c0c` / lime `#d4ff00` / `#252525` borders), IBM Plex Mono + Libre Baskerville (loaded in `(landing)/layout.tsx`, which now wraps `.landing-root` + grid overlay). `app/(landing)/page.tsx` went from a 539-line `'use client'` monolith to a ~150-line server component. The animated `Mini*` previews and inline `Ico*` set were removed (they clashed with the editorial look). Modules extracted for separation of concerns: `components/landing/icons.tsx`, `components/landing/resource-showcase.tsx`. `BrandMark` now accepts `style`.
+- **Resource showcase**: a single row of six square tiles at the foot of the landing, each with the real project SVG logo (`AtlasLogo`, `CubeIcon`, `TraceIcon`, `SpaceIcon`, `GridIcon`, `KeyIcon`), linking to /atlas, /space-after-dark, /proposal-duel, /zine, the external learner, /governance. Responsive 6 -> 3 -> 2 columns.
+- **KB search crash fixed** (`app/(app)/ops/ops-client.tsx`). Root cause: `filteredLeads` referenced `l.member_name`, a column that does not exist (it is `lead_handle`), so `undefined.toLowerCase()` threw. Because `search` is shared state and all four filter memos recompute on every keystroke regardless of the active tab, typing in the KB box crashed the whole page. All four predicates are now null-safe via a shared `has()` helper; `filteredSecrets` also no longer assumes a non-null `title`.
+
+### Verification
+
+- `pnpm build` green (`/` route present), `pnpm test` 266/266.
+- No migration this pass.
+
+### Next pass (designed, not yet built): permissions + Ops ACLs + area-lead roles
+
+User asked for: customizable permissions; per-secret and per-Ops-item multi-role access; area-lead roles that show "vacant" until a member is assigned (from a dedicated UI or by clicking a member in the directory) and that grant permissions wherever that area-lead role is selected. This is a security-sensitive subsystem (RLS rewrites on `secrets` and `knowledge_base`) and is deliberately NOT bundled with the landing redesign. Design is captured in `docs/PERMISSIONS_DESIGN.md`.
+
+---
+
 ## 2026-05-15 (pass 13) — Customize hub, roles editor, logo revert
 
 Branch: `main`.

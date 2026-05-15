@@ -519,11 +519,19 @@ export function OpsClient({ member, spaceId, kbEntries: initial, areaLeads: init
   const [showLeadModal, setShowLeadModal] = useState(false)
   const [editingLead, setEditingLead] = useState<AreaLead | null>(null)
 
+  // Every predicate is null-safe: title/content/area/handle can all be null
+  // in the database. These memos recompute on every keystroke of the shared
+  // `search` state regardless of the active tab, so an unguarded
+  // .toLowerCase() on a null field throws and takes the whole page down
+  // (this is why KB search appeared broken: filteredLeads referenced a
+  // non-existent `member_name` column).
+  const has = (v: string | null | undefined, q: string) => !!v && v.toLowerCase().includes(q)
+
   const filteredKb = useMemo(() => {
     const q = search.toLowerCase()
     return kbEntries.filter(e =>
       !e.tags?.includes('process') &&
-      (!q || e.title.toLowerCase().includes(q) || e.content?.toLowerCase().includes(q) || e.area?.toLowerCase().includes(q)),
+      (!q || has(e.title, q) || has(e.content, q) || has(e.area, q)),
     )
   }, [kbEntries, search])
 
@@ -531,18 +539,18 @@ export function OpsClient({ member, spaceId, kbEntries: initial, areaLeads: init
     const q = search.toLowerCase()
     return kbEntries.filter(e =>
       e.tags?.includes('process') &&
-      (!q || e.title.toLowerCase().includes(q) || e.content?.toLowerCase().includes(q) || e.area?.toLowerCase().includes(q)),
+      (!q || has(e.title, q) || has(e.content, q) || has(e.area, q)),
     )
   }, [kbEntries, search])
 
   const filteredSecrets = useMemo(() => {
     const q = search.toLowerCase()
-    return secrets.filter(s => !q || s.title.toLowerCase().includes(q) || s.area?.toLowerCase().includes(q))
+    return secrets.filter(s => !q || has(s.title, q) || has(s.label, q) || has(s.area, q))
   }, [secrets, search])
 
   const filteredLeads = useMemo(() => {
     const q = search.toLowerCase()
-    return areaLeads.filter(l => !q || l.area_name.toLowerCase().includes(q) || l.member_name.toLowerCase().includes(q))
+    return areaLeads.filter(l => !q || has(l.area_name, q) || has(l.lead_handle, q))
   }, [areaLeads, search])
 
   async function deleteLeadFn(id: string) {

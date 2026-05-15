@@ -1,0 +1,196 @@
+/* =============================================================================
+ * Landing stylesheet. Shares the editorial palette and type system of the
+ * /resources subsite (IBM Plex Mono + Libre Baskerville, near-black with a
+ * lime accent and a faint grid) so the marketing page and the resources
+ * project read as one brand. Scoped under .landing-root so it never bleeds
+ * into the management app's shadcn/Tailwind system.
+ * ===========================================================================*/
+
+.landing-root {
+  --ln-bg:         #0c0c0c;
+  --ln-surface:    #161616;
+  --ln-border:     #252525;
+  --ln-text:       #e8e8e8;
+  --ln-text-dim:   #707070;
+  --ln-text-muted: #404040;
+  --ln-accent:     #d4ff00;
+
+  background: var(--ln-bg);
+  color: var(--ln-text);
+  font-family: var(--font-ibm-plex-mono), 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  position: relative;
+}
+
+.landing-root ::selection { background: var(--ln-accent); color: var(--ln-bg); }
+.landing-root a { color: inherit; text-decoration: none; }
+
+.landing-root .landing-grid-bg {
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--ln-border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--ln-border) 1px, transparent 1px);
+  background-size: 60px 60px;
+  opacity: 0.3;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.landing-root > *:not(.landing-grid-bg) { position: relative; z-index: 1; }
+
+.landing-root .landing-container { max-width: 1100px; margin: 0 auto; padding: 0 32px; }
+
+/* Nav */
+.landing-root .landing-nav {
+  border-bottom: 1px solid var(--ln-border);
+}
+.landing-root .landing-nav-inner {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 24px; padding: 28px 0;
+}
+.landing-root .landing-wordmark {
+  display: flex; align-items: center; gap: 10px;
+  font-weight: 500; letter-spacing: -0.02em;
+}
+.landing-root .landing-nav-links { display: flex; align-items: center; gap: 28px; font-size: 0.8125rem; color: var(--ln-text-dim); }
+.landing-root .landing-nav-links a:hover { color: var(--ln-text); }
+
+/* Buttons */
+.landing-root .landing-btn,
+.landing-root .landing-btn-accent {
+  display: inline-flex; align-items: center; gap: 10px;
+  font-size: 0.8125rem; padding: 12px 24px;
+  border: 1px solid var(--ln-border);
+  transition: all 0.25s ease;
+  white-space: nowrap;
+}
+.landing-root .landing-btn:hover { border-color: var(--ln-text-dim); color: var(--ln-text); }
+.landing-root .landing-btn-accent {
+  background: var(--ln-accent); border-color: var(--ln-accent); color: var(--ln-bg);
+  font-weight: 500;
+}
+.landing-root .landing-btn-accent:hover { filter: brightness(1.08); }
+
+/* Hero */
+.landing-root .landing-hero { padding: 88px 0 72px; border-bottom: 1px solid var(--ln-border); }
+.landing-root .landing-eyebrow {
+  font-size: 0.75rem; font-weight: 700; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--ln-text-dim); margin-bottom: 24px;
+}
+.landing-root .landing-display {
+  font-family: var(--font-libre-baskerville), 'Libre Baskerville', Georgia, serif;
+  font-size: clamp(2rem, 5.5vw, 3.5rem);
+  font-weight: 400; line-height: 1.12; letter-spacing: -0.02em;
+  max-width: 16ch;
+}
+.landing-root .landing-display em { font-style: italic; color: var(--ln-accent); }
+.landing-root .landing-lede {
+  font-size: 1rem; color: var(--ln-text-dim); line-height: 1.75;
+  max-width: 52ch; margin: 24px 0 36px;
+}
+.landing-root .landing-cta-row { display: flex; flex-wrap: wrap; gap: 12px; }
+
+/* Section header */
+.landing-root .landing-section { padding: 72px 0; border-bottom: 1px solid var(--ln-border); }
+.landing-root .landing-section-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: 24px; margin-bottom: 40px;
+}
+.landing-root .landing-section-label {
+  font-size: 0.75rem; font-weight: 700; letter-spacing: 0.15em;
+  text-transform: uppercase; color: var(--ln-text-dim);
+}
+.landing-root .landing-section-note { font-size: 0.75rem; color: var(--ln-text-muted); }
+
+/* Module cards */
+.landing-root .landing-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 1px; background: var(--ln-border);
+  border: 1px solid var(--ln-border);
+}
+.landing-root .landing-card {
+  background: var(--ln-bg); padding: 32px;
+  display: flex; flex-direction: column; min-height: 200px;
+  transition: background 0.3s ease;
+}
+.landing-root .landing-card:hover { background: var(--ln-surface); }
+.landing-root .landing-card-num {
+  font-size: 0.6875rem; color: var(--ln-text-muted);
+  letter-spacing: 0.1em; margin-bottom: 20px;
+}
+.landing-root .landing-card-title {
+  font-family: var(--font-libre-baskerville), 'Libre Baskerville', Georgia, serif;
+  font-size: 1.25rem; font-weight: 400; letter-spacing: -0.01em; margin-bottom: 10px;
+  transition: color 0.3s ease;
+}
+.landing-root .landing-card:hover .landing-card-title { color: var(--ln-accent); }
+.landing-root .landing-card-desc { font-size: 0.8125rem; color: var(--ln-text-dim); line-height: 1.65; }
+
+/* Steps */
+.landing-root .landing-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; }
+.landing-root .landing-step-num {
+  font-family: var(--font-libre-baskerville), 'Libre Baskerville', Georgia, serif;
+  font-size: 2rem; color: var(--ln-text-muted); margin-bottom: 12px;
+}
+.landing-root .landing-step-title { font-size: 0.95rem; color: var(--ln-text); margin-bottom: 8px; }
+.landing-root .landing-step-desc { font-size: 0.8125rem; color: var(--ln-text-dim); line-height: 1.65; }
+
+/* Resource showcase: a single row of square tiles */
+.landing-root .landing-showcase {
+  display: grid; grid-template-columns: repeat(6, 1fr);
+  gap: 1px; background: var(--ln-border); border: 1px solid var(--ln-border);
+}
+.landing-root .landing-tile {
+  background: var(--ln-bg); aspect-ratio: 1 / 1;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 14px; padding: 20px; text-align: center;
+  transition: background 0.3s ease;
+}
+.landing-root .landing-tile:hover { background: var(--ln-surface); }
+.landing-root .landing-tile-visual {
+  width: 52px; height: 52px; color: var(--ln-text);
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 0.3s ease;
+}
+.landing-root .landing-tile:hover .landing-tile-visual { transform: translateY(-2px); }
+.landing-root .landing-tile-visual svg { width: 100%; height: 100%; }
+.landing-root .landing-tile-title {
+  font-size: 0.75rem; letter-spacing: 0.04em; color: var(--ln-text-dim);
+  transition: color 0.3s ease;
+}
+.landing-root .landing-tile:hover .landing-tile-title { color: var(--ln-text); }
+
+/* CTA + footer */
+.landing-root .landing-cta { padding: 96px 0; text-align: center; border-bottom: 1px solid var(--ln-border); }
+.landing-root .landing-cta-title {
+  font-family: var(--font-libre-baskerville), 'Libre Baskerville', Georgia, serif;
+  font-size: clamp(1.5rem, 4vw, 2.25rem); font-weight: 400; margin-bottom: 28px;
+}
+.landing-root .landing-cta .landing-cta-row { justify-content: center; }
+.landing-root .landing-cta-foot { margin-top: 28px; font-size: 0.8125rem; color: var(--ln-text-muted); }
+.landing-root .landing-cta-foot a { color: var(--ln-accent); }
+.landing-root .landing-cta-foot a:hover { color: var(--ln-text); }
+
+.landing-root footer { padding: 40px 0; font-size: 0.75rem; color: var(--ln-text-muted); }
+.landing-root .landing-foot-inner { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+.landing-root footer a { color: var(--ln-text-dim); transition: color 0.2s; }
+.landing-root footer a:hover { color: var(--ln-text); }
+
+/* Mobile */
+@media (max-width: 900px) {
+  .landing-root .landing-grid { grid-template-columns: repeat(2, 1fr); }
+  .landing-root .landing-showcase { grid-template-columns: repeat(3, 1fr); }
+  .landing-root .landing-steps { grid-template-columns: 1fr; gap: 28px; }
+}
+@media (max-width: 600px) {
+  .landing-root .landing-container { padding: 0 20px; }
+  .landing-root .landing-hero { padding: 56px 0 48px; }
+  .landing-root .landing-grid { grid-template-columns: 1fr; }
+  .landing-root .landing-showcase { grid-template-columns: repeat(2, 1fr); }
+  .landing-root .landing-nav-links { gap: 16px; }
+  .landing-root .landing-foot-inner { flex-direction: column; align-items: flex-start; }
+}

@@ -1,10 +1,13 @@
+import type { CSSProperties } from 'react'
+
 // The hackerspace.sh brand mark: a minimal terminal prompt glyph (a chevron
 // and an underscore). Inherits the surrounding text color via currentColor,
-// so it picks up the lime accent wherever it sits on the dark sidebar.
-export function BrandMark({ className }: { className?: string }) {
+// or set an explicit color via `style`.
+export function BrandMark({ className, style }: { className?: string; style?: CSSProperties }) {
   return (
     <svg
       className={className}
+      style={style}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
