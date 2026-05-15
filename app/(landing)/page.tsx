@@ -1,4 +1,6 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
+import { createClient } from '@/lib/supabase/server'
 import { BrandMark } from '@/components/brand-mark'
 import { GithubIcon, ArrowIcon } from '@/components/landing/icons'
 import { ResourceShowcase } from '@/components/landing/resource-showcase'
@@ -19,7 +21,14 @@ const STEPS = [
   { num: '03', title: 'Seed your ops docs', desc: 'Drop in SOPs, credentials, and area leads. The whole board has one place to look things up.' },
 ]
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  // `/` resolves here (route group adds no path segment), so this page is
+  // wrapped by (landing)/layout.tsx which supplies the .landing-root theme,
+  // fonts, and landing.css. Logged-in visitors skip the marketing page.
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (user) redirect('/dashboard')
+
   return (
     <>
       <nav className="landing-nav">
