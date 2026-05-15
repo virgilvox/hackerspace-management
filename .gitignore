@@ -27,6 +27,7 @@ playwright-report/
 supabase/.branches/
 supabase/.temp/
 
-# Production deployment secrets (never commit)
-secrets/
+# Production deployment secrets (never commit). Anchored to repo root so it
+# doesn't also match lib/secrets/ (which is application code, not credentials).
+/secrets/
 *.pem
