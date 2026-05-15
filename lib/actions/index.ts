@@ -38,3 +38,6 @@ export * from './comms'
 export * from './tiers'
 export * from './roles'
 export * from './invites'
+
+// Configurable member onboarding
+export * from './onboarding'

@@ -318,9 +318,33 @@ export const updateMyProfileSchema = z.object({
   display_name: z.string().min(1).max(100).optional(),
   handle: z.string().max(50).optional().nullable(),
   phone: z.string().max(20).optional().nullable(),
+  bio: z.string().max(2000).optional().nullable(),
   skills: z.array(z.string().min(1).max(60)).max(40).optional(),
   interests: z.array(z.string().min(1).max(60)).max(40).optional(),
   willing_to: z.array(z.string().min(1).max(60)).max(20).optional(),
+})
+
+// ─── Onboarding ──────────────────────────────────────────────────────────────
+
+export const onboardingStepTypeSchema = z.enum(['welcome', 'code_of_conduct', 'profile', 'payment', 'content'])
+
+export const createOnboardingStepSchema = z.object({
+  step_type: onboardingStepTypeSchema,
+  title: z.string().min(1, 'Title is required').max(200),
+  body: z.string().max(50000).optional().nullable(),
+  config: z.record(z.unknown()).optional(),
+  is_enabled: z.boolean().optional(),
+  is_required: z.boolean().optional(),
+  sort_order: z.number().int().min(0).max(100000).optional(),
+})
+
+export const updateOnboardingStepSchema = z.object({
+  title: z.string().min(1).max(200).optional(),
+  body: z.string().max(50000).optional().nullable(),
+  config: z.record(z.unknown()).optional(),
+  is_enabled: z.boolean().optional(),
+  is_required: z.boolean().optional(),
+  sort_order: z.number().int().min(0).max(100000).optional(),
 })
 
 export const discloseAffiliationsSchema = z.object({

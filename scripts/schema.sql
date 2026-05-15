@@ -1617,3 +1617,78 @@ CREATE TRIGGER trg_space_tiers_touch          BEFORE UPDATE ON public.space_tier
 CREATE TRIGGER trg_space_role_labels_touch    BEFORE UPDATE ON public.space_role_labels    FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
 CREATE TRIGGER trg_space_custom_roles_touch   BEFORE UPDATE ON public.space_custom_roles   FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
 CREATE TRIGGER trg_space_invites_touch        BEFORE UPDATE ON public.space_invites        FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
+
+
+-- =============================================================================
+-- 14. Configurable member onboarding.
+--     Equivalent to scripts/022_onboarding.sql.
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS public.space_onboarding_steps (
+  id          uuid        PRIMARY KEY DEFAULT uuid_generate_v4(),
+  space_id    uuid        NOT NULL REFERENCES public.spaces(id) ON DELETE CASCADE,
+  step_key    text        NOT NULL CHECK (char_length(step_key) BETWEEN 1 AND 60),
+  step_type   text        NOT NULL CHECK (step_type IN ('welcome','code_of_conduct','profile','payment','content')),
+  title       text        NOT NULL CHECK (char_length(title) BETWEEN 1 AND 200),
+  body        text,
+  config      jsonb       NOT NULL DEFAULT '{}',
+  is_enabled  boolean     NOT NULL DEFAULT true,
+  is_required boolean     NOT NULL DEFAULT false,
+  is_system   boolean     NOT NULL DEFAULT false,
+  sort_order  integer     NOT NULL DEFAULT 0,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  updated_at  timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (space_id, step_key)
+);
+CREATE INDEX IF NOT EXISTS idx_onboarding_steps_space ON public.space_onboarding_steps (space_id, sort_order);
+
+ALTER TABLE public.space_members ADD COLUMN IF NOT EXISTS onboarding_completed_at timestamptz;
+ALTER TABLE public.space_members ADD COLUMN IF NOT EXISTS onboarding_progress jsonb NOT NULL DEFAULT '{}';
+
+CREATE OR REPLACE FUNCTION public.seed_default_onboarding_steps()
+  RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO public.space_onboarding_steps
+    (space_id, step_key, step_type, title, body, config, is_enabled, is_required, is_system, sort_order)
+  VALUES
+    (NEW.id, 'welcome', 'welcome', 'Welcome to ' || NEW.name,
+     E'We are glad you are here.\n\nThis short setup gets you ready to use the space. It takes about a minute.',
+     '{}'::jsonb, true, false, true, 0),
+    (NEW.id, 'code_of_conduct', 'code_of_conduct', 'Code of Conduct',
+     E'Be excellent to each other.\n\n- Treat people and tools with respect.\n- Clean up after yourself.\n- Ask before using equipment you have not been trained on.',
+     '{"require_ack": true, "ack_label": "I have read and agree to the code of conduct"}'::jsonb, true, true, true, 1),
+    (NEW.id, 'profile', 'profile', 'Complete your profile',
+     E'Tell the space who you are. You can change this anytime from your profile.',
+     '{}'::jsonb, true, false, true, 2),
+    (NEW.id, 'payment', 'payment', 'Set up your dues',
+     E'Membership dues keep the space running. Set up your recurring payment now so you do not lose access.',
+     '{}'::jsonb, true, false, true, 3)
+  ON CONFLICT (space_id, step_key) DO NOTHING;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_seed_default_onboarding_steps ON public.spaces;
+CREATE TRIGGER trg_seed_default_onboarding_steps
+  AFTER INSERT ON public.spaces
+  FOR EACH ROW EXECUTE FUNCTION public.seed_default_onboarding_steps();
+
+ALTER TABLE public.space_onboarding_steps ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS onboarding_steps_select ON public.space_onboarding_steps;
+DROP POLICY IF EXISTS onboarding_steps_insert ON public.space_onboarding_steps;
+DROP POLICY IF EXISTS onboarding_steps_update ON public.space_onboarding_steps;
+DROP POLICY IF EXISTS onboarding_steps_delete ON public.space_onboarding_steps;
+CREATE POLICY onboarding_steps_select ON public.space_onboarding_steps FOR SELECT
+  USING (space_id IN (SELECT public.get_user_space_ids(auth.uid())));
+CREATE POLICY onboarding_steps_insert ON public.space_onboarding_steps FOR INSERT
+  WITH CHECK (public.user_has_role_in_space(auth.uid(), space_id, ARRAY['admin','board']));
+CREATE POLICY onboarding_steps_update ON public.space_onboarding_steps FOR UPDATE
+  USING (public.user_has_role_in_space(auth.uid(), space_id, ARRAY['admin','board']));
+CREATE POLICY onboarding_steps_delete ON public.space_onboarding_steps FOR DELETE
+  USING (public.user_has_role_in_space(auth.uid(), space_id, ARRAY['admin']) AND NOT is_system);
+
+DROP TRIGGER IF EXISTS trg_onboarding_steps_touch ON public.space_onboarding_steps;
+CREATE TRIGGER trg_onboarding_steps_touch
+  BEFORE UPDATE ON public.space_onboarding_steps
+  FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();

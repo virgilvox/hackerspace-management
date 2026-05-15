@@ -25,6 +25,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     redirect('/login')
   }
 
+  // New members walk through the space's configured onboarding before they
+  // reach the app. Founders (createSpace) and pre-existing members (migration
+  // 022 backfill) have onboarding_completed_at set, so this only gates
+  // genuinely-new joiners. /onboarding is outside this layout group, so there
+  // is no redirect loop.
+  if (!(member as { onboarding_completed_at?: string | null }).onboarding_completed_at) {
+    redirect('/onboarding')
+  }
+
   // Count badges
   const { count: taskCount } = await supabase
     .from('tasks')

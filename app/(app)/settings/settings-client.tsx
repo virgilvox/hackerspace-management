@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { X, Check, Copy, Eye, EyeOff, RotateCcw } from 'lucide-react'
-import { updateSpaceSettings, saveIntegration, disconnectIntegration, rotateWebhookSecret, updateSpaceVisibility, createArea, updateArea, deleteArea, createTier, updateTier, deleteTier, createInvite, updateInvite, deleteInvite } from '@/lib/actions'
+import { updateSpaceSettings, saveIntegration, disconnectIntegration, rotateWebhookSecret, updateSpaceVisibility, createArea, updateArea, deleteArea, createTier, updateTier, deleteTier, createInvite, updateInvite, deleteInvite, createOnboardingStep, updateOnboardingStep, deleteOnboardingStep } from '@/lib/actions'
 import { toast } from 'sonner'
 import { financialVisibilities, directoryVisibilities } from '@/lib/validations'
 
@@ -27,6 +27,20 @@ interface Props {
   areas: Area[]
   tiers: Tier[]
   invites: Invite[]
+  onboardingSteps: OnboardingStep[]
+}
+
+export interface OnboardingStep {
+  id: string
+  step_key: string
+  step_type: 'welcome' | 'code_of_conduct' | 'profile' | 'payment' | 'content'
+  title: string
+  body: string | null
+  config: Record<string, unknown>
+  is_enabled: boolean
+  is_required: boolean
+  is_system: boolean
+  sort_order: number
 }
 
 export interface Tier {
@@ -124,8 +138,9 @@ const INTEGRATIONS_CONFIG = [
   },
 ]
 
-export default function SettingsClient({ space, isAdmin, integrations, currentRole, areas: initialAreas, tiers: initialTiers, invites: initialInvites }: Props) {
-  const [activeTab, setActiveTab] = useState<'space' | 'roles' | 'tiers' | 'invites' | 'integrations' | 'webhooks'>('space')
+export default function SettingsClient({ space, isAdmin, integrations, currentRole, areas: initialAreas, tiers: initialTiers, invites: initialInvites, onboardingSteps: initialOnboarding }: Props) {
+  const [activeTab, setActiveTab] = useState<'space' | 'roles' | 'tiers' | 'invites' | 'onboarding' | 'integrations' | 'webhooks'>('space')
+  const [onboardingSteps, setOnboardingSteps] = useState<OnboardingStep[]>(initialOnboarding)
   const [areas, setAreas] = useState<Area[]>(initialAreas)
   const [tiers, setTiers] = useState<Tier[]>(initialTiers)
   const [invites, setInvites] = useState<Invite[]>(initialInvites)
@@ -268,7 +283,7 @@ export default function SettingsClient({ space, isAdmin, integrations, currentRo
         <div className="flex-1 p-4 md:p-6">
           {/* Tabs */}
           <div className="bg-card border-b border-border flex gap-4 md:gap-6 px-2 mb-6 rounded-t overflow-x-auto">
-            {(['space', 'roles', 'tiers', 'invites', 'integrations', 'webhooks'] as const).map(tab => (
+            {(['space', 'roles', 'tiers', 'invites', 'onboarding', 'integrations', 'webhooks'] as const).map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -1034,6 +1049,164 @@ export default function SettingsClient({ space, isAdmin, integrations, currentRo
                     </li>
                   )
                 })}
+              </ul>
+            </div>
+          )}
+
+          {/* Onboarding Tab */}
+          {activeTab === 'onboarding' && (
+            <div className="bg-card rounded border border-border p-6">
+              <div className="flex items-center justify-between mb-4 gap-3">
+                <div>
+                  <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase">New member onboarding</p>
+                  <p className="font-sans text-sm text-muted-foreground mt-1">
+                    These steps run, in order, the first time a new member opens the app. Reorder with the sort number. Disable a step to hide it. Built-in steps cannot be deleted, only disabled. Body text supports markdown and a safe subset of HTML.
+                  </p>
+                </div>
+                {isAdmin && (
+                  <button
+                    onClick={async () => {
+                      const result = await createOnboardingStep({
+                        step_type: 'content',
+                        title: 'New step',
+                        body: 'Edit this content in Settings, Onboarding.',
+                        sort_order: (onboardingSteps.reduce((m, s) => Math.max(m, s.sort_order), 0) + 1),
+                      })
+                      if ('error' in result && result.error) { toast.error(result.error); return }
+                      toast.success('Step added. Edit it below.')
+                      setOnboardingSteps(prev => [...prev, {
+                        id: (result as { id: string }).id,
+                        step_key: `custom-${(result as { id: string }).id.slice(0, 12)}`,
+                        step_type: 'content',
+                        title: 'New step',
+                        body: 'Edit this content in Settings, Onboarding.',
+                        config: {},
+                        is_enabled: true,
+                        is_required: false,
+                        is_system: false,
+                        sort_order: (onboardingSteps.reduce((m, s) => Math.max(m, s.sort_order), 0) + 1),
+                      }])
+                    }}
+                    className="font-mono text-[10px] border border-border px-3 py-1.5 rounded hover:border-primary hover:text-primary transition whitespace-nowrap"
+                  >
+                    + Custom step
+                  </button>
+                )}
+              </div>
+
+              <ul className="space-y-3">
+                {[...onboardingSteps].sort((a, b) => a.sort_order - b.sort_order).map(s => (
+                  <li key={s.id} className="border border-border rounded p-4">
+                    <div className="flex items-center gap-3 mb-3 flex-wrap">
+                      <input
+                        type="number"
+                        defaultValue={s.sort_order}
+                        disabled={!isAdmin}
+                        onBlur={async e => {
+                          const next = parseInt(e.target.value, 10)
+                          if (isNaN(next) || next === s.sort_order) return
+                          const result = await updateOnboardingStep(s.id, { sort_order: next })
+                          if (result.error) { toast.error(result.error); return }
+                          setOnboardingSteps(prev => prev.map(x => x.id === s.id ? { ...x, sort_order: next } : x))
+                        }}
+                        className="w-14 bg-background border border-border text-foreground font-mono text-xs rounded px-2 py-1 focus:outline-none focus:border-primary"
+                      />
+                      <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground uppercase">{s.step_type.replace(/_/g, ' ')}</span>
+                      <input
+                        type="text"
+                        defaultValue={s.title}
+                        disabled={!isAdmin}
+                        onBlur={async e => {
+                          const next = e.target.value.trim()
+                          if (!next || next === s.title) return
+                          const result = await updateOnboardingStep(s.id, { title: next })
+                          if (result.error) { toast.error(result.error); return }
+                          setOnboardingSteps(prev => prev.map(x => x.id === s.id ? { ...x, title: next } : x))
+                        }}
+                        className="flex-1 min-w-[160px] bg-background border border-border text-foreground font-sans text-sm rounded px-2 py-1 focus:outline-none focus:border-primary"
+                      />
+                      {s.is_system && <span className="font-mono text-[10px] text-amber-600">built-in</span>}
+                    </div>
+
+                    {(s.step_type === 'welcome' || s.step_type === 'code_of_conduct' || s.step_type === 'payment' || s.step_type === 'content') && (
+                      <textarea
+                        defaultValue={s.body ?? ''}
+                        disabled={!isAdmin}
+                        rows={4}
+                        maxLength={50000}
+                        onBlur={async e => {
+                          const next = e.target.value
+                          if (next === (s.body ?? '')) return
+                          const result = await updateOnboardingStep(s.id, { body: next })
+                          if (result.error) { toast.error(result.error); return }
+                          setOnboardingSteps(prev => prev.map(x => x.id === s.id ? { ...x, body: next } : x))
+                        }}
+                        placeholder="Markdown / safe HTML. For payment steps, describe how to pay."
+                        className="w-full bg-background border border-border text-foreground font-mono text-xs rounded px-2 py-2 focus:outline-none focus:border-primary mb-3"
+                      />
+                    )}
+
+                    {s.step_type === 'payment' && (
+                      <input
+                        type="url"
+                        defaultValue={(s.config?.payment_url as string) ?? ''}
+                        disabled={!isAdmin}
+                        placeholder="Payment link (https://...)"
+                        onBlur={async e => {
+                          const next = e.target.value.trim()
+                          if (next === ((s.config?.payment_url as string) ?? '')) return
+                          const result = await updateOnboardingStep(s.id, { config: { ...s.config, payment_url: next } })
+                          if (result.error) { toast.error(result.error); return }
+                          setOnboardingSteps(prev => prev.map(x => x.id === s.id ? { ...x, config: { ...x.config, payment_url: next } } : x))
+                        }}
+                        className="w-full bg-background border border-border text-foreground font-mono text-xs rounded px-2 py-2 focus:outline-none focus:border-primary mb-3"
+                      />
+                    )}
+
+                    {isAdmin && (
+                      <div className="flex items-center gap-4 flex-wrap">
+                        <label className="flex items-center gap-1.5 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={s.is_enabled}
+                            onChange={async e => {
+                              const result = await updateOnboardingStep(s.id, { is_enabled: e.target.checked })
+                              if (result.error) { toast.error(result.error); return }
+                              setOnboardingSteps(prev => prev.map(x => x.id === s.id ? { ...x, is_enabled: e.target.checked } : x))
+                            }}
+                          />
+                          <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest">Enabled</span>
+                        </label>
+                        <label className="flex items-center gap-1.5 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={s.is_required}
+                            onChange={async e => {
+                              const result = await updateOnboardingStep(s.id, { is_required: e.target.checked })
+                              if (result.error) { toast.error(result.error); return }
+                              setOnboardingSteps(prev => prev.map(x => x.id === s.id ? { ...x, is_required: e.target.checked } : x))
+                            }}
+                          />
+                          <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest">Required</span>
+                        </label>
+                        {!s.is_system && (
+                          <button
+                            onClick={async () => {
+                              if (!confirm(`Delete step "${s.title}"?`)) return
+                              const result = await deleteOnboardingStep(s.id)
+                              if (result.error) { toast.error(result.error); return }
+                              setOnboardingSteps(prev => prev.filter(x => x.id !== s.id))
+                              toast.success('Step deleted')
+                            }}
+                            className="ml-auto font-mono text-[10px] border border-border px-2 py-1 rounded hover:border-red-500 hover:text-red-500 transition"
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </li>
+                ))}
               </ul>
             </div>
           )}

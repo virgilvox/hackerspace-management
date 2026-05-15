@@ -74,7 +74,8 @@ export async function createSpace(formData: {
     return { error: spaceErr?.message ?? 'Failed to create space' }
   }
 
-  // Add user as admin
+  // Add user as admin. The founder configures the space; they do not go
+  // through the member onboarding flow, so mark it complete up front.
   const { error: memberErr } = await admin
     .from('space_members')
     .insert({
@@ -86,6 +87,7 @@ export async function createSpace(formData: {
       tier: 'plus',
       status: 'current',
       approved: true,
+      onboarding_completed_at: new Date().toISOString(),
     })
 
   if (memberErr) {

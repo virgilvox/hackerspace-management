@@ -5,6 +5,10 @@ All notable changes to this project are documented here. Format follows [Keep a 
 ## [Unreleased]
 
 ### Added
+- **Configurable member onboarding**: a new member who joins via invite code is walked through an admin-defined sequence of steps at `/onboarding` before reaching the app. Built-in step types: welcome, code of conduct (required acknowledgement), profile, dues/payment nudge. Admins can add custom content steps with sanitized markdown/HTML, reorder, enable/disable, and mark steps required from Settings -> Onboarding. Founders skip the member flow (their onboarding is space configuration). Existing members were backfilled as completed so nobody is trapped. Server-side enforcement of required steps. New tables: `space_onboarding_steps`; new columns `space_members.onboarding_completed_at` and `onboarding_progress`.
+- `SafeMarkdown` component (react-markdown + remark-gfm + rehype-raw + rehype-sanitize) for rendering admin-authored markdown/HTML without XSS.
+- `docs/UX_AND_PERSONAS.md`: persona model and the UX audit that drove onboarding.
+- `bio` added to the self-service profile schema.
 - **Forum** at `/forum`: top-level discussion threads with categories, pinning, locking. Author or admin/board can edit; admin can delete.
 - **Polymorphic comment threads** on proposals, incidents, and policies. New `comments` table keyed on `(entity_type, entity_id)`. Renders markdown.
 - **User-creatable chat channels**: inline "+ New channel" form in `/comms` (name, description, type). RLS now allows any member to create; default channels stay protected.

@@ -4,6 +4,40 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-15 (pass 12) — Configurable member onboarding + UX research
+
+Branch: `main`.
+
+### Context carried in
+
+Pass 11's feature batch (forum, comments, tiers, invites, secrets encryption) deployed to production after one landmine: the `.gitignore` rule `secrets/` also matched `lib/secrets/`, so the first deploy failed on `Module not found: '@/lib/secrets/crypto'`. Fixed by anchoring the rule to `/secrets/` (commit `96a1fb9`); redeploy succeeded. Migration 021 is applied in prod (`_migrations_applied` has 8 rows). `SECRETS_ENCRYPTION_KEY` is set in `/opt/hackerspace-ops/.env.production` on the Droplet.
+
+### What this pass does
+
+UX research + persona work, a deep UI/UX audit, and the configurable member-onboarding feature.
+
+### What shipped
+
+- Migration `scripts/022_onboarding.sql` (folded into `schema.sql` Section 14): `space_onboarding_steps` (step_key, step_type in welcome|code_of_conduct|profile|payment|content, title, body, config jsonb, is_enabled, is_required, is_system, sort_order; unique per space+key). `space_members.onboarding_completed_at` and `onboarding_progress jsonb`. Trigger seeds 4 default steps per space; backfill seeds existing spaces and marks all existing members complete (so the new gate does not trap them). RLS: members read, admin/board write, admin delete non-system.
+- `lib/actions/onboarding.ts`: admin CRUD (`createOnboardingStep`/`updateOnboardingStep`/`deleteOnboardingStep`), member progress (`markOnboardingStepDone`, `finishOnboarding` which server-side-enforces required steps, `skipOnboarding` which only works when nothing is required). Validations added; `bio` added to `updateMyProfileSchema`.
+- `/onboarding` route (top-level, outside the `(app)` group so no redirect loop). `OnboardingFlow` client stepper: progress bar, step counter, back, per-type rendering (welcome/coc/content via `SafeMarkdown`, profile form -> `updateMyProfile`, payment nudge with optional link + "Remind me later"). Gate added in `app/(app)/layout.tsx`: redirect to `/onboarding` when `onboarding_completed_at` is null. `createSpace` now sets `onboarding_completed_at` for the founder.
+- `components/safe-markdown.tsx`: rehype-raw + rehype-sanitize. Added `rehype-raw` and `rehype-sanitize` deps.
+- Settings -> Onboarding admin tab: reorder (sort number), edit title/body/payment link, toggle enabled/required, add custom content step, delete non-system steps.
+- `docs/UX_AND_PERSONAS.md`: 4 personas (founder, new member, operator, casual) and prioritized UX findings. Onboarding was finding #1; findings 2-6 (sidebar icon collision, inconsistent empty states, heading hierarchy, getting-started affordance, role-filtered nav) deferred.
+
+### Open items / deferred
+
+- UX findings 2-6 in `docs/UX_AND_PERSONAS.md` (icon collision, empty-state component, page-title primitives, admin checklist, role-filtered sidebar).
+- Custom role labels / custom roles still have no Settings UI (data layer from pass 11 exists).
+- `importMembers` / `importPaymentsCsv` still lack Zod schemas (pass-10 audit item).
+
+### Verification
+
+- `pnpm test` 266/266. `pnpm build` green, `/onboarding` in the route table.
+- Migration 022 applies via `deploy.sh`'s idempotent runner on next deploy.
+
+---
+
 ## 2026-05-14 (pass 11) — Forum, comments, secrets encryption, custom tiers/invites, logo
 
 Branch: `main`. Pushed.

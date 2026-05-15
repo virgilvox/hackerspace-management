@@ -37,6 +37,12 @@ export default async function SettingsPage() {
     .eq('space_id', member.space_id)
     .order('created_at', { ascending: false })
 
+  const { data: onboardingSteps } = await supabase
+    .from('space_onboarding_steps')
+    .select('id, step_key, step_type, title, body, config, is_enabled, is_required, is_system, sort_order')
+    .eq('space_id', member.space_id)
+    .order('sort_order', { ascending: true })
+
   const isAdmin = member?.role === 'admin'
 
   return (
@@ -73,6 +79,18 @@ export default async function SettingsPage() {
         uses_count: number
         is_enabled: boolean
         created_at: string
+      }>}
+      onboardingSteps={(onboardingSteps ?? []) as Array<{
+        id: string
+        step_key: string
+        step_type: 'welcome' | 'code_of_conduct' | 'profile' | 'payment' | 'content'
+        title: string
+        body: string | null
+        config: Record<string, unknown>
+        is_enabled: boolean
+        is_required: boolean
+        is_system: boolean
+        sort_order: number
       }>}
     />
   )
