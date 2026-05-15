@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { BrandMark } from '@/components/brand-mark'
 import { GithubIcon, ArrowIcon } from '@/components/landing/icons'
 import { ResourceShowcase } from '@/components/landing/resource-showcase'
+import { HeroPreviewCluster } from '@/components/landing/mini-previews'
 
 const MODULES = [
   { num: '01', title: 'Members', desc: 'Tiers, dues status, contact info, custom roles. Know who is current and who is not, at a glance.' },
@@ -45,21 +46,31 @@ export default function LandingPage() {
       </nav>
 
       <header className="landing-hero">
-        <div className="landing-container">
-          <p className="landing-eyebrow">Operating system for hackerspaces</p>
-          <h1 className="landing-display">
-            Run your <em>space</em>, not a spreadsheet
-          </h1>
-          <p className="landing-lede">
-            Members, dues, tasks, projects, ops docs, and governance in one
-            place. Built by people who have actually run these spaces, for the
-            people who keep them running.
-          </p>
-          <div className="landing-cta-row">
-            <Link href="/signup" className="landing-btn-accent">
-              Get started <ArrowIcon className="w-3.5 h-3.5" />
-            </Link>
-            <Link href="/login" className="landing-btn">Log in</Link>
+        <div className="landing-container landing-hero-grid">
+          <div>
+            <p className="landing-eyebrow">Operating system for hackerspaces</p>
+            <h1 className="landing-display">
+              Run your <em>space</em>, not a spreadsheet
+            </h1>
+            <p className="landing-lede">
+              Members, dues, tasks, projects, ops docs, and governance in one
+              place. Built by people who have actually run these spaces, for the
+              people who keep them running.
+            </p>
+            <div className="landing-cta-row">
+              <Link href="/signup" className="landing-btn-accent">
+                Get started <ArrowIcon className="w-3.5 h-3.5" />
+              </Link>
+              <Link href="/login" className="landing-btn">Log in</Link>
+            </div>
+          </div>
+          <div className="landing-hero-visual">
+            <div className="landing-preview-frame">
+              <div className="landing-preview-chrome" aria-hidden="true">
+                <span /><span /><span />
+              </div>
+              <HeroPreviewCluster />
+            </div>
           </div>
         </div>
       </header>

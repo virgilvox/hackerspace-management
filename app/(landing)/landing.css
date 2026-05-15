@@ -77,6 +77,26 @@
 
 /* Hero */
 .landing-root .landing-hero { padding: 88px 0 72px; border-bottom: 1px solid var(--ln-border); }
+.landing-root .landing-hero-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: center;
+}
+.landing-root .landing-preview-frame {
+  border: 1px solid var(--ln-border);
+  background: var(--ln-surface);
+  border-radius: 8px;
+  padding: 14px;
+}
+.landing-root .landing-preview-chrome {
+  display: flex; gap: 6px; padding: 2px 4px 12px;
+}
+.landing-root .landing-preview-chrome span {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--ln-border);
+}
+@media (max-width: 900px) {
+  .landing-root .landing-hero-grid { grid-template-columns: 1fr; gap: 40px; }
+  .landing-root .landing-hero-visual { display: none; }
+}
 .landing-root .landing-eyebrow {
   font-size: 0.75rem; font-weight: 700; letter-spacing: 0.18em;
   text-transform: uppercase; color: var(--ln-text-dim); margin-bottom: 24px;
