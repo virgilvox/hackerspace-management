@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { AppSidebar } from '@/components/app-sidebar'
+import { getRoleLabelMap } from '@/lib/role-labels'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -47,10 +48,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     .eq('space_id', member.space_id)
     .eq('link_status', 'unlinked')
 
+  const roleMap = await getRoleLabelMap(supabase, member.space_id)
+  const roleName = roleMap[member.role]?.name ?? member.role
+
   return (
     <div className="flex h-screen bg-background overflow-hidden">
       <AppSidebar
         member={member}
+        roleName={roleName}
         taskBadge={taskCount ?? 0}
         paymentBadge={paymentCount ?? 0}
       />

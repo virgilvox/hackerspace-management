@@ -33,6 +33,14 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
+    // A shared invite link looks like /signup?invite=CODE. Prefill the code
+    // and preselect "join" so the recipient lands on the right form.
+    const params = new URLSearchParams(window.location.search)
+    const invite = params.get('invite')
+    if (invite) {
+      setInviteCode(invite.trim().toUpperCase())
+      setMode('join')
+    }
     const checkAuth = async () => {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()

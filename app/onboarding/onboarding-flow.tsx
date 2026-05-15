@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { AtlasLogo } from '@/components/resources/atlas-logo'
+import { BrandMark } from '@/components/brand-mark'
 import { SafeMarkdown } from '@/components/safe-markdown'
 import {
   markOnboardingStepDone,
@@ -97,7 +97,7 @@ export function OnboardingFlow({ spaceName, steps, canSkip, profile: initialProf
   return (
     <div className="min-h-screen bg-sidebar flex flex-col">
       <header className="px-4 md:px-6 py-4 flex items-center gap-2 border-b border-sidebar-border">
-        <AtlasLogo className="w-6 h-6 text-primary" />
+        <BrandMark className="w-5 h-5 text-primary" />
         <span className="font-mono text-sm font-bold text-white">{spaceName}</span>
         {canSkip && (
           <button

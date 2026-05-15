@@ -13,7 +13,7 @@ import {
   Menu, X, LayoutDashboard, ListChecks, FolderKanban, Settings2,
   MessageSquare, Users, CreditCard, BookUser, Download, LogOut,
   Vote, ShieldAlert, ScrollText, LineChart, UserCircle, UserSearch,
-  MessagesSquare,
+  MessagesSquare, SlidersHorizontal,
 } from 'lucide-react'
 
 interface NavLinkProps {
@@ -52,12 +52,13 @@ function NavLink({ href, label, icon: Icon, badge, active, onClick }: NavLinkPro
 
 interface AppSidebarProps {
   member: SpaceMember & { spaces: Space | null }
+  roleName?: string
   taskBadge?: number
   commsBadge?: number
   paymentBadge?: number
 }
 
-export function AppSidebar({ member, taskBadge = 0, commsBadge = 0, paymentBadge = 0 }: AppSidebarProps) {
+export function AppSidebar({ member, roleName, taskBadge = 0, commsBadge = 0, paymentBadge = 0 }: AppSidebarProps) {
   const pathname = usePathname()
   const space = member.spaces
   const initials = (member.display_name || 'U').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
@@ -120,6 +121,7 @@ export function AppSidebar({ member, taskBadge = 0, commsBadge = 0, paymentBadge
             <div className="px-3 mt-4 mb-1">
               <p className="text-[10px] uppercase tracking-widest text-[var(--sidebar-foreground)]/30 px-2 py-1 font-mono">Admin</p>
             </div>
+            <NavLink href="/customize" label="Customize" icon={SlidersHorizontal} active={isActive('/customize')} onClick={onNav} />
             <NavLink href="/import" label="Import / Sync" icon={Download} active={isActive('/import')} onClick={onNav} />
             <NavLink href="/settings" label="Settings" icon={Settings2} active={isActive('/settings')} onClick={onNav} />
           </>
@@ -137,7 +139,7 @@ export function AppSidebar({ member, taskBadge = 0, commsBadge = 0, paymentBadge
           </div>
           <div className="flex-1 text-left min-w-0">
             <p className="text-[var(--sidebar-foreground)] text-xs font-medium truncate">{member.display_name}</p>
-            <p className="text-[var(--sidebar-foreground)]/40 text-[10px] font-mono">{member.role} · {member.tier}</p>
+            <p className="text-[var(--sidebar-foreground)]/40 text-[10px] font-mono">{roleName || member.role} · {member.tier}</p>
           </div>
           <LogOut className="w-3.5 h-3.5 text-[var(--sidebar-foreground)]/30" />
         </button>

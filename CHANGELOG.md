@@ -5,6 +5,15 @@ All notable changes to this project are documented here. Format follows [Keep a 
 ## [Unreleased]
 
 ### Added
+- **Customize hub** at `/customize` (admin/board): a dedicated home for per-space customization with a section rail (Roles, Membership tiers, Areas, Invite codes, Onboarding), split into one focused module per panel. Replaces the overloaded Settings tab strip.
+- **Roles editor**: rename and recolor the five built-in roles, and create/edit/delete custom org-structure roles. Renamed roles now display (sidebar user card; helper `lib/role-labels.ts`).
+- **Invite share links**: copy a one-click `/signup?invite=CODE` link in addition to the bare code; the signup page prefills the code and preselects join mode from `?invite=`.
+
+### Changed
+- Brand mark reverted to the terminal `>_` glyph (`components/brand-mark.tsx`) across the landing nav/footer, onboarding header, and favicon. `AtlasLogo` remains only on the resources project page.
+- Settings slimmed to Space, Integrations, and Webhooks. Roles, Tiers, Areas, Invites, and Onboarding moved to `/customize`.
+
+### Added (continued)
 - **Configurable member onboarding**: a new member who joins via invite code is walked through an admin-defined sequence of steps at `/onboarding` before reaching the app. Built-in step types: welcome, code of conduct (required acknowledgement), profile, dues/payment nudge. Admins can add custom content steps with sanitized markdown/HTML, reorder, enable/disable, and mark steps required from Settings -> Onboarding. Founders skip the member flow (their onboarding is space configuration). Existing members were backfilled as completed so nobody is trapped. Server-side enforcement of required steps. New tables: `space_onboarding_steps`; new columns `space_members.onboarding_completed_at` and `onboarding_progress`.
 - `SafeMarkdown` component (react-markdown + remark-gfm + rehype-raw + rehype-sanitize) for rendering admin-authored markdown/HTML without XSS.
 - `docs/UX_AND_PERSONAS.md`: persona model and the UX audit that drove onboarding.

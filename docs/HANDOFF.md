@@ -4,6 +4,42 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-15 (pass 13) — Customize hub, roles editor, logo revert
+
+Branch: `main`.
+
+### Goal
+
+Three asks: (1) build the custom-roles editor (label rename/recolor + create/edit/delete custom roles) that pass 11 left as data-layer-only; (2) move all the per-space customization (Roles, Tiers, Areas, Invites, Onboarding) out of the overloaded Settings tab strip into a dedicated `/customize` hub with its own nav, leaving Settings for space identity / visibility / integrations / webhooks; (3) revert the brand mark from `AtlasLogo` (the globe) back to the original terminal `>_` glyph and give the favicon a matching terminal mark.
+
+### Decisions
+
+- IA: a single sidebar entry "Customize" (admin/board) -> `/customize` hub with a left section rail (Roles, Tiers, Areas, Invites, Onboarding). Keeps the sidebar lean (audit finding: 16+ items already) while giving customization a discoverable home distinct from operational Settings. Settings slimmed to Space, Visibility, Integrations, Webhooks.
+- Logo: restore `IcoTerminal` for nav/footer/onboarding header; replace `public/logo.svg` with a terminal `>_` glyph for the favicon.
+
+### What shipped
+
+- **Brand mark reverted.** New `components/brand-mark.tsx` (a terminal `>_` glyph, currentColor). Swapped into the landing nav + footer and the onboarding header. `public/logo.svg` rewritten as the matching lime `>_` favicon. The dead local `IcoTerminal` in the landing page was removed. `AtlasLogo` stays only on the `(resources)` page (it is that project's own art).
+- **`/customize` hub** (`app/(app)/customize/`): server `page.tsx` gates admin/board and fetches everything; thin `customize-client.tsx` shell with a left section rail; one file per panel under `panels/` (`roles-panel`, `tiers-panel`, `areas-panel`, `invites-panel`, `onboarding-panel`, plus `card.tsx` and `types.ts`). Smart separation: the shell is ~75 lines, each panel self-contained.
+- **Roles editor (new).** RolesPanel renames/recolors the five built-in roles via `upsertRoleLabel`, and full CRUD on custom roles. The pass-11 actions were write-only; this also adds the read path: `lib/role-labels.ts` (`getRoleLabelMap`, `roleDisplayName`, defaults) is now consumed in `(app)/layout.tsx` so the sidebar user card shows the renamed role.
+- **Settings slimmed.** Removed the Roles/Tiers/Invites/Onboarding tabs and the Areas block from `settings-client.tsx` (down ~700 lines) and the matching fetches from `settings/page.tsx`. Settings now owns only Space, Integrations, Webhooks. Dead props/state/types removed.
+- **Sidebar.** Added a "Customize" admin/board NavLink (`SlidersHorizontal`) above Settings.
+- **Invite share links.** `InvitesPanel` has Copy code and Copy link; the link is `/signup?invite=CODE`. `app/signup/page.tsx` reads `?invite=` on mount, prefills the code, and preselects join mode.
+
+### Deferred (tracked)
+
+- `types/database.ts` is out of sync (missing space_tiers/space_invites/space_onboarding_steps/space_role_labels/space_custom_roles/space_member_custom_roles/forum_threads/comments and the two onboarding columns on space_members). Queries use loose casts so the build is green; this is type-hygiene debt, not a runtime bug.
+- Renamed-role display only reaches the sidebar so far. Members table/edit-select and badges still show the raw enum. The helper exists; wiring the remaining surfaces is a small follow-up.
+- `settings-client.tsx` is still ~700 lines (space form + visibility + integrations + webhooks + integration modal). Worth splitting next, same pattern as the customize panels.
+- Custom-role assignment to members has actions (`assignCustomRole`/`unassignCustomRole`) but no UI yet.
+
+### Verification
+
+- `pnpm test` 266/266. `pnpm build` green; `/customize`, `/onboarding`, slimmed `/settings` all in the route table.
+- Migration: none this pass (UI/IA only; pass-11/12 migrations already in prod).
+
+---
+
 ## 2026-05-15 (pass 12) — Configurable member onboarding + UX research
 
 Branch: `main`.
