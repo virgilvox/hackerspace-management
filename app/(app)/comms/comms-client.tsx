@@ -1,8 +1,11 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
-import { Hash, Users2, Send, ChevronLeft } from 'lucide-react'
+import { Hash, Users2, Send, ChevronLeft, Plus } from 'lucide-react'
+import { createChannel } from '@/lib/actions'
 import type { Tables } from '@/types/database'
 
 type Channel = Tables<'comms_channels'>
@@ -15,9 +18,33 @@ interface Props {
 }
 
 export default function CommsClient({ member, space, channels }: Props) {
+  const router = useRouter()
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(channels[0] || null)
   const [messages, setMessages] = useState<Message[]>([])
   const [newMessage, setNewMessage] = useState('')
+  const [showNewChannel, setShowNewChannel] = useState(false)
+  const [newChannelName, setNewChannelName] = useState('')
+  const [newChannelDescription, setNewChannelDescription] = useState('')
+  const [newChannelType, setNewChannelType] = useState<'general' | 'area' | 'project'>('general')
+  const [creatingChannel, setCreatingChannel] = useState(false)
+
+  async function handleCreateChannel(e: React.FormEvent) {
+    e.preventDefault()
+    if (!newChannelName.trim()) return
+    setCreatingChannel(true)
+    const result = await createChannel({
+      name: newChannelName.trim().toLowerCase(),
+      description: newChannelDescription.trim() || undefined,
+      channel_type: newChannelType,
+    })
+    setCreatingChannel(false)
+    if ('error' in result && result.error) { toast.error(result.error); return }
+    toast.success('Channel created')
+    setNewChannelName('')
+    setNewChannelDescription('')
+    setShowNewChannel(false)
+    router.refresh()
+  }
   const [sending, setSending] = useState(false)
   const [showChannelList, setShowChannelList] = useState(true)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -238,6 +265,65 @@ export default function CommsClient({ member, space, channels }: Props) {
                 ))}
               </div>
             )}
+
+            {/* New channel inline form */}
+            <div className="mt-4 border-t border-border pt-3">
+              {!showNewChannel ? (
+                <button
+                  onClick={() => setShowNewChannel(true)}
+                  className="w-full flex items-center gap-1.5 px-2 py-1.5 rounded text-sm font-sans text-muted-foreground hover:bg-muted hover:text-foreground transition"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  New channel
+                </button>
+              ) : (
+                <form onSubmit={handleCreateChannel} className="space-y-2 px-2">
+                  <input
+                    type="text"
+                    value={newChannelName}
+                    onChange={e => setNewChannelName(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
+                    placeholder="channel-name"
+                    autoFocus
+                    maxLength={50}
+                    required
+                    className="w-full bg-background border border-border text-foreground font-mono text-xs rounded px-2 py-1.5 focus:outline-none focus:border-primary"
+                  />
+                  <input
+                    type="text"
+                    value={newChannelDescription}
+                    onChange={e => setNewChannelDescription(e.target.value)}
+                    placeholder="Optional description"
+                    maxLength={500}
+                    className="w-full bg-background border border-border text-foreground font-sans text-xs rounded px-2 py-1.5 focus:outline-none focus:border-primary"
+                  />
+                  <select
+                    value={newChannelType}
+                    onChange={e => setNewChannelType(e.target.value as 'general' | 'area' | 'project')}
+                    className="w-full bg-background border border-border text-foreground font-mono text-xs rounded px-2 py-1.5 focus:outline-none focus:border-primary"
+                  >
+                    <option value="general">General</option>
+                    <option value="area">Area</option>
+                    <option value="project">Project</option>
+                  </select>
+                  <div className="flex gap-1.5">
+                    <button
+                      type="submit"
+                      disabled={creatingChannel || !newChannelName.trim()}
+                      className="flex-1 bg-primary text-white text-xs font-sans px-2 py-1.5 rounded hover:bg-primary/90 transition disabled:opacity-50"
+                    >
+                      {creatingChannel ? 'Creating...' : 'Create'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setShowNewChannel(false); setNewChannelName(''); setNewChannelDescription('') }}
+                      className="text-muted-foreground hover:text-foreground text-xs px-2 py-1.5 transition"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
           </div>
         </aside>
 

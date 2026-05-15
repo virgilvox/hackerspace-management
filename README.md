@@ -6,7 +6,8 @@
 
 A multi-tenant operating system for hackerspaces, makerspaces, and member-run shops. One installation can host many independent spaces. Each space owns its own members, tasks, projects, payments, knowledge base, proposals, incidents, policies, and chat channels. All data access is enforced at the database with row-level security.
 
-Source: <https://github.com/virgilvox/hackerspace-management>
+- Live site: <https://hackerspace.sh>
+- Source: <https://github.com/virgilvox/hackerspace-management>
 
 ## Features
 

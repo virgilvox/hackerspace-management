@@ -13,6 +13,7 @@ import {
   Menu, X, LayoutDashboard, ListChecks, FolderKanban, Settings2,
   MessageSquare, Users, CreditCard, BookUser, Download, LogOut,
   Vote, ShieldAlert, ScrollText, LineChart, UserCircle, UserSearch,
+  MessagesSquare,
 } from 'lucide-react'
 
 interface NavLinkProps {
@@ -93,6 +94,7 @@ export function AppSidebar({ member, taskBadge = 0, commsBadge = 0, paymentBadge
         <NavLink href="/projects" label="Projects" icon={FolderKanban} active={isActive('/projects')} onClick={onNav} />
         <NavLink href="/ops" label="Ops & Facilities" icon={Settings2} active={isActive('/ops')} onClick={onNav} />
         <NavLink href="/comms" label="Comms" icon={MessageSquare} active={isActive('/comms')} badge={commsBadge} onClick={onNav} />
+        <NavLink href="/forum" label="Forum" icon={MessagesSquare} active={isActive('/forum')} onClick={onNav} />
 
         <div className="px-3 mt-4 mb-1">
           <p className="text-[10px] uppercase tracking-widest text-[var(--sidebar-foreground)]/30 px-2 py-1 font-mono">Governance</p>

@@ -17,7 +17,10 @@ export default async function OpsPage() {
     supabase.from('knowledge_base').select('*').eq('space_id', member.space_id).order('is_pinned', { ascending: false }).order('created_at', { ascending: false }),
     supabase.from('area_leads').select('*').eq('space_id', member.space_id).order('area_name'),
     canSeeSecrets
-      ? supabase.from('secrets').select('id, title, area, created_at, label, value, description, icon, space_id, created_by, updated_at, category, notes').eq('space_id', member.space_id)
+      // CRITICAL: never select `value` or `encrypted_value` here. The list
+      // endpoint only returns metadata; the plaintext is fetched on demand
+      // through the revealSecret() server action.
+      ? supabase.from('secrets').select('id, title, area, created_at, label, description, icon, space_id, created_by, updated_at, category, notes, encryption_version').eq('space_id', member.space_id)
       : Promise.resolve({ data: [] as Tables<'secrets'>[] }),
   ])
 

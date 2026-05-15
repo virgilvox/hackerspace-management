@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="60 -5 280 350" role="img" aria-label="hackerspace.sh logo">
+  <circle cx="200" cy="185" r="115" stroke="currentColor" fill="none" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="200" cy="185" rx="45" ry="115" stroke="currentColor" fill="none" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="200" cy="185" rx="85" ry="115" stroke="currentColor" fill="none" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="85" y1="185" x2="315" y2="185" stroke="currentColor" fill="none" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="200" cy="133" rx="100" ry="28" stroke="currentColor" fill="none" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="200" cy="237" rx="100" ry="28" stroke="currentColor" fill="none" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="currentColor" stroke="none">
+    <circle cx="85" cy="185" r="9"/><circle cx="85" cy="185" r="3.5" fill="#0c0c0c"/>
+    <circle cx="115" cy="185" r="7"/><circle cx="115" cy="185" r="2.5" fill="#0c0c0c"/>
+    <circle cx="155" cy="185" r="7"/><circle cx="155" cy="185" r="2.5" fill="#0c0c0c"/>
+    <circle cx="245" cy="185" r="7"/><circle cx="245" cy="185" r="2.5" fill="#0c0c0c"/>
+    <circle cx="285" cy="185" r="7"/><circle cx="285" cy="185" r="2.5" fill="#0c0c0c"/>
+    <circle cx="315" cy="185" r="9"/><circle cx="315" cy="185" r="3.5" fill="#0c0c0c"/>
+    <circle cx="200" cy="70" r="8"/><circle cx="200" cy="70" r="3" fill="#0c0c0c"/>
+    <circle cx="200" cy="300" r="8"/><circle cx="200" cy="300" r="3" fill="#0c0c0c"/>
+  </g>
+  <g>
+    <circle cx="145" cy="160" r="11" fill="#d4ff00"/>
+    <circle cx="145" cy="160" r="4.5" fill="#0c0c0c"/>
+    <circle cx="145" cy="160" r="16" stroke="#d4ff00" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <g>
+    <circle cx="260" cy="205" r="10" fill="#d4ff00"/>
+    <circle cx="260" cy="205" r="4" fill="#0c0c0c"/>
+  </g>
+</svg>

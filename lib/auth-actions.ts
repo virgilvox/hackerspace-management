@@ -107,10 +107,38 @@ export async function joinSpace(formData: {
   // Use admin client for operations
   const admin = createAdminClient()
 
+  const code = formData.inviteCode.trim().toUpperCase()
+
+  // Try the new multi-code invites table first. Falls back to the legacy
+  // spaces.invite_code (a permanent default) if the code isn't found there.
+  let invite: { id: string; space_id: string; max_uses: number | null; uses_count: number; expires_at: string | null; is_enabled: boolean } | null = null
+  const { data: inviteRow } = await admin
+    .from('space_invites')
+    .select('id, space_id, max_uses, uses_count, expires_at, is_enabled')
+    .eq('code', code)
+    .maybeSingle()
+  if (inviteRow) invite = inviteRow as typeof invite
+
+  let spaceId: string | null = null
+  if (invite) {
+    if (!invite.is_enabled) return { error: 'This invite is disabled.' }
+    if (invite.expires_at && new Date(invite.expires_at) < new Date()) return { error: 'This invite has expired.' }
+    if (invite.max_uses !== null && invite.uses_count >= invite.max_uses) return { error: 'This invite has reached its use cap.' }
+    spaceId = invite.space_id
+  } else {
+    const { data: legacy } = await admin
+      .from('spaces')
+      .select('id')
+      .eq('invite_code', code)
+      .maybeSingle()
+    if (!legacy) return { error: 'Invalid invite code' }
+    spaceId = legacy.id
+  }
+
   const { data: space, error: lookupErr } = await admin
     .from('spaces')
     .select('id, require_approval')
-    .eq('invite_code', formData.inviteCode.trim().toUpperCase())
+    .eq('id', spaceId)
     .single()
 
   if (lookupErr || !space) return { error: 'Invalid invite code' }
@@ -129,6 +157,14 @@ export async function joinSpace(formData: {
     })
 
   if (memberErr) return { error: memberErr.message }
+
+  // Increment invite usage counter for the multi-code path.
+  if (invite) {
+    await admin
+      .from('space_invites')
+      .update({ uses_count: invite.uses_count + 1 })
+      .eq('id', invite.id)
+  }
 
   return { success: true }
 }

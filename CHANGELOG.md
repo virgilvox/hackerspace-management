@@ -5,6 +5,20 @@ All notable changes to this project are documented here. Format follows [Keep a 
 ## [Unreleased]
 
 ### Added
+- **Forum** at `/forum`: top-level discussion threads with categories, pinning, locking. Author or admin/board can edit; admin can delete.
+- **Polymorphic comment threads** on proposals, incidents, and policies. New `comments` table keyed on `(entity_type, entity_id)`. Renders markdown.
+- **User-creatable chat channels**: inline "+ New channel" form in `/comms` (name, description, type). RLS now allows any member to create; default channels stay protected.
+- **Custom membership tiers with prices**: new `space_tiers` table per space. Settings -> Tiers tab to list, create, edit (including inline price edit), archive, and delete custom tiers. Built-in `plus`/`basic`/`associate` tiers seed on space creation and on existing spaces via backfill. `space_members.tier_id` FK backfilled from the legacy enum.
+- **Customizable role labels and custom org roles**: `space_role_labels` (rename/recolor built-ins per space) and `space_custom_roles` (non-privileged extra labels) with member m2m. Server actions wired; UI surface pending in a follow-up.
+- **Multi-code invites**: `space_invites` with per-code expiry, max-use cap, and enable/disable. Legacy `spaces.invite_code` backfilled as a permanent enabled invite. Settings -> Invites tab to manage. `joinSpace` honors any valid invite and increments `uses_count`.
+- **Knowledge base markdown rendering**: clicking a KB entry opens a modal that renders `content` as markdown via react-markdown + remark-gfm.
+- **AtlasLogo as the brand mark**: replaces the terminal icon on the landing nav and footer; `public/logo.svg` is the favicon.
+- Live site link in `README.md`: <https://hackerspace.sh>.
+
+### Changed
+- **Secrets vault is now encrypted at rest**: AES-256-GCM with a per-secret IV using a `SECRETS_ENCRYPTION_KEY` env var. The /ops list endpoint no longer sends plaintext or ciphertext to the client. A new `revealSecret(id)` server action is the only path to plaintext and writes a `secret.revealed` row to `activity_log`. Existing legacy plaintext rows continue to work.
+
+### Added (continued)
 - Production deployment to a self-hosted DigitalOcean Droplet with automatic HTTPS via Caddy and Let's Encrypt.
 - GitHub Actions workflow that pushes a deploy on every commit to `main`. Migrations are applied automatically via `_migrations_applied` tracking.
 - Daily encrypted `pg_dumpall` backup cron, retained 14 days, written to the persistent block volume.

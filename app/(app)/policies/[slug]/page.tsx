@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/server'
 import type { Policy } from '@/lib/types'
 import { PolicyActions } from './policy-actions'
 import { MarkdownBody } from '@/components/markdown'
+import { CommentThread } from '@/components/comments/comment-thread'
+import { loadComments } from '@/components/comments/load-comments'
 
 export const dynamic = 'force-dynamic'
 
@@ -34,6 +36,19 @@ export default async function PolicyDetailPage({ params }: { params: Promise<{ s
   // Pick the currently-active version, or the latest version, for the primary view.
   const current = versions.find(p => p.status === 'active') ?? versions[0]
   const isAdminOrBoard = member.role === 'admin' || member.role === 'board'
+
+  // Find the member's own id (needed for the discussion thread).
+  const { data: self } = await supabase
+    .from('space_members')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('space_id', member.space_id)
+    .maybeSingle()
+
+  // Comments are attached to the policy slug across all versions, so we anchor
+  // on the slug-stable version id of the current row (v1 baseline).
+  const baseId = versions[versions.length - 1].id
+  const comments = await loadComments(supabase, 'policy', baseId)
 
   return (
     <div className="min-h-screen bg-background">
@@ -102,6 +117,14 @@ export default async function PolicyDetailPage({ params }: { params: Promise<{ s
             ))}
           </ul>
         </section>
+
+        <CommentThread
+          entityType="policy"
+          entityId={baseId}
+          comments={comments}
+          currentMemberId={self?.id ?? null}
+          canModerate={isAdminOrBoard}
+        />
       </div>
     </div>
   )

@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { X, Check, Copy, Eye, EyeOff, RotateCcw } from 'lucide-react'
-import { updateSpaceSettings, saveIntegration, disconnectIntegration, rotateWebhookSecret, updateSpaceVisibility, createArea, updateArea, deleteArea } from '@/lib/actions'
+import { updateSpaceSettings, saveIntegration, disconnectIntegration, rotateWebhookSecret, updateSpaceVisibility, createArea, updateArea, deleteArea, createTier, updateTier, deleteTier, createInvite, updateInvite, deleteInvite } from '@/lib/actions'
+import { toast } from 'sonner'
 import { financialVisibilities, directoryVisibilities } from '@/lib/validations'
 
 type Area = {
@@ -24,6 +25,31 @@ interface Props {
   integrations: Integration[]
   currentRole: string
   areas: Area[]
+  tiers: Tier[]
+  invites: Invite[]
+}
+
+export interface Tier {
+  id: string
+  slug: string
+  name: string
+  description: string | null
+  monthly_price_cents: number
+  billing_cadence: string
+  is_system: boolean
+  is_archived: boolean
+  sort_order: number
+}
+
+export interface Invite {
+  id: string
+  code: string
+  label: string | null
+  expires_at: string | null
+  max_uses: number | null
+  uses_count: number
+  is_enabled: boolean
+  created_at: string
 }
 
 const ROLES_INFO = [
@@ -98,9 +124,15 @@ const INTEGRATIONS_CONFIG = [
   },
 ]
 
-export default function SettingsClient({ space, isAdmin, integrations, currentRole, areas: initialAreas }: Props) {
-  const [activeTab, setActiveTab] = useState<'space' | 'roles' | 'integrations' | 'webhooks'>('space')
+export default function SettingsClient({ space, isAdmin, integrations, currentRole, areas: initialAreas, tiers: initialTiers, invites: initialInvites }: Props) {
+  const [activeTab, setActiveTab] = useState<'space' | 'roles' | 'tiers' | 'invites' | 'integrations' | 'webhooks'>('space')
   const [areas, setAreas] = useState<Area[]>(initialAreas)
+  const [tiers, setTiers] = useState<Tier[]>(initialTiers)
+  const [invites, setInvites] = useState<Invite[]>(initialInvites)
+  const [showNewTier, setShowNewTier] = useState(false)
+  const [newTier, setNewTier] = useState({ slug: '', name: '', description: '', monthly_price_cents: 0, billing_cadence: 'monthly' as 'monthly' | 'quarterly' | 'annual' | 'one_time' | 'custom' })
+  const [showNewInvite, setShowNewInvite] = useState(false)
+  const [newInvite, setNewInvite] = useState({ code: '', label: '', expires_at: '', max_uses: '' })
   const [newArea, setNewArea] = useState({ code: '', name: '' })
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -236,11 +268,11 @@ export default function SettingsClient({ space, isAdmin, integrations, currentRo
         <div className="flex-1 p-4 md:p-6">
           {/* Tabs */}
           <div className="bg-card border-b border-border flex gap-4 md:gap-6 px-2 mb-6 rounded-t overflow-x-auto">
-            {(['space', 'roles', 'integrations', 'webhooks'] as const).map(tab => (
+            {(['space', 'roles', 'tiers', 'invites', 'integrations', 'webhooks'] as const).map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`font-sans text-sm py-3 border-b-2 transition capitalize ${
+                className={`font-sans text-sm py-3 border-b-2 transition capitalize whitespace-nowrap ${
                   activeTab === tab ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
                 }`}
               >
@@ -678,6 +710,331 @@ export default function SettingsClient({ space, isAdmin, integrations, currentRo
                   )
                 })}
               </div>
+            </div>
+          )}
+
+          {/* Tiers Tab */}
+          {activeTab === 'tiers' && (
+            <div className="bg-card rounded border border-border p-6">
+              <div className="flex items-center justify-between mb-4 gap-3">
+                <div>
+                  <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase">Membership Tiers</p>
+                  <p className="font-sans text-sm text-muted-foreground mt-1">
+                    Customize tier names, prices, and billing cadence. Every space starts with the built-in plus, basic, and associate tiers.
+                  </p>
+                </div>
+                {isAdmin && (
+                  <button
+                    onClick={() => setShowNewTier(v => !v)}
+                    className="font-mono text-[10px] border border-border px-3 py-1.5 rounded hover:border-primary hover:text-primary transition flex items-center gap-1 whitespace-nowrap"
+                  >
+                    {showNewTier ? 'Cancel' : '+ New tier'}
+                  </button>
+                )}
+              </div>
+
+              {showNewTier && (
+                <form
+                  onSubmit={async e => {
+                    e.preventDefault()
+                    const cents = Math.round(parseFloat(String(newTier.monthly_price_cents) || '0') * 100)
+                    const result = await createTier({
+                      slug: newTier.slug.trim().toLowerCase(),
+                      name: newTier.name.trim(),
+                      description: newTier.description.trim() || undefined,
+                      monthly_price_cents: isNaN(cents) ? 0 : cents,
+                      billing_cadence: newTier.billing_cadence,
+                    })
+                    if ('error' in result && result.error) { toast.error(result.error); return }
+                    toast.success('Tier created')
+                    setShowNewTier(false)
+                    setNewTier({ slug: '', name: '', description: '', monthly_price_cents: 0, billing_cadence: 'monthly' })
+                    setTiers(prev => [...prev, {
+                      id: (result as { id: string }).id,
+                      slug: newTier.slug.trim().toLowerCase(),
+                      name: newTier.name.trim(),
+                      description: newTier.description.trim() || null,
+                      monthly_price_cents: isNaN(cents) ? 0 : cents,
+                      billing_cadence: newTier.billing_cadence,
+                      is_system: false,
+                      is_archived: false,
+                      sort_order: 100,
+                    }])
+                  }}
+                  className="mb-4 p-4 border border-border rounded bg-background grid grid-cols-1 md:grid-cols-2 gap-3"
+                >
+                  <input
+                    type="text"
+                    value={newTier.slug}
+                    onChange={e => setNewTier({ ...newTier, slug: e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, '-') })}
+                    placeholder="slug (lowercase)"
+                    maxLength={50}
+                    required
+                    className="bg-background border border-border text-foreground font-mono text-xs rounded px-2 py-1.5 focus:outline-none focus:border-primary"
+                  />
+                  <input
+                    type="text"
+                    value={newTier.name}
+                    onChange={e => setNewTier({ ...newTier, name: e.target.value })}
+                    placeholder="Display name"
+                    maxLength={100}
+                    required
+                    className="bg-background border border-border text-foreground font-sans text-sm rounded px-2 py-1.5 focus:outline-none focus:border-primary"
+                  />
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={newTier.monthly_price_cents as unknown as string}
+                    onChange={e => setNewTier({ ...newTier, monthly_price_cents: parseFloat(e.target.value || '0') as unknown as number })}
+                    placeholder="Price in dollars"
+                    className="bg-background border border-border text-foreground font-mono text-xs rounded px-2 py-1.5 focus:outline-none focus:border-primary"
+                  />
+                  <select
+                    value={newTier.billing_cadence}
+                    onChange={e => setNewTier({ ...newTier, billing_cadence: e.target.value as typeof newTier.billing_cadence })}
+                    className="bg-background border border-border text-foreground font-mono text-xs rounded px-2 py-1.5 focus:outline-none focus:border-primary"
+                  >
+                    <option value="monthly">Monthly</option>
+                    <option value="quarterly">Quarterly</option>
+                    <option value="annual">Annual</option>
+                    <option value="one_time">One time</option>
+                    <option value="custom">Custom</option>
+                  </select>
+                  <input
+                    type="text"
+                    value={newTier.description}
+                    onChange={e => setNewTier({ ...newTier, description: e.target.value })}
+                    placeholder="Description (optional)"
+                    maxLength={2000}
+                    className="md:col-span-2 bg-background border border-border text-foreground font-sans text-sm rounded px-2 py-1.5 focus:outline-none focus:border-primary"
+                  />
+                  <button
+                    type="submit"
+                    className="md:col-span-2 bg-primary text-white text-xs font-sans px-3 py-1.5 rounded hover:bg-primary/90 transition"
+                  >
+                    Create tier
+                  </button>
+                </form>
+              )}
+
+              <ul className="divide-y divide-border">
+                {tiers.length === 0 && (
+                  <li className="py-6 text-center font-sans text-sm text-muted-foreground">No tiers yet.</li>
+                )}
+                {tiers.map(t => (
+                  <li key={t.id} className="py-3 flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-sans text-sm font-medium text-foreground">{t.name}</span>
+                        <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{t.slug}</span>
+                        {t.is_system && <span className="font-mono text-[10px] text-amber-600">built-in</span>}
+                        {t.is_archived && <span className="font-mono text-[10px] text-muted-foreground">archived</span>}
+                      </div>
+                      {t.description && <p className="font-sans text-xs text-muted-foreground mt-0.5">{t.description}</p>}
+                      <p className="font-mono text-[10px] text-muted-foreground/70 mt-0.5">
+                        ${(t.monthly_price_cents / 100).toFixed(2)} / {t.billing_cadence.replace('_', ' ')}
+                      </p>
+                    </div>
+                    {isAdmin && (
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          defaultValue={(t.monthly_price_cents / 100).toFixed(2)}
+                          onBlur={async e => {
+                            const cents = Math.round(parseFloat(e.target.value || '0') * 100)
+                            if (cents === t.monthly_price_cents) return
+                            const result = await updateTier(t.id, { monthly_price_cents: cents })
+                            if (result.error) { toast.error(result.error); return }
+                            setTiers(prev => prev.map(x => x.id === t.id ? { ...x, monthly_price_cents: cents } : x))
+                            toast.success('Price updated')
+                          }}
+                          className="w-24 bg-background border border-border text-foreground font-mono text-xs rounded px-2 py-1 focus:outline-none focus:border-primary"
+                        />
+                        {!t.is_system && (
+                          <button
+                            onClick={async () => {
+                              if (!confirm(`Delete tier "${t.name}"?`)) return
+                              const result = await deleteTier(t.id)
+                              if (result.error) { toast.error(result.error); return }
+                              setTiers(prev => prev.filter(x => x.id !== t.id))
+                              toast.success('Tier deleted')
+                            }}
+                            className="font-mono text-[10px] border border-border px-2 py-1 rounded hover:border-red-500 hover:text-red-500 transition"
+                          >
+                            Delete
+                          </button>
+                        )}
+                        {t.is_system && (
+                          <button
+                            onClick={async () => {
+                              const result = await updateTier(t.id, { is_archived: !t.is_archived })
+                              if (result.error) { toast.error(result.error); return }
+                              setTiers(prev => prev.map(x => x.id === t.id ? { ...x, is_archived: !x.is_archived } : x))
+                            }}
+                            className="font-mono text-[10px] border border-border px-2 py-1 rounded hover:border-primary hover:text-primary transition"
+                          >
+                            {t.is_archived ? 'Restore' : 'Archive'}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Invites Tab */}
+          {activeTab === 'invites' && (
+            <div className="bg-card rounded border border-border p-6">
+              <div className="flex items-center justify-between mb-4 gap-3">
+                <div>
+                  <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase">Invite Codes</p>
+                  <p className="font-sans text-sm text-muted-foreground mt-1">
+                    Generate codes for new members to join this space. Set an expiry, a max-use cap, or leave both blank for a permanent code. Toggle off to revoke.
+                  </p>
+                </div>
+                {isAdmin && (
+                  <button
+                    onClick={() => setShowNewInvite(v => !v)}
+                    className="font-mono text-[10px] border border-border px-3 py-1.5 rounded hover:border-primary hover:text-primary transition flex items-center gap-1 whitespace-nowrap"
+                  >
+                    {showNewInvite ? 'Cancel' : '+ New invite'}
+                  </button>
+                )}
+              </div>
+
+              {showNewInvite && (
+                <form
+                  onSubmit={async e => {
+                    e.preventDefault()
+                    const result = await createInvite({
+                      code: newInvite.code.trim().toUpperCase() || undefined,
+                      label: newInvite.label.trim() || undefined,
+                      expires_at: newInvite.expires_at || undefined,
+                      max_uses: newInvite.max_uses ? Number(newInvite.max_uses) : undefined,
+                    })
+                    if ('error' in result && result.error) { toast.error(result.error); return }
+                    const created = result as { id: string; code: string }
+                    toast.success(`Invite created: ${created.code}`)
+                    setShowNewInvite(false)
+                    setInvites(prev => [{
+                      id: created.id,
+                      code: created.code,
+                      label: newInvite.label.trim() || null,
+                      expires_at: newInvite.expires_at || null,
+                      max_uses: newInvite.max_uses ? Number(newInvite.max_uses) : null,
+                      uses_count: 0,
+                      is_enabled: true,
+                      created_at: new Date().toISOString(),
+                    }, ...prev])
+                    setNewInvite({ code: '', label: '', expires_at: '', max_uses: '' })
+                  }}
+                  className="mb-4 p-4 border border-border rounded bg-background grid grid-cols-1 md:grid-cols-2 gap-3"
+                >
+                  <input
+                    type="text"
+                    value={newInvite.code}
+                    onChange={e => setNewInvite({ ...newInvite, code: e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, '') })}
+                    placeholder="CODE (blank = auto-generate)"
+                    maxLength={32}
+                    className="bg-background border border-border text-foreground font-mono text-xs rounded px-2 py-1.5 focus:outline-none focus:border-primary"
+                  />
+                  <input
+                    type="text"
+                    value={newInvite.label}
+                    onChange={e => setNewInvite({ ...newInvite, label: e.target.value })}
+                    placeholder="Label (e.g., open house 2026)"
+                    maxLength={100}
+                    className="bg-background border border-border text-foreground font-sans text-sm rounded px-2 py-1.5 focus:outline-none focus:border-primary"
+                  />
+                  <input
+                    type="datetime-local"
+                    value={newInvite.expires_at}
+                    onChange={e => setNewInvite({ ...newInvite, expires_at: e.target.value })}
+                    className="bg-background border border-border text-foreground font-mono text-xs rounded px-2 py-1.5 focus:outline-none focus:border-primary"
+                  />
+                  <input
+                    type="number"
+                    min="1"
+                    value={newInvite.max_uses}
+                    onChange={e => setNewInvite({ ...newInvite, max_uses: e.target.value })}
+                    placeholder="Max uses (blank = unlimited)"
+                    className="bg-background border border-border text-foreground font-mono text-xs rounded px-2 py-1.5 focus:outline-none focus:border-primary"
+                  />
+                  <button
+                    type="submit"
+                    className="md:col-span-2 bg-primary text-white text-xs font-sans px-3 py-1.5 rounded hover:bg-primary/90 transition"
+                  >
+                    Create invite
+                  </button>
+                </form>
+              )}
+
+              <ul className="divide-y divide-border">
+                {invites.length === 0 && (
+                  <li className="py-6 text-center font-sans text-sm text-muted-foreground">No invites yet.</li>
+                )}
+                {invites.map(inv => {
+                  const expired = inv.expires_at ? new Date(inv.expires_at) < new Date() : false
+                  const usedUp = inv.max_uses !== null && inv.uses_count >= inv.max_uses
+                  return (
+                    <li key={inv.id} className="py-3 flex items-center gap-3 flex-wrap">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <code className="font-mono text-sm font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded">{inv.code}</code>
+                          {inv.label && <span className="font-sans text-sm text-foreground">{inv.label}</span>}
+                          {!inv.is_enabled && <span className="font-mono text-[10px] text-red-500">disabled</span>}
+                          {expired && <span className="font-mono text-[10px] text-red-500">expired</span>}
+                          {usedUp && <span className="font-mono text-[10px] text-red-500">at cap</span>}
+                        </div>
+                        <p className="font-mono text-[10px] text-muted-foreground/70 mt-0.5">
+                          {inv.expires_at ? `expires ${new Date(inv.expires_at).toLocaleString()}` : 'permanent'}
+                          {' · '}
+                          uses {inv.uses_count}{inv.max_uses ? ` / ${inv.max_uses}` : ' (unlimited)'}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => { navigator.clipboard.writeText(inv.code); toast.success('Copied') }}
+                          className="font-mono text-[10px] border border-border px-2 py-1 rounded hover:border-primary hover:text-primary transition"
+                        >
+                          Copy
+                        </button>
+                        {isAdmin && (
+                          <>
+                            <button
+                              onClick={async () => {
+                                const result = await updateInvite(inv.id, { is_enabled: !inv.is_enabled })
+                                if (result.error) { toast.error(result.error); return }
+                                setInvites(prev => prev.map(x => x.id === inv.id ? { ...x, is_enabled: !x.is_enabled } : x))
+                              }}
+                              className="font-mono text-[10px] border border-border px-2 py-1 rounded hover:border-primary hover:text-primary transition"
+                            >
+                              {inv.is_enabled ? 'Disable' : 'Enable'}
+                            </button>
+                            <button
+                              onClick={async () => {
+                                if (!confirm(`Delete invite "${inv.code}"?`)) return
+                                const result = await deleteInvite(inv.id)
+                                if (result.error) { toast.error(result.error); return }
+                                setInvites(prev => prev.filter(x => x.id !== inv.id))
+                                toast.success('Invite deleted')
+                              }}
+                              className="font-mono text-[10px] border border-border px-2 py-1 rounded hover:border-red-500 hover:text-red-500 transition"
+                            >
+                              Delete
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
             </div>
           )}
 

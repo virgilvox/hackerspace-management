@@ -3,7 +3,10 @@
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, Search, Lock, Pin, Eye, EyeOff, Pencil, Trash2, X, ChevronDown, Users2 } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { createKbEntry, updateKbEntry, deleteKbEntry } from '@/lib/actions'
+import { revealSecret, deleteSecret } from '@/lib/actions/secrets'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import type { Tables, TablesInsert } from '@/types/database'
@@ -345,19 +348,19 @@ function SecretRow({ secret, onDelete }: { secret: Secret; onDelete: (id: string
   const [loading, setLoading] = useState(false)
 
   async function reveal() {
-    if (revealed) { setRevealed(false); return }
+    if (revealed) { setRevealed(false); setValue(null); return }
     setLoading(true)
-    const supabase = createClient()
-    const { data } = await supabase.from('secrets').select('value').eq('id', secret.id).single()
+    const result = await revealSecret(secret.id)
     setLoading(false)
-    if (data) { setValue(data.value); setRevealed(true) }
+    if (result.error) { toast.error(result.error); return }
+    setValue(result.value ?? '')
+    setRevealed(true)
   }
 
   async function handleDelete() {
     if (!confirm(`Delete secret "${secret.title}"? This cannot be undone.`)) return
-    const supabase = createClient()
-    const { error } = await supabase.from('secrets').delete().eq('id', secret.id)
-    if (error) { toast.error(error.message); return }
+    const result = await deleteSecret(secret.id)
+    if (result.error) { toast.error(result.error); return }
     toast.success('Secret deleted')
     onDelete(secret.id)
   }
@@ -402,7 +405,10 @@ function KbEntryRow({
   onEdit: (e: KbEntry) => void
   onDelete: (id: string) => void
 }) {
-  async function handleDelete() {
+  const [viewing, setViewing] = useState(false)
+
+  async function handleDelete(e: React.MouseEvent) {
+    e.stopPropagation()
     if (!confirm(`Delete "${entry.title}"?`)) return
     const result = await deleteKbEntry(entry.id)
     if ('error' in result && result.error) { toast.error(result.error); return }
@@ -410,44 +416,90 @@ function KbEntryRow({
     onDelete(entry.id)
   }
 
+  function handleEdit(e: React.MouseEvent) {
+    e.stopPropagation()
+    onEdit(entry)
+  }
+
   return (
-    <div className={`flex items-start gap-3 px-4 py-4 hover:bg-muted/20 transition group border-l-4 ${
-      entry.is_pinned
-        ? entry.visibility === 'admin_only' ? 'border-l-red-400' : entry.visibility === 'board' ? 'border-l-amber-400' : 'border-l-primary'
-        : 'border-l-transparent'
-    }`}>
-      <div className="w-8 h-8 rounded bg-muted flex items-center justify-center flex-shrink-0 text-base">
-        {entry.icon || (
-          <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-        )}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-0.5">
-          <p className="font-sans text-sm font-medium text-foreground">{entry.title}</p>
-          {entry.is_pinned && <Pin className="w-3 h-3 text-primary flex-shrink-0" />}
+    <>
+      <div
+        onClick={() => setViewing(true)}
+        className={`flex items-start gap-3 px-4 py-4 hover:bg-muted/20 transition group border-l-4 cursor-pointer ${
+          entry.is_pinned
+            ? entry.visibility === 'admin_only' ? 'border-l-red-400' : entry.visibility === 'board' ? 'border-l-amber-400' : 'border-l-primary'
+            : 'border-l-transparent'
+        }`}
+      >
+        <div className="w-8 h-8 rounded bg-muted flex items-center justify-center flex-shrink-0 text-base">
+          {entry.icon || (
+            <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          )}
         </div>
-        <p className="font-mono text-[10px] text-muted-foreground line-clamp-2">{entry.content?.slice(0, 120)}</p>
-        <p className="font-mono text-[10px] text-muted-foreground/60 mt-1">
-          {entry.area && <span>{entry.area} · </span>}
-          updated {new Date(entry.updated_at).toLocaleDateString()} by {entry.updated_by_name}
-        </p>
-      </div>
-      <div className="flex items-center gap-1.5 flex-shrink-0">
-        <span className={`font-mono text-[10px] px-2 py-0.5 rounded border whitespace-nowrap ${VISIBILITY_COLORS[entry.visibility] ?? 'text-muted-foreground bg-muted border-border'}`}>
-          {VISIBILITY_LABELS[entry.visibility] ?? entry.visibility}
-        </span>
-        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition">
-          <button onClick={() => onEdit(entry)} className="text-muted-foreground hover:text-primary transition p-1" title="Edit">
-            <Pencil className="w-3.5 h-3.5" />
-          </button>
-          <button onClick={handleDelete} className="text-muted-foreground hover:text-red-500 transition p-1" title="Delete">
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-0.5">
+            <p className="font-sans text-sm font-medium text-foreground">{entry.title}</p>
+            {entry.is_pinned && <Pin className="w-3 h-3 text-primary flex-shrink-0" />}
+          </div>
+          <p className="font-mono text-[10px] text-muted-foreground line-clamp-2">{entry.content?.slice(0, 120)}</p>
+          <p className="font-mono text-[10px] text-muted-foreground/60 mt-1">
+            {entry.area && <span>{entry.area} · </span>}
+            updated {new Date(entry.updated_at).toLocaleDateString()} by {entry.updated_by_name}
+          </p>
+        </div>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <span className={`font-mono text-[10px] px-2 py-0.5 rounded border whitespace-nowrap ${VISIBILITY_COLORS[entry.visibility] ?? 'text-muted-foreground bg-muted border-border'}`}>
+            {VISIBILITY_LABELS[entry.visibility] ?? entry.visibility}
+          </span>
+          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition">
+            <button onClick={handleEdit} className="text-muted-foreground hover:text-primary transition p-1" title="Edit">
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+            <button onClick={handleDelete} className="text-muted-foreground hover:text-red-500 transition p-1" title="Delete">
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+
+      {viewing && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setViewing(false)}>
+          <div
+            onClick={e => e.stopPropagation()}
+            className="bg-card rounded border border-border w-full max-w-3xl max-h-[90vh] overflow-y-auto"
+          >
+            <div className="sticky top-0 bg-card border-b border-border px-5 py-3 flex items-start gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  {entry.icon && <span className="text-lg">{entry.icon}</span>}
+                  <h2 className="font-sans text-lg font-semibold text-foreground">{entry.title}</h2>
+                  {entry.is_pinned && <Pin className="w-3.5 h-3.5 text-primary" />}
+                </div>
+                <p className="font-mono text-[10px] text-muted-foreground mt-1">
+                  {entry.area && <span>{entry.area} · </span>}
+                  {VISIBILITY_LABELS[entry.visibility] ?? entry.visibility}
+                  {' · '}
+                  updated {new Date(entry.updated_at).toLocaleDateString()} by {entry.updated_by_name ?? 'unknown'}
+                </p>
+              </div>
+              <button onClick={() => onEdit(entry)} className="text-muted-foreground hover:text-primary transition p-1" title="Edit">
+                <Pencil className="w-4 h-4" />
+              </button>
+              <button onClick={() => setViewing(false)} className="text-muted-foreground hover:text-foreground transition p-1" title="Close">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="px-5 py-5">
+              <div className="prose prose-sm prose-neutral dark:prose-invert max-w-none break-words">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{entry.content ?? ''}</ReactMarkdown>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 

@@ -25,6 +25,18 @@ export default async function SettingsPage() {
     .order('sort_order', { ascending: true })
     .order('name', { ascending: true })
 
+  const { data: tiers } = await supabase
+    .from('space_tiers')
+    .select('id, slug, name, description, monthly_price_cents, billing_cadence, is_system, is_archived, sort_order')
+    .eq('space_id', member.space_id)
+    .order('sort_order', { ascending: true })
+
+  const { data: invites } = await supabase
+    .from('space_invites')
+    .select('id, code, label, expires_at, max_uses, uses_count, is_enabled, created_at')
+    .eq('space_id', member.space_id)
+    .order('created_at', { ascending: false })
+
   const isAdmin = member?.role === 'admin'
 
   return (
@@ -40,6 +52,27 @@ export default async function SettingsPage() {
         icon: string | null
         sort_order: number
         is_archived: boolean
+      }>}
+      tiers={(tiers ?? []) as Array<{
+        id: string
+        slug: string
+        name: string
+        description: string | null
+        monthly_price_cents: number
+        billing_cadence: string
+        is_system: boolean
+        is_archived: boolean
+        sort_order: number
+      }>}
+      invites={(invites ?? []) as Array<{
+        id: string
+        code: string
+        label: string | null
+        expires_at: string | null
+        max_uses: number | null
+        uses_count: number
+        is_enabled: boolean
+        created_at: string
       }>}
     />
   )

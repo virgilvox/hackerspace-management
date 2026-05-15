@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/server'
 import type { Incident, IncidentUpdateRow } from '@/lib/types'
 import { IncidentActions } from './incident-actions'
 import { MarkdownBody } from '@/components/markdown'
+import { CommentThread } from '@/components/comments/comment-thread'
+import { loadComments } from '@/components/comments/load-comments'
 
 export const dynamic = 'force-dynamic'
 
@@ -32,6 +34,8 @@ export default async function IncidentDetailPage({ params }: { params: Promise<{
   const incident = incidentRaw as unknown as Incident
   const isAdminOrBoard = member.role === 'admin' || member.role === 'board'
   const isReporter = incident.reporter_id === member.id
+
+  const comments = await loadComments(supabase, 'incident', incident.id)
 
   const { data: updatesRaw } = await supabase
     .from('incident_updates')
@@ -116,6 +120,14 @@ export default async function IncidentDetailPage({ params }: { params: Promise<{
           isReporter={isReporter}
           hasAppeal={incident.appeal_proposal_id !== null}
           appealProposalId={incident.appeal_proposal_id}
+        />
+
+        <CommentThread
+          entityType="incident"
+          entityId={incident.id}
+          comments={comments}
+          currentMemberId={member.id}
+          canModerate={isAdminOrBoard}
         />
       </div>
     </div>

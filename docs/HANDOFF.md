@@ -4,6 +4,83 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-14 (pass 11) — Forum, comments, secrets encryption, custom tiers/invites, logo
+
+Branch: `main`. Pushed.
+
+### What I did
+
+Major feature expansion + security fix surfaced by audit.
+
+Schema migration `scripts/021_forum_tiers_roles_invites_secrets.sql`, folded into `scripts/schema.sql` Section 13:
+
+- `forum_threads` (title, body, category, pinned, locked, comment_count, last_comment_at). Full RLS.
+- `comments` polymorphic over (`forum_thread` | `proposal` | `incident` | `policy`) with `parent_id` for nesting. Trigger maintains `forum_threads.comment_count` and `last_comment_at`.
+- `space_tiers` per-space (slug, name, description, monthly_price_cents, billing_cadence, is_system, sort_order). Backfills `plus`/`basic`/`associate` for every existing space and seeds them on `INSERT spaces` via trigger. `space_members.tier_id` FK added and backfilled from the legacy enum.
+- `space_role_labels` (rename + recolor built-in roles per space). `space_custom_roles` (non-privileged extra labels). `space_member_custom_roles` m2m.
+- `space_invites` with `code`, `label`, `expires_at`, `max_uses`, `uses_count`, `is_enabled`. Legacy `spaces.invite_code` backfilled as a permanent enabled invite.
+- `secrets.encrypted_value bytea` + `encryption_version smallint`. Secrets RLS tightened.
+- `knowledge_base.render_markdown` boolean (default true).
+- `comms_channels` INSERT policy: any member of the space can create. UPDATE/DELETE: admin/board OR creator (default channels protected).
+
+Server actions:
+
+- `lib/actions/forum.ts`: `createForumThread`, `updateForumThread` (pin/lock moderator-gated), `deleteForumThread`, `addComment`, `editComment`, `deleteComment`.
+- `lib/actions/comms.ts`: `createChannel`, `renameChannel`, `deleteChannel`.
+- `lib/actions/tiers.ts`: `createTier`, `updateTier`, `deleteTier`.
+- `lib/actions/roles.ts`: `upsertRoleLabel`, `createCustomRole`, `updateCustomRole`, `deleteCustomRole`, `assignCustomRole`, `unassignCustomRole`.
+- `lib/actions/invites.ts`: `createInvite`, `updateInvite`, `deleteInvite`.
+- `lib/actions/secrets.ts`: rewritten to use AES-256-GCM at rest. New `revealSecret(id)` returns plaintext only via server action and logs `secret.revealed` to `activity_log`. New `updateSecret`. List endpoint in `/ops/page.tsx` no longer selects `value` or `encrypted_value` — fixes the screenshot bug where ciphertext was already in the page bundle before "Reveal".
+- `lib/secrets/crypto.ts`: AES-256-GCM helpers. Reads `SECRETS_ENCRYPTION_KEY` env (64 hex chars). Falls back to plaintext storage if the env var isn't set.
+
+UI:
+
+- `/forum` (index with pinned/locked badges, last-activity sort), `/forum/new`, `/forum/[id]`.
+- `components/comments/CommentThread` + `loadComments` helper. Embedded on `/proposals/[id]`, `/incidents/[id]`, `/policies/[slug]`.
+- `/comms` sidebar: inline "+ New channel" form (name + description + type).
+- `/ops` Secrets tab: Reveal now calls the `revealSecret` action and respects encryption.
+- `/ops` KB: row click opens a modal that renders `entry.content` as markdown via react-markdown + remark-gfm.
+- `/settings`: new **Tiers** tab (list/create/edit/archive/delete custom tiers, inline price edit). New **Invites** tab (list/create/disable/delete; copy code).
+- Landing page nav + footer now use `AtlasLogo` instead of `IcoTerminal`. `public/logo.svg` is the favicon (referenced by `app/layout.tsx` metadata).
+- Sidebar gets a `Forum` link below `Comms`.
+
+Auth flow: `joinSpace` honors codes from `space_invites` first (enforces enabled/expired/max-uses), falls back to legacy `spaces.invite_code`, and increments `uses_count` on success.
+
+Env: `SECRETS_ENCRYPTION_KEY` added to `.env.example` and to `secrets/base.env` locally (gitignored).
+
+Validations: added `updateSecretSchema`, `createForumThreadSchema`, `updateForumThreadSchema`, `createCommentSchema`, `updateCommentSchema`, `createTierSchema`, `updateTierSchema`, `upsertRoleLabelSchema`, `createCustomRoleSchema`, `updateCustomRoleSchema`, `createInviteSchema`, `updateInviteSchema`, `createChannelSchema`.
+
+### Open items (deferred for follow-up)
+
+- Custom role labels and custom roles UI in Settings. Data layer + RLS + server actions all in place; UI surface not yet added. Schema rows can be created via PostgREST or psql today.
+- `importMembers` and `importPaymentsCsv` lack Zod schemas (audit-flagged). Logic still filters on type, but should adopt schemas.
+- Add `SECRETS_ENCRYPTION_KEY` to the droplet's `.env.production` before the next deploy. Without it, secrets fall back to legacy plaintext storage and the screenshot bug returns. (Update done locally; deploy env update pending.)
+- Migration 021 must be applied on production. The deploy script runs it idempotently; first deploy after this commit will write `_migrations_applied` row.
+
+### Verification
+
+- `pnpm test` -> 266/266 pass.
+- `pnpm build` -> green, all new routes in the route table (`/forum`, `/forum/new`, `/forum/[id]`).
+
+---
+
+## 2026-05-14 (pass 10) — Production deploy + open-source release prep
+
+Branch: `main`. Pushed (`8ad1ca4`).
+
+Self-hosted production deploy completed on a single DigitalOcean Droplet at `https://hackerspace.sh`. Supabase (db/auth/rest/realtime/kong/meta/studio) runs in Docker with the Postgres data directory on a persistent block volume at `/mnt/data/postgres`. Caddy 2 terminates TLS with automatic Let's Encrypt for the apex, www, supabase, and studio hostnames. Studio is gated by HTTP basic auth (bcrypt). Daily `pg_dumpall` cron writes to `/mnt/data/backups` with 14-day retention. GitHub Actions auto-deploys every push to `main` over SSH via `/opt/hackerspace-ops/deploy.sh` which applies pending migrations idempotently (via `public._migrations_applied`), rebuilds, and restarts the systemd service. Resend SMTP is wired into GoTrue.
+
+Open-source release scaffolding shipped: `LICENSE` (MIT), `CONTRIBUTING.md`, `SECURITY.md`, `CHANGELOG.md`, `docs/WEBHOOKS.md`, refreshed `README.md` and `docs/DEPLOYMENT.md`. All v0/Vercel references removed from app code; `@vercel/analytics` dependency dropped. GitHub icon link to the public repo in the landing nav + footer.
+
+Audit fixes in the same commit:
+
+- Webhook signing secret now has show/hide + copy in `/settings`; the broken external `docs.hackerspace.sh/webhooks` link replaced with `docs/WEBHOOKS.md`.
+- `updateSpaceSettings` parameter type now includes `mission_statement` (was silently dropped).
+- `/members` enforces `member_directory_visibility` for non-admin viewers.
+- Mobile responsiveness pass: Projects Kanban, Members + Payments tables (column hiding on narrow), Proposal tally + voting buttons.
+
+---
+
 ## 2026-05-14 (pass 9) — Datetime fix + configurable areas
 
 Branch: `main`. Author: Claude (no commits made).

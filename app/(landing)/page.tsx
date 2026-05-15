@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { AtlasLogo } from '@/components/resources/atlas-logo'
 
 // Icons
 function IcoUsers({ className }: { className?: string }) {
@@ -318,7 +319,7 @@ export default function LandingPage() {
       <nav className="border-b border-border bg-sidebar">
         <div className="max-w-6xl mx-auto px-4 md:px-6 py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2 min-w-0">
-            <IcoTerminal className="w-5 h-5 text-primary shrink-0" />
+            <AtlasLogo className="w-6 h-6 text-primary shrink-0" />
             <span className="font-mono text-sm font-bold text-white truncate">hackerspace.sh</span>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -515,7 +516,7 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto px-4 md:px-6 py-8">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <IcoTerminal className="w-4 h-4 text-primary" />
+              <AtlasLogo className="w-5 h-5 text-primary" />
               <span className="font-mono text-xs text-sidebar-foreground">hackerspace.sh</span>
             </div>
             <div className="flex items-center gap-4">

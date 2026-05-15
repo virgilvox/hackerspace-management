@@ -5,6 +5,8 @@ import type { Proposal, ProposalVote } from '@/lib/types'
 import { ProposalStatusBadge } from '../proposal-badges'
 import { ProposalActions } from './proposal-actions'
 import { MarkdownBody } from '@/components/markdown'
+import { CommentThread } from '@/components/comments/comment-thread'
+import { loadComments } from '@/components/comments/load-comments'
 
 export const dynamic = 'force-dynamic'
 
@@ -64,6 +66,8 @@ export default async function ProposalDetailPage({ params }: { params: Promise<{
   const quorumPct = proposal.quorum_required > 0
     ? Math.min(100, Math.round((totalCounted / proposal.quorum_required) * 100))
     : 0
+
+  const comments = await loadComments(supabase, 'proposal', proposal.id)
 
   return (
     <div className="min-h-screen bg-background">
@@ -160,6 +164,14 @@ export default async function ProposalDetailPage({ params }: { params: Promise<{
             </ul>
           )}
         </section>
+
+        <CommentThread
+          entityType="proposal"
+          entityId={proposal.id}
+          comments={comments}
+          currentMemberId={(member as { id: string }).id}
+          canModerate={isAdminOrBoard}
+        />
       </div>
     </div>
   )

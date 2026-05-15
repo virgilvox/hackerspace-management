@@ -27,3 +27,14 @@ export * from './policies'
 
 // Per-space configurable taxonomies
 export * from './areas'
+
+// Forum and polymorphic comments
+export * from './forum'
+
+// User-creatable chat channels
+export * from './comms'
+
+// Custom tiers, custom roles, multi-code invites
+export * from './tiers'
+export * from './roles'
+export * from './invites'
