@@ -22,14 +22,18 @@ Five parallel read-only audits (security/RLS, server actions/validation, routes/
 - **`app/(app)/layout.tsx`** marked `export const dynamic = 'force-dynamic'` (auth/onboarding gate must never be cached).
 - **Bounded queries.** `loadComments` `.limit(500)`, tasks page `.limit(2000)`.
 
-### Tracked backlog (audit findings, not security-critical)
+### Pass 16b follow-up (same day)
 
-- `importMembers` / `importPaymentsCsv`: still no Zod row schema; dates not via `flexibleDateTime()`; emails not lowercased; silent row drops. Highest-value remaining correctness item.
+- **Import validation done.** `importMembersSchema` / `importPaymentsCsvSchema` added; both actions validate per row (one bad row no longer rejects the file), lowercase emails, normalize dates via `flexibleDateTime()`, enforce platform/tier enums and positive finite amounts, and return a `skipped` count instead of silently dropping rows.
+- **KB/process per-item ACL wired.** `OpsAclEditor` renders in the KB/process viewer modal (admin/board); entity type derived from the `process` tag. Per-item Ops ACLs now cover secrets + KB + processes.
+- `/ops` and `/import` denial paths left as-is: unreachable behind the `(app)` layout gate, or already a clear denial with no data leak.
+
+### Tracked backlog (not security-critical, zero runtime impact)
+
 - `types/database.ts` still missing 8 prior-pass tables + `comment_entity_type` enum + 3 `space_members` columns (loose casts; build green via `ignoreBuildErrors`).
 - `docs/DATABASE_SCHEMA.md`, `DB_SCHEMA_MAP.md`, `docs/API_REFERENCE.md` stale since 2026-03-10 (missing migrations 016-024).
-- Inconsistent unauthorized handling: `/ops` and `/import` `return null` instead of `redirect`.
-- Email normalization (`.toLowerCase()`) missing across auth/member schemas.
-- KB/process per-item ACL: infra complete, only the ops-client KB-modal hookup remains. Members-row "make area lead" shortcut still deferred.
+- Email `.toLowerCase()` still missing on the non-import auth/member schemas (import path now normalizes).
+- Members-row "Make area lead" shortcut (Customize -> Area leads fully covers assignment).
 
 ### Verification
 

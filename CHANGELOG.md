@@ -19,6 +19,8 @@ All notable changes to this project are documented here. Format follows [Keep a 
 - `/settings` is gated server-side to admins before any space/integration data is fetched.
 
 ### Fixed
+- Bulk import (`importMembers`, `importPaymentsCsv`) now validates every row with Zod: lowercased emails, `flexibleDateTime` date normalization, enum-checked platform/tier, positive finite amounts. Invalid rows are skipped and counted (returned as `skipped`) instead of silently dropped; one bad row no longer rejects the whole file.
+- Per-item Ops access control now also covers knowledge base and process entries (wired into the viewer modal), not just secrets.
 - `revealSecret` no longer silently returns the stale plaintext column when a row is marked encrypted but has no ciphertext; it surfaces the corruption instead.
 - `upsertAreaLead` rejects a null/empty area code (Postgres treats NULLs as distinct in unique constraints, which had allowed duplicate area-lead rows).
 

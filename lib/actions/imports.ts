@@ -4,18 +4,9 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { requireMemberWithRole } from '@/lib/auth-helpers'
 import { ADMIN_ROLES } from '@/lib/permissions'
+import { importMembersSchema } from '@/lib/validations'
 
-export async function importMembers(
-  rows: Array<{
-    display_name: string
-    email: string
-    phone?: string
-    tier?: string
-    joined_at?: string
-    last_paid_at?: string
-    has_card_access?: boolean
-  }>,
-) {
+export async function importMembers(rows: unknown) {
   if (!Array.isArray(rows) || rows.length === 0) {
     return { error: 'No rows to import' }
   }
@@ -25,33 +16,39 @@ export async function importMembers(
   if (!auth.ok) return { error: auth.error }
   const { member } = auth
 
-  const inserts = rows
-    .filter(r => typeof r.display_name === 'string' && typeof r.email === 'string')
-    .map(r => ({
+  // Validate per row so one bad row does not reject the whole file; the
+  // schema lowercases email and normalizes dates via flexibleDateTime.
+  const rowSchema = importMembersSchema.element
+  const valid: Array<Record<string, unknown>> = []
+  let skipped = 0
+  for (const raw of rows) {
+    const r = rowSchema.safeParse(raw)
+    if (!r.success) { skipped++; continue }
+    valid.push({
       space_id: member.space_id,
-      display_name: r.display_name,
-      email: r.email,
-      phone: r.phone ?? null,
-      tier: r.tier ?? 'basic',
+      display_name: r.data.display_name,
+      email: r.data.email,
+      phone: r.data.phone ?? null,
+      tier: r.data.tier ?? 'basic',
       role: 'member',
       status: 'current',
       approved: true,
-      joined_at: r.joined_at ?? new Date().toISOString(),
-      last_paid_at: r.last_paid_at ?? null,
-      has_card_access: r.has_card_access ?? false,
-    }))
-
-  if (inserts.length === 0) {
-    return { error: 'No valid rows to import' }
+      joined_at: r.data.joined_at ?? new Date().toISOString(),
+      last_paid_at: r.data.last_paid_at ?? null,
+      has_card_access: r.data.has_card_access ?? false,
+    })
   }
 
-  // Upsert by (space_id, email) to dedupe re-imports.
+  if (valid.length === 0) {
+    return { error: `No valid rows to import (${skipped} skipped: bad email, name, tier, or date).` }
+  }
+
   const { data, error } = await supabase
     .from('space_members')
-    .upsert(inserts, { onConflict: 'space_id,email', ignoreDuplicates: false })
+    .upsert(valid, { onConflict: 'space_id,email', ignoreDuplicates: false })
     .select()
 
   if (error) return { error: error.message }
   revalidatePath('/members')
-  return { data, count: data.length }
+  return { data, count: data.length, skipped }
 }

@@ -11,6 +11,7 @@ import { TREASURER_ROLES } from '@/lib/permissions'
 import {
   logCashPaymentSchema,
   linkPaymentSchema,
+  importPaymentsCsvSchema,
 } from '@/lib/validations'
 import type { Enums } from '@/types/database'
 
@@ -114,36 +115,38 @@ export async function linkPaymentToMember(paymentId: string, memberId: string) {
   return { success: true as const }
 }
 
-export async function importPaymentsCsv(
-  rows: Array<{
-    platform: string
-    amount: number
-    from_identifier: string
-    from_note?: string
-    transaction_date: string
-  }>,
-) {
+export async function importPaymentsCsv(rows: unknown) {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return { error: 'No rows to import' }
+  }
+
   const supabase = await createClient()
   const auth = await requireMemberWithRole(supabase, TREASURER_ROLES, 'Treasurer access required')
   if (!auth.ok) return { error: auth.error }
   const { member } = auth
 
-  const validPlatforms: PaymentPlatform[] = ['paypal', 'zeffy', 'venmo', 'cash']
-
-  const inserts = rows
-    .filter(r => validPlatforms.includes(r.platform as PaymentPlatform))
-    .map(r => ({
+  // Per-row validation: platform enum, positive finite amount, normalized
+  // transaction_date. Invalid rows are skipped and counted, not silently
+  // dropped without feedback.
+  const rowSchema = importPaymentsCsvSchema.element
+  const inserts: Array<Record<string, unknown>> = []
+  let skipped = 0
+  for (const raw of rows) {
+    const r = rowSchema.safeParse(raw)
+    if (!r.success) { skipped++; continue }
+    inserts.push({
       space_id: member.space_id,
-      platform: r.platform as PaymentPlatform,
-      amount: r.amount,
-      from_identifier: r.from_identifier,
-      from_note: r.from_note ?? null,
+      platform: r.data.platform as PaymentPlatform,
+      amount: r.data.amount,
+      from_identifier: r.data.from_identifier,
+      from_note: r.data.from_note ?? null,
       link_status: 'unlinked' as const,
-      transaction_date: r.transaction_date,
-    }))
+      transaction_date: r.data.transaction_date ?? new Date().toISOString(),
+    })
+  }
 
   if (inserts.length === 0) {
-    return { error: 'No valid rows to import' }
+    return { error: `No valid rows to import (${skipped} skipped: bad platform, amount, or date).` }
   }
 
   const { data, error } = await supabase.from('payments').insert(inserts).select()
@@ -151,5 +154,5 @@ export async function importPaymentsCsv(
 
   revalidatePath('/payments')
   revalidatePath('/dashboard')
-  return { data, count: data.length }
+  return { data, count: data.length, skipped }
 }

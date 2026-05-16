@@ -430,12 +430,20 @@ function KbEntryRow({
   entry,
   onEdit,
   onDelete,
+  canManageAcl,
+  aclRoleOptions,
+  aclByEntity,
 }: {
   entry: KbEntry
   onEdit: (e: KbEntry) => void
   onDelete: (id: string) => void
+  canManageAcl?: boolean
+  aclRoleOptions?: { value: string; label: string }[]
+  aclByEntity?: Record<string, string[]>
 }) {
   const [viewing, setViewing] = useState(false)
+  const aclEntityType: 'kb' | 'process' = entry.tags?.includes('process') ? 'process' : 'kb'
+  const aclInitial = aclByEntity?.[`${aclEntityType}:${entry.id}`] ?? []
 
   async function handleDelete(e: React.MouseEvent) {
     e.stopPropagation()
@@ -525,6 +533,14 @@ function KbEntryRow({
               <div className="prose prose-sm prose-neutral dark:prose-invert max-w-none break-words">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{entry.content ?? ''}</ReactMarkdown>
               </div>
+              {canManageAcl && (
+                <OpsAclEditor
+                  entityType={aclEntityType}
+                  entityId={entry.id}
+                  options={aclRoleOptions ?? []}
+                  initial={aclInitial}
+                />
+              )}
             </div>
           </div>
         </div>
@@ -671,6 +687,9 @@ export function OpsClient({ member, spaceId, kbEntries: initial, areaLeads: init
                       entry={entry}
                       onEdit={e => { setEditingKb(e); setShowKbModal(true) }}
                       onDelete={id => setKbEntries(prev => prev.filter(e => e.id !== id))}
+                      canManageAcl={canManageAcl}
+                      aclRoleOptions={aclRoleOptions}
+                      aclByEntity={aclByEntity}
                     />
                   ))}
                 </div>
@@ -686,6 +705,9 @@ export function OpsClient({ member, spaceId, kbEntries: initial, areaLeads: init
                       entry={entry}
                       onEdit={e => { setEditingKb(e); setShowKbModal(true) }}
                       onDelete={id => setKbEntries(prev => prev.filter(e => e.id !== id))}
+                      canManageAcl={canManageAcl}
+                      aclRoleOptions={aclRoleOptions}
+                      aclByEntity={aclByEntity}
                     />
                   ))}
                 </div>
@@ -720,6 +742,9 @@ export function OpsClient({ member, spaceId, kbEntries: initial, areaLeads: init
                     entry={entry}
                     onEdit={e => { setEditingKb(e); setShowKbModal(true) }}
                     onDelete={id => setKbEntries(prev => prev.filter(e => e.id !== id))}
+                    canManageAcl={canManageAcl}
+                    aclRoleOptions={aclRoleOptions}
+                    aclByEntity={aclByEntity}
                   />
                 ))}
               </div>
