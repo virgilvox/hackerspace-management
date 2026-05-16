@@ -6,25 +6,26 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ## 2026-05-15 (pass 17) — UX polish (Tiers 1-3) + production incident-RLS report
 
-Branch: `main`. Migration: 025 (applies on next deploy). Not pushed.
+Branch: `main`. `origin/main` = `1340b4c` (incident hotfix, DEPLOYED). 5 local commits ahead (UX polish + docs), unpushed. Safety branch `ux-polish-wip` = old stack tip.
 
-### UX polish (in progress, Tiers 1-3 of the audit)
+### Production incident-filing RLS report (resolved as far as possible blind)
 
-- Full UI/UX audit done (5 partitioned agents, code-level; no live browser, auth routes need seed). Findings report delivered to the user, grouped Tier 1 systemic / Tier 2 first-run / Tier 3 security-adjacent / Tier 4 brand / Tier 5 per-surface. User chose: implement Tiers 1-3 this pass, pause before 4-5; sidebar nav stays as-is (no role-filtering); comments get one-level nesting + edit (Tier 5, deferred to post-pause).
-- Committed (local, build+test green 271/271 each): (1) accessible sidebar/drawer + distinct Ops icon + skip link + BrandMark; (2) shared `PageTitle`/`SectionTitle` primitive adopted across 21 files; (3) shared `Empty` primitive replacing ~18 ad-hoc empty states (projects gains a real empty state).
-- Still open in Tier 1: Dialog/AlertDialog adoption (hand-rolled modals, `confirm()` x13), focus-visible, tap targets, label associations, silent-failure toasts. Tier 2/3 not started.
-
-### Production incident-filing RLS report (priority interrupt)
-
-User screenshot: a basic active member filing an incident at `/incidents/new` (anonymous checked) gets `new row violates row-level security policy for table "incidents"`. Production is on the OLD deployed commit (sidebar still `{hs}`), so this is pre-existing, not from this session.
+User screenshot: a basic active member filing an incident at `/incidents/new` (anonymous checked) got `new row violates row-level security policy for table "incidents"`. Pre-existing in production, not from this session.
 
 - Not reproducible from source: `fileIncident` sets `reporter_id=NULL` when anonymous and `space_id=member.space_id`; `getAuthMember` resolves by `user_id=auth.uid()`; the 016/017 `incidents_insert` policy allows exactly this. So it is a production deploy/data divergence.
 - Three candidate root causes: (1) `auth.uid()` NULL inside the DB request (SSR session not reaching PostgREST); (2) deployed `incidents_insert` policy differs from 016/017; (3) acting `space_members.user_id` != JWT sub on production (data drift).
-- Defensive fixes prepared (user-approved, blind, NOT pushed): `scripts/025` idempotently re-asserts the hardened `incidents_insert` policy verbatim (access-neutral; fixes cause #2 only); `fileIncident` maps RLS rejection to an actionable message and logs detail server-side. `scripts/schema.sql` already matches (no change).
+- **DEPLOYED** as a minimal hotfix off `origin/main` (commit `1340b4c`, GitHub Actions run 25953569904 success, 1m0s; deploy.sh ran the idempotent migration runner so `025` applied): `scripts/025` re-asserts the hardened `incidents_insert` verbatim (access-neutral; fixes cause #2 only); `fileIncident` maps an RLS rejection to an actionable message and logs detail server-side. `scripts/schema.sql` already matched (no change).
+- **Still needs user verification:** retry filing an incident on prod. If it still fails, cause #2 is excluded; run the SQL below to confirm #1 vs #3.
+
+### UX polish (Tiers 1-3; local only, NOT deployed)
+
+- Full UI/UX audit done (5 partitioned agents, code-level; no live browser). User chose: implement Tiers 1-3, pause before 4-5; sidebar nav stays as-is (no role-filtering); comments get one-level nesting + edit (Tier 5, deferred).
+- Local commits (build+test green 271/271 each): (1) `3360f54` accessible sidebar/drawer + distinct Ops icon + skip link + BrandMark; (2) `92ba6fb` shared `PageTitle`/`SectionTitle` across 21 files; (3) `f885ac7` shared `Empty` across ~18 empty states (projects gains one); (4) `1db9434` shared accessible `confirm()` (ConfirmProvider/useConfirm) replacing all 13 `window.confirm`. Plus preexisting `fa71d9a` (HANDOFF doc, not this session's) and `64d7d62` (these docs).
+- **Open in Tier 1:** S3 hand-rolled modals -> Radix Dialog (ops x4, members/tasks/projects/payments/contacts x5, settings integration modal); S5 tap targets; S6 focus-visible; S7 silent mutation-failure toasts; S8 form label/id associations. **Tier 2** (founder first-run dashboard, onboarding Skills/ack) and **Tier 3** (secrets copy+auto-hide, permissions matrix read-only notice + aria, OpsAclEditor toggles) not started. None of the UX commits are pushed; deploy decision pending.
 
 ### Pending decision / next step
 
-Run these on the production DB (service role) to disambiguate before relying on 025:
+Run these on the production DB (service role) to disambiguate the incident report if it persists:
 
 ```sql
 SELECT polname, pg_get_expr(polwithcheck, polrelid) AS with_check
