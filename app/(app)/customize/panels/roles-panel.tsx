@@ -7,11 +7,13 @@ import { upsertRoleLabel, createCustomRole, updateCustomRole, deleteCustomRole }
 import { BUILTIN_ROLES, DEFAULT_ROLE_LABELS } from '@/lib/role-labels'
 import { Tags } from 'lucide-react'
 import { Card } from './card'
+import { useConfirm } from '@/components/ui/confirm'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
 import type { RoleLabelRow, CustomRole } from './types'
 
 export function RolesPanel({ isAdmin, roleLabels, customRoles: initial }: { isAdmin: boolean; roleLabels: RoleLabelRow[]; customRoles: CustomRole[] }) {
   const router = useRouter()
+  const confirm = useConfirm()
   const [customRoles, setCustomRoles] = useState<CustomRole[]>(initial)
   const [showNew, setShowNew] = useState(false)
   const [draft, setDraft] = useState({ slug: '', name: '', color: '#d4ff00', description: '' })
@@ -142,7 +144,7 @@ export function RolesPanel({ isAdmin, roleLabels, customRoles: initial }: { isAd
                 />
                 {isAdmin && (
                   <button
-                    onClick={async () => { if (!confirm(`Delete role "${r.name}"?`)) return; const res = await deleteCustomRole(r.id); if (res.error) { toast.error(res.error); return } setCustomRoles(prev => prev.filter(x => x.id !== r.id)); toast.success('Deleted') }}
+                    onClick={async () => { if (!(await confirm({ title: 'Delete role', description: `"${r.name}" will be permanently removed.`, confirmText: 'Delete', destructive: true }))) return; const res = await deleteCustomRole(r.id); if (res.error) { toast.error(res.error); return } setCustomRoles(prev => prev.filter(x => x.id !== r.id)); toast.success('Deleted') }}
                     className="font-mono text-[10px] border border-border px-2 py-1 rounded hover:border-red-500 hover:text-red-500 transition"
                   >
                     Delete

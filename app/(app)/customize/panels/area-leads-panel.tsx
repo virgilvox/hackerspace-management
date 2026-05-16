@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { UserCog } from 'lucide-react'
 import { createAreaLeadRole, assignAreaLead, unassignAreaLead, deleteAreaLeadRole } from '@/lib/actions'
 import { Card } from './card'
+import { useConfirm } from '@/components/ui/confirm'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
 
 interface AreaLead {
@@ -26,6 +27,7 @@ interface Props {
 
 export function AreaLeadsPanel({ isAdmin, areaLeads: initial, members }: Props) {
   const router = useRouter()
+  const confirm = useConfirm()
   const [rows, setRows] = useState<AreaLead[]>(initial)
   const [showNew, setShowNew] = useState(false)
   const [d, setD] = useState({ area_code: '', name: '' })
@@ -116,7 +118,7 @@ export function AreaLeadsPanel({ isAdmin, areaLeads: initial, members }: Props) 
                   </select>
                   <button
                     onClick={async () => {
-                      if (!confirm(`Delete area-lead role "${r.area_name}"?`)) return
+                      if (!(await confirm({ title: 'Delete area-lead role', description: `"${r.area_name}" will be permanently removed.`, confirmText: 'Delete', destructive: true }))) return
                       const res = await deleteAreaLeadRole(r.id)
                       if (res.error) { toast.error(res.error); return }
                       setRows(prev => prev.filter(x => x.id !== r.id))

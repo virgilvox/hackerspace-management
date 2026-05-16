@@ -5,10 +5,12 @@ import { toast } from 'sonner'
 import { ListChecks } from 'lucide-react'
 import { createOnboardingStep, updateOnboardingStep, deleteOnboardingStep } from '@/lib/actions'
 import { Card } from './card'
+import { useConfirm } from '@/components/ui/confirm'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
 import type { Step } from './types'
 
 export function OnboardingPanel({ isAdmin, steps: initial }: { isAdmin: boolean; steps: Step[] }) {
+  const confirm = useConfirm()
   const [steps, setSteps] = useState<Step[]>(initial)
 
   return (
@@ -65,7 +67,7 @@ export function OnboardingPanel({ isAdmin, steps: initial }: { isAdmin: boolean;
                   <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest">Required</span>
                 </label>
                 {!s.is_system && (
-                  <button onClick={async () => { if (!confirm(`Delete step "${s.title}"?`)) return; const res = await deleteOnboardingStep(s.id); if (res.error) { toast.error(res.error); return } setSteps(prev => prev.filter(x => x.id !== s.id)); toast.success('Deleted') }} className="ml-auto font-mono text-[10px] border border-border px-2 py-1 rounded hover:border-red-500 hover:text-red-500 transition">Delete</button>
+                  <button onClick={async () => { if (!(await confirm({ title: 'Delete step', description: `"${s.title}" will be permanently removed.`, confirmText: 'Delete', destructive: true }))) return; const res = await deleteOnboardingStep(s.id); if (res.error) { toast.error(res.error); return } setSteps(prev => prev.filter(x => x.id !== s.id)); toast.success('Deleted') }} className="ml-auto font-mono text-[10px] border border-border px-2 py-1 rounded hover:border-red-500 hover:text-red-500 transition">Delete</button>
                 )}
               </div>
             )}

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Plus, X, Pencil, Contact as ContactIcon } from 'lucide-react'
 import { createContact, updateContact, deleteContact } from '@/lib/actions'
+import { useConfirm } from '@/components/ui/confirm'
 import type { Tables } from '@/types/database'
 import { PageTitle } from '@/components/ui/page-title'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyContent } from '@/components/ui/empty'
@@ -24,6 +25,7 @@ const GROUPS: Record<string, string[]> = {
 }
 
 export function ContactsClient({ contacts: initialContacts }: { contacts: Contact[] }) {
+  const confirm = useConfirm()
   const [contacts, setContacts] = useState<Contact[]>(initialContacts)
   const [search, setSearch] = useState('')
   const [showCreate, setShowCreate] = useState(false)
@@ -84,7 +86,7 @@ export function ContactsClient({ contacts: initialContacts }: { contacts: Contac
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Delete this contact?')) return
+    if (!(await confirm({ title: 'Delete contact', description: 'This contact will be permanently removed.', confirmText: 'Delete', destructive: true }))) return
     const result = await deleteContact(id)
     if (!result.error) setContacts(prev => prev.filter(c => c.id !== id))
   }

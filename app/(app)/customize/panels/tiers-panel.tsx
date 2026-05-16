@@ -5,10 +5,12 @@ import { toast } from 'sonner'
 import { CreditCard } from 'lucide-react'
 import { createTier, updateTier, deleteTier } from '@/lib/actions'
 import { Card } from './card'
+import { useConfirm } from '@/components/ui/confirm'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
 import type { Tier } from './types'
 
 export function TiersPanel({ isAdmin, tiers: initial }: { isAdmin: boolean; tiers: Tier[] }) {
+  const confirm = useConfirm()
   const [tiers, setTiers] = useState<Tier[]>(initial)
   const [showNew, setShowNew] = useState(false)
   const [d, setD] = useState({ slug: '', name: '', dollars: '0', cadence: 'monthly' as Tier['billing_cadence'], description: '' })
@@ -75,7 +77,7 @@ export function TiersPanel({ isAdmin, tiers: initial }: { isAdmin: boolean; tier
                 {t.is_system ? (
                   <button onClick={async () => { const res = await updateTier(t.id, { is_archived: !t.is_archived }); if (res.error) { toast.error(res.error); return } setTiers(prev => prev.map(x => x.id === t.id ? { ...x, is_archived: !x.is_archived } : x)) }} className="font-mono text-[10px] border border-border px-2 py-1 rounded hover:border-primary hover:text-primary transition">{t.is_archived ? 'Restore' : 'Archive'}</button>
                 ) : (
-                  <button onClick={async () => { if (!confirm(`Delete tier "${t.name}"?`)) return; const res = await deleteTier(t.id); if (res.error) { toast.error(res.error); return } setTiers(prev => prev.filter(x => x.id !== t.id)); toast.success('Tier deleted') }} className="font-mono text-[10px] border border-border px-2 py-1 rounded hover:border-red-500 hover:text-red-500 transition">Delete</button>
+                  <button onClick={async () => { if (!(await confirm({ title: 'Delete tier', description: `"${t.name}" will be permanently removed.`, confirmText: 'Delete', destructive: true }))) return; const res = await deleteTier(t.id); if (res.error) { toast.error(res.error); return } setTiers(prev => prev.filter(x => x.id !== t.id)); toast.success('Tier deleted') }} className="font-mono text-[10px] border border-border px-2 py-1 rounded hover:border-red-500 hover:text-red-500 transition">Delete</button>
                 )}
               </div>
             )}

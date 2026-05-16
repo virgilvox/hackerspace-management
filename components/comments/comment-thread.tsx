@@ -8,6 +8,7 @@ import remarkGfm from 'remark-gfm'
 import { addComment, deleteComment } from '@/lib/actions'
 import { Trash2, MessageCircle } from 'lucide-react'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
+import { useConfirm } from '@/components/ui/confirm'
 
 export type CommentEntityType = 'forum_thread' | 'proposal' | 'incident' | 'policy'
 
@@ -31,6 +32,7 @@ interface Props {
 
 export function CommentThread({ entityType, entityId, comments, currentMemberId, canModerate, locked }: Props) {
   const router = useRouter()
+  const confirm = useConfirm()
   const [body, setBody] = useState('')
   const [saving, setSaving] = useState(false)
 
@@ -46,7 +48,7 @@ export function CommentThread({ entityType, entityId, comments, currentMemberId,
   }
 
   async function handleDelete(commentId: string) {
-    if (!confirm('Delete this comment?')) return
+    if (!(await confirm({ title: 'Delete comment', description: 'This comment will be permanently removed.', confirmText: 'Delete', destructive: true }))) return
     const result = await deleteComment(commentId)
     if (result.error) { toast.error(result.error); return }
     toast.success('Comment deleted')

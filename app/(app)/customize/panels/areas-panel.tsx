@@ -5,10 +5,12 @@ import { toast } from 'sonner'
 import { LayoutGrid } from 'lucide-react'
 import { createArea, updateArea, deleteArea } from '@/lib/actions'
 import { Card } from './card'
+import { useConfirm } from '@/components/ui/confirm'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
 import type { Area } from './types'
 
 export function AreasPanel({ isAdmin, areas: initial }: { isAdmin: boolean; areas: Area[] }) {
+  const confirm = useConfirm()
   const [areas, setAreas] = useState<Area[]>(initial)
   const [showNew, setShowNew] = useState(false)
   const [d, setD] = useState({ code: '', name: '', icon: '' })
@@ -57,7 +59,7 @@ export function AreasPanel({ isAdmin, areas: initial }: { isAdmin: boolean; area
             {isAdmin && (
               <div className="flex items-center gap-1.5">
                 <button onClick={async () => { const res = await updateArea({ areaId: a.id, is_archived: !a.is_archived }); if (res.error) { toast.error(res.error); return } setAreas(prev => prev.map(x => x.id === a.id ? { ...x, is_archived: !x.is_archived } : x)) }} className="font-mono text-[10px] border border-border px-2 py-1 rounded hover:border-primary hover:text-primary transition">{a.is_archived ? 'Restore' : 'Archive'}</button>
-                <button onClick={async () => { if (!confirm(`Delete area "${a.name}"?`)) return; const res = await deleteArea(a.id); if (res.error) { toast.error(res.error); return } setAreas(prev => prev.filter(x => x.id !== a.id)); toast.success('Deleted') }} className="font-mono text-[10px] border border-border px-2 py-1 rounded hover:border-red-500 hover:text-red-500 transition">Delete</button>
+                <button onClick={async () => { if (!(await confirm({ title: 'Delete area', description: `"${a.name}" will be permanently removed.`, confirmText: 'Delete', destructive: true }))) return; const res = await deleteArea(a.id); if (res.error) { toast.error(res.error); return } setAreas(prev => prev.filter(x => x.id !== a.id)); toast.success('Deleted') }} className="font-mono text-[10px] border border-border px-2 py-1 rounded hover:border-red-500 hover:text-red-500 transition">Delete</button>
               </div>
             )}
           </li>

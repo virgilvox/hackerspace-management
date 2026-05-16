@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { Ticket } from 'lucide-react'
 import { createInvite, updateInvite, deleteInvite } from '@/lib/actions'
 import { Card } from './card'
+import { useConfirm } from '@/components/ui/confirm'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
 import type { Invite } from './types'
 
@@ -14,6 +15,7 @@ function inviteLink(code: string) {
 }
 
 export function InvitesPanel({ isAdmin, invites: initial }: { isAdmin: boolean; invites: Invite[] }) {
+  const confirm = useConfirm()
   const [invites, setInvites] = useState<Invite[]>(initial)
   const [showNew, setShowNew] = useState(false)
   const [d, setD] = useState({ code: '', label: '', expires_at: '', max_uses: '' })
@@ -75,7 +77,7 @@ export function InvitesPanel({ isAdmin, invites: initial }: { isAdmin: boolean; 
                 {isAdmin && (
                   <>
                     <button onClick={async () => { const res = await updateInvite(inv.id, { is_enabled: !inv.is_enabled }); if (res.error) { toast.error(res.error); return } setInvites(prev => prev.map(x => x.id === inv.id ? { ...x, is_enabled: !x.is_enabled } : x)) }} className="font-mono text-[10px] border border-border px-2 py-1 rounded hover:border-primary hover:text-primary transition">{inv.is_enabled ? 'Disable' : 'Enable'}</button>
-                    <button onClick={async () => { if (!confirm(`Delete invite "${inv.code}"?`)) return; const res = await deleteInvite(inv.id); if (res.error) { toast.error(res.error); return } setInvites(prev => prev.filter(x => x.id !== inv.id)); toast.success('Deleted') }} className="font-mono text-[10px] border border-border px-2 py-1 rounded hover:border-red-500 hover:text-red-500 transition">Delete</button>
+                    <button onClick={async () => { if (!(await confirm({ title: 'Delete invite', description: `"${inv.code}" will be permanently removed.`, confirmText: 'Delete', destructive: true }))) return; const res = await deleteInvite(inv.id); if (res.error) { toast.error(res.error); return } setInvites(prev => prev.filter(x => x.id !== inv.id)); toast.success('Deleted') }} className="font-mono text-[10px] border border-border px-2 py-1 rounded hover:border-red-500 hover:text-red-500 transition">Delete</button>
                   </>
                 )}
               </div>

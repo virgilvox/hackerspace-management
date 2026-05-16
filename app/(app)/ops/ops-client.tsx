@@ -12,6 +12,7 @@ import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import type { Tables, TablesInsert } from '@/types/database'
 import { PageTitle } from '@/components/ui/page-title'
+import { useConfirm } from '@/components/ui/confirm'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyContent } from '@/components/ui/empty'
 
 type KbEntry = Tables<'knowledge_base'>
@@ -355,6 +356,7 @@ function SecretRow({ secret, onDelete, canManageAcl, aclRoleOptions, aclInitial 
   aclRoleOptions?: { value: string; label: string }[]
   aclInitial?: string[]
 }) {
+  const confirm = useConfirm()
   const [revealed, setRevealed] = useState(false)
   const [value, setValue] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -371,7 +373,7 @@ function SecretRow({ secret, onDelete, canManageAcl, aclRoleOptions, aclInitial 
   }
 
   async function handleDelete() {
-    if (!confirm(`Delete secret "${secret.title}"? This cannot be undone.`)) return
+    if (!(await confirm({ title: 'Delete secret', description: `"${secret.title}" cannot be undone.`, confirmText: 'Delete', destructive: true }))) return
     const result = await deleteSecret(secret.id)
     if (result.error) { toast.error(result.error); return }
     toast.success('Secret deleted')
@@ -443,13 +445,14 @@ function KbEntryRow({
   aclRoleOptions?: { value: string; label: string }[]
   aclByEntity?: Record<string, string[]>
 }) {
+  const confirm = useConfirm()
   const [viewing, setViewing] = useState(false)
   const aclEntityType: 'kb' | 'process' = entry.tags?.includes('process') ? 'process' : 'kb'
   const aclInitial = aclByEntity?.[`${aclEntityType}:${entry.id}`] ?? []
 
   async function handleDelete(e: React.MouseEvent) {
     e.stopPropagation()
-    if (!confirm(`Delete "${entry.title}"?`)) return
+    if (!(await confirm({ title: 'Delete entry', description: `"${entry.title}" will be permanently removed.`, confirmText: 'Delete', destructive: true }))) return
     const result = await deleteKbEntry(entry.id)
     if ('error' in result && result.error) { toast.error(result.error); return }
     toast.success('Entry deleted')

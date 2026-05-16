@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Plus, X } from 'lucide-react'
 import { createProject, updateProjectStatus, deleteProject } from '@/lib/actions'
+import { useConfirm } from '@/components/ui/confirm'
 import type { Tables } from '@/types/database'
 import { PageTitle } from '@/components/ui/page-title'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription, EmptyContent } from '@/components/ui/empty'
@@ -23,6 +24,7 @@ export function ProjectsClient({
   spaceId,
   areas,
 }: { projects: Project[]; spaceId: string; areas?: string[] }) {
+  const confirm = useConfirm()
   const AREAS = areas && areas.length > 0 ? areas : DEFAULT_AREAS
   const [projects, setProjects] = useState<Project[]>(initialProjects)
   const [showCreate, setShowCreate] = useState(false)
@@ -59,7 +61,7 @@ export function ProjectsClient({
   }
 
   async function handleDelete(projectId: string) {
-    if (!confirm('Delete this project?')) return
+    if (!(await confirm({ title: 'Delete project', description: 'This project will be permanently removed.', confirmText: 'Delete', destructive: true }))) return
     const result = await deleteProject(projectId)
     if (!result.error) setProjects(prev => prev.filter(p => p.id !== projectId))
   }

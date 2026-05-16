@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import type { Tables } from '@/types/database'
 import { PageTitle } from '@/components/ui/page-title'
+import { useConfirm } from '@/components/ui/confirm'
 
 type Member = Tables<'space_members'>
 type AreaLeadRole = { id: string; area_name: string; lead_id: string | null }
@@ -29,6 +30,7 @@ const isAdmin = (role: string) => role === 'admin' || role === 'board'
 
 export function MembersClient({ members: initialMembers, currentRole, areaLeadRoles = [] }: Props) {
   const router = useRouter()
+  const confirm = useConfirm()
   const [members, setMembers] = useState<Member[]>(initialMembers)
 
   async function makeAreaLead(memberId: string, areaLeadRoleId: string) {
@@ -105,7 +107,7 @@ export function MembersClient({ members: initialMembers, currentRole, areaLeadRo
   }
 
   async function handleRemove(memberId: string) {
-    if (!confirm('Remove this member from the space?')) return
+    if (!(await confirm({ title: 'Remove member', description: 'This member will be removed from the space.', confirmText: 'Remove', destructive: true }))) return
     const result = await removeMember(memberId)
     if (!result.error) {
       setMembers(prev => prev.filter(m => m.id !== memberId))

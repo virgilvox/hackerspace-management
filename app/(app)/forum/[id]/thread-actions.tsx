@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Pin, Lock, Trash2 } from 'lucide-react'
 import { updateForumThread, deleteForumThread } from '@/lib/actions'
+import { useConfirm } from '@/components/ui/confirm'
 
 interface Props {
   threadId: string
@@ -15,6 +16,7 @@ interface Props {
 
 export function ThreadActions({ threadId, pinned, locked, canModerate, isAuthor }: Props) {
   const router = useRouter()
+  const confirm = useConfirm()
 
   async function togglePinned() {
     const result = await updateForumThread(threadId, { pinned: !pinned })
@@ -29,7 +31,7 @@ export function ThreadActions({ threadId, pinned, locked, canModerate, isAuthor 
   }
 
   async function handleDelete() {
-    if (!confirm('Delete this thread? All comments are deleted too.')) return
+    if (!(await confirm({ title: 'Delete thread', description: 'All comments are deleted too. This cannot be undone.', confirmText: 'Delete', destructive: true }))) return
     const result = await deleteForumThread(threadId)
     if (result.error) { toast.error(result.error); return }
     toast.success('Thread deleted')

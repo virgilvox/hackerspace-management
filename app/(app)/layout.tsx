@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { AppSidebar } from '@/components/app-sidebar'
+import { ConfirmProvider } from '@/components/ui/confirm'
 import { getRoleLabelMap } from '@/lib/role-labels'
 
 // This layout is the auth/onboarding gate for the whole app. It must never be
@@ -56,6 +57,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const roleName = roleMap[member.role]?.name ?? member.role
 
   return (
+    <ConfirmProvider>
     <div className="flex h-screen bg-background overflow-hidden">
       <a
         href="#main-content"
@@ -83,5 +85,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         )}
       </main>
     </div>
+    </ConfirmProvider>
   )
 }
