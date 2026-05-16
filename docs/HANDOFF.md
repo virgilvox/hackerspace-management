@@ -28,12 +28,14 @@ Five parallel read-only audits (security/RLS, server actions/validation, routes/
 - **KB/process per-item ACL wired.** `OpsAclEditor` renders in the KB/process viewer modal (admin/board); entity type derived from the `process` tag. Per-item Ops ACLs now cover secrets + KB + processes.
 - `/ops` and `/import` denial paths left as-is: unreachable behind the `(app)` layout gate, or already a clear denial with no data leak.
 
-### Tracked backlog (not security-critical, zero runtime impact)
+### Pass 16c — backlog cleared (same day)
 
-- `types/database.ts` still missing 8 prior-pass tables + `comment_entity_type` enum + 3 `space_members` columns (loose casts; build green via `ignoreBuildErrors`).
-- `docs/DATABASE_SCHEMA.md`, `DB_SCHEMA_MAP.md`, `docs/API_REFERENCE.md` stale since 2026-03-10 (missing migrations 016-024).
-- Email `.toLowerCase()` still missing on the non-import auth/member schemas (import path now normalizes).
-- Members-row "Make area lead" shortcut (Customize -> Area leads fully covers assignment).
+- **`types/database.ts` synced.** Added the 8 missing tables (forum_threads, comments, space_tiers, space_invites, space_onboarding_steps, space_role_labels, space_custom_roles, space_member_custom_roles), the `comment_entity_type` enum (both type union and Constants array), and the missing columns: `space_members.tier_id/onboarding_completed_at/onboarding_progress`, `secrets.encrypted_value/encryption_version`, `knowledge_base.render_markdown`.
+- **Email normalized everywhere.** New `emailField()` helper (trim + lowercase) applied to signIn/signUp/addMember/updateMember/createContact and the import path. Prevents case-variant duplicate members/contacts.
+- **Members-row "Make area lead".** A per-row picker in the members directory (admin/board) assigns a member to any area-lead role via `assignAreaLead`; same capability also in Customize -> Area leads.
+- **Docs refreshed.** `DATABASE_SCHEMA.md` (header + migrations 014-024 summary), `DB_SCHEMA_MAP.md` (table quick-map + helpers), `docs/API_REFERENCE.md` (all server actions added in migrations 016-024). All re-dated 2026-05-15 with `scripts/schema.sql` named as source of truth.
+
+Backlog is now empty. Remaining known non-issues: `/ops` + `/import` `return null` are unreachable behind the `(app)` layout gate; `next.config.mjs` keeps `ignoreBuildErrors` (pre-existing legacy app/ TS noise) — the new code is type-clean.
 
 ### Verification
 

@@ -2,14 +2,18 @@
 
 import { useState } from 'react'
 import { Plus, X, ChevronDown } from 'lucide-react'
-import { addMember, updateMember, approveMember, removeMember } from '@/lib/actions'
+import { addMember, updateMember, approveMember, removeMember, assignAreaLead } from '@/lib/actions'
+import { toast } from 'sonner'
+import { useRouter } from 'next/navigation'
 import type { Tables } from '@/types/database'
 
 type Member = Tables<'space_members'>
+type AreaLeadRole = { id: string; area_name: string; lead_id: string | null }
 
 interface Props {
   members: Member[]
   currentRole: string
+  areaLeadRoles?: AreaLeadRole[]
 }
 
 const TIER_COLORS: Record<string, string> = {
@@ -21,8 +25,17 @@ const TIER_COLORS: Record<string, string> = {
 
 const isAdmin = (role: string) => role === 'admin' || role === 'board'
 
-export function MembersClient({ members: initialMembers, currentRole }: Props) {
+export function MembersClient({ members: initialMembers, currentRole, areaLeadRoles = [] }: Props) {
+  const router = useRouter()
   const [members, setMembers] = useState<Member[]>(initialMembers)
+
+  async function makeAreaLead(memberId: string, areaLeadRoleId: string) {
+    if (!areaLeadRoleId) return
+    const result = await assignAreaLead({ area_lead_role_id: areaLeadRoleId, member_id: memberId })
+    if (result.error) { toast.error(result.error); return }
+    toast.success('Assigned as area lead')
+    router.refresh()
+  }
   const [activeTab, setActiveTab] = useState<'all' | 'payment_issues' | 'unverified' | 'inactive'>('all')
   const [search, setSearch] = useState('')
   const [tierFilter, setTierFilter] = useState('')
@@ -326,6 +339,21 @@ export function MembersClient({ members: initialMembers, currentRole }: Props) {
                           >
                             REMOVE
                           </button>
+                          {areaLeadRoles.length > 0 && (
+                            <select
+                              defaultValue=""
+                              onChange={e => { makeAreaLead(m.id, e.target.value); e.currentTarget.value = '' }}
+                              className="font-mono text-[10px] border border-border px-1.5 py-0.5 rounded bg-background text-muted-foreground hover:border-primary hover:text-primary transition focus:outline-none"
+                              title="Assign this member as an area lead"
+                            >
+                              <option value="">+ area lead</option>
+                              {areaLeadRoles.map(r => (
+                                <option key={r.id} value={r.id}>
+                                  {r.area_name}{r.lead_id ? ' (reassign)' : ' (vacant)'}
+                                </option>
+                              ))}
+                            </select>
+                          )}
                         </div>
                       </td>
                     )}

@@ -1,7 +1,8 @@
 # Hackerspace.sh - API Reference
 
-> **Last Updated**: 2026-03-10  
+> **Last Updated**: 2026-05-15  
 > Complete reference for all server actions, database operations, and API patterns.
+> Actions added since the original baseline are listed in "Server actions added (migrations 016-024)" at the end.
 
 ---
 
@@ -851,3 +852,38 @@ async function handleSubmit() {
 | "Treasurer access required" | Payment role check | Show permission error |
 | "Invalid invite code" | Code not found | Ask user to verify |
 | "A space with this URL slug already exists" | Duplicate slug | Suggest different slug |
+
+---
+
+## Server actions added (migrations 016-024)
+
+All are `'use server'` in `lib/actions/*`, re-exported from `lib/actions/index.ts`,
+validate input with Zod via `parseInput`, authorize via `requireMember` /
+`requireMemberWithRole`, scope writes by `member.space_id`, and `revalidatePath`.
+
+### Governance — `proposals.ts`, `incidents.ts`, `policies.ts`
+`createProposal`, `openProposal`, `castVote`, `decideProposal`, `withdrawProposal`, `deleteProposal`; `fileIncident`, `updateIncidentStatus`, `addIncidentUpdate`, `appealIncident`; `createPolicy`, `supersedePolicy`, `updatePolicyStatus`.
+
+### Areas — `areas.ts`
+`createArea`, `updateArea`, `deleteArea` (admin/board; delete admin).
+
+### Forum + comments — `forum.ts`
+`createForumThread`, `updateForumThread` (pin/lock = admin/board), `deleteForumThread`, `addComment`, `editComment`, `deleteComment`. All space-scoped in code.
+
+### Chat channels — `comms.ts`
+`createChannel` (any member), `renameChannel`, `deleteChannel` (creator or admin/board; default channels protected).
+
+### Tiers / roles / invites — `tiers.ts`, `roles.ts`, `invites.ts`
+`createTier`/`updateTier`/`deleteTier`; `upsertRoleLabel`, `createCustomRole`/`updateCustomRole`/`deleteCustomRole`, `assignCustomRole`/`unassignCustomRole`; `createInvite`/`updateInvite`/`deleteInvite`.
+
+### Onboarding — `onboarding.ts`
+`createOnboardingStep`/`updateOnboardingStep`/`deleteOnboardingStep` (admin/board); `markOnboardingStepDone`, `finishOnboarding`, `skipOnboarding` (member; completion writes via the service client after the server-side required-steps check, so the self-change trigger cannot be bypassed).
+
+### Permissions / Ops ACLs / area-lead — `permissions.ts`
+`setRolePermissions(subject, permissions[])`, `setOpsAcl(entity_type, entity_id, roles[])` (admin/board), `createAreaLeadRole`, `assignAreaLead`, `unassignAreaLead`, `deleteAreaLeadRole`. ACLs are additive: empty list falls back to the item's default visibility.
+
+### Secrets — `secrets.ts`
+`createSecret`, `updateSecret`, `revealSecret` (server-only plaintext path, audit-logged, errors on corrupt ciphertext), `deleteSecret`. The list query never selects `value`/`encrypted_value`.
+
+### Bulk import — `imports.ts`, `payments.ts`
+`importMembers`, `importPaymentsCsv`: per-row Zod validation, lowercased emails, `flexibleDateTime` date normalization, enum-checked platform/tier, positive finite amounts; invalid rows skipped and returned as a `skipped` count.

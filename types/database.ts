@@ -46,6 +46,54 @@ export type Database = {
         Update: { id?: string; space_id?: string; entity_type?: string; entity_id?: string; role?: string; created_at?: string }
         Relationships: []
       }
+      forum_threads: {
+        Row: { id: string; space_id: string; author_id: string | null; title: string; body: string | null; category: string; pinned: boolean; locked: boolean; comment_count: number; last_comment_at: string | null; created_at: string; updated_at: string }
+        Insert: { id?: string; space_id: string; author_id?: string | null; title: string; body?: string | null; category?: string; pinned?: boolean; locked?: boolean; comment_count?: number; last_comment_at?: string | null; created_at?: string; updated_at?: string }
+        Update: { id?: string; space_id?: string; author_id?: string | null; title?: string; body?: string | null; category?: string; pinned?: boolean; locked?: boolean; comment_count?: number; last_comment_at?: string | null; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
+      comments: {
+        Row: { id: string; space_id: string; entity_type: Database['public']['Enums']['comment_entity_type']; entity_id: string; author_id: string | null; parent_id: string | null; body: string; edited_at: string | null; created_at: string }
+        Insert: { id?: string; space_id: string; entity_type: Database['public']['Enums']['comment_entity_type']; entity_id: string; author_id?: string | null; parent_id?: string | null; body: string; edited_at?: string | null; created_at?: string }
+        Update: { id?: string; space_id?: string; entity_type?: Database['public']['Enums']['comment_entity_type']; entity_id?: string; author_id?: string | null; parent_id?: string | null; body?: string; edited_at?: string | null; created_at?: string }
+        Relationships: []
+      }
+      space_tiers: {
+        Row: { id: string; space_id: string; slug: string; name: string; description: string | null; monthly_price_cents: number; billing_cadence: string; is_system: boolean; is_archived: boolean; sort_order: number; created_at: string; updated_at: string }
+        Insert: { id?: string; space_id: string; slug: string; name: string; description?: string | null; monthly_price_cents?: number; billing_cadence?: string; is_system?: boolean; is_archived?: boolean; sort_order?: number; created_at?: string; updated_at?: string }
+        Update: { id?: string; space_id?: string; slug?: string; name?: string; description?: string | null; monthly_price_cents?: number; billing_cadence?: string; is_system?: boolean; is_archived?: boolean; sort_order?: number; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
+      space_invites: {
+        Row: { id: string; space_id: string; code: string; label: string | null; expires_at: string | null; max_uses: number | null; uses_count: number; is_enabled: boolean; created_by: string | null; created_at: string; updated_at: string }
+        Insert: { id?: string; space_id: string; code: string; label?: string | null; expires_at?: string | null; max_uses?: number | null; uses_count?: number; is_enabled?: boolean; created_by?: string | null; created_at?: string; updated_at?: string }
+        Update: { id?: string; space_id?: string; code?: string; label?: string | null; expires_at?: string | null; max_uses?: number | null; uses_count?: number; is_enabled?: boolean; created_by?: string | null; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
+      space_onboarding_steps: {
+        Row: { id: string; space_id: string; step_key: string; step_type: string; title: string; body: string | null; config: Json; is_enabled: boolean; is_required: boolean; is_system: boolean; sort_order: number; created_at: string; updated_at: string }
+        Insert: { id?: string; space_id: string; step_key: string; step_type: string; title: string; body?: string | null; config?: Json; is_enabled?: boolean; is_required?: boolean; is_system?: boolean; sort_order?: number; created_at?: string; updated_at?: string }
+        Update: { id?: string; space_id?: string; step_key?: string; step_type?: string; title?: string; body?: string | null; config?: Json; is_enabled?: boolean; is_required?: boolean; is_system?: boolean; sort_order?: number; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
+      space_role_labels: {
+        Row: { id: string; space_id: string; role: string; display_name: string | null; description: string | null; color: string | null; sort_order: number; created_at: string; updated_at: string }
+        Insert: { id?: string; space_id: string; role: string; display_name?: string | null; description?: string | null; color?: string | null; sort_order?: number; created_at?: string; updated_at?: string }
+        Update: { id?: string; space_id?: string; role?: string; display_name?: string | null; description?: string | null; color?: string | null; sort_order?: number; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
+      space_custom_roles: {
+        Row: { id: string; space_id: string; slug: string; name: string; description: string | null; color: string | null; sort_order: number; created_at: string; updated_at: string }
+        Insert: { id?: string; space_id: string; slug: string; name: string; description?: string | null; color?: string | null; sort_order?: number; created_at?: string; updated_at?: string }
+        Update: { id?: string; space_id?: string; slug?: string; name?: string; description?: string | null; color?: string | null; sort_order?: number; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
+      space_member_custom_roles: {
+        Row: { member_id: string; custom_role_id: string; assigned_at: string }
+        Insert: { member_id: string; custom_role_id: string; assigned_at?: string }
+        Update: { member_id?: string; custom_role_id?: string; assigned_at?: string }
+        Relationships: []
+      }
       activity_log: {
         Row: {
           action: string
@@ -563,6 +611,7 @@ export type Database = {
           id: string
           is_meeting_minutes: boolean
           is_pinned: boolean
+          render_markdown: boolean
           meeting_date: string | null
           pinned: boolean
           space_id: string
@@ -585,6 +634,7 @@ export type Database = {
           id?: string
           is_meeting_minutes?: boolean
           is_pinned?: boolean
+          render_markdown?: boolean
           meeting_date?: string | null
           pinned?: boolean
           space_id: string
@@ -607,6 +657,7 @@ export type Database = {
           id?: string
           is_meeting_minutes?: boolean
           is_pinned?: boolean
+          render_markdown?: boolean
           meeting_date?: string | null
           pinned?: boolean
           space_id?: string
@@ -1078,6 +1129,8 @@ export type Database = {
           notes: string | null
           space_id: string
           title: string | null
+          encrypted_value: string | null
+          encryption_version: number
           updated_at: string
           value: string
         }
@@ -1093,6 +1146,8 @@ export type Database = {
           notes?: string | null
           space_id: string
           title?: string | null
+          encrypted_value?: string | null
+          encryption_version?: number
           updated_at?: string
           value: string
         }
@@ -1108,6 +1163,8 @@ export type Database = {
           notes?: string | null
           space_id?: string
           title?: string | null
+          encrypted_value?: string | null
+          encryption_version?: number
           updated_at?: string
           value?: string
         }
@@ -1192,6 +1249,9 @@ export type Database = {
           status: Database["public"]["Enums"]["member_status"]
           stripe_customer_id: string | null
           tier: Database["public"]["Enums"]["member_tier"]
+          tier_id: string | null
+          onboarding_completed_at: string | null
+          onboarding_progress: Json
           updated_at: string
           user_id: string | null
           willing_to: string[]
@@ -1222,6 +1282,9 @@ export type Database = {
           status?: Database["public"]["Enums"]["member_status"]
           stripe_customer_id?: string | null
           tier?: Database["public"]["Enums"]["member_tier"]
+          tier_id?: string | null
+          onboarding_completed_at?: string | null
+          onboarding_progress?: Json
           updated_at?: string
           user_id?: string | null
           willing_to?: string[]
@@ -1252,6 +1315,9 @@ export type Database = {
           status?: Database["public"]["Enums"]["member_status"]
           stripe_customer_id?: string | null
           tier?: Database["public"]["Enums"]["member_tier"]
+          tier_id?: string | null
+          onboarding_completed_at?: string | null
+          onboarding_progress?: Json
           updated_at?: string
           user_id?: string | null
           willing_to?: string[]
@@ -1502,6 +1568,7 @@ export type Database = {
     Enums: {
       area_lead_status: "active" | "vacant" | "handoff"
       channel_type: "general" | "area" | "ops" | "project"
+      comment_entity_type: "forum_thread" | "proposal" | "incident" | "policy"
       contact_type: "vendor" | "supplier" | "partner" | "landlord" | "city"
       directory_visibility:
         | "board_only"
@@ -1685,6 +1752,7 @@ export const Constants = {
     Enums: {
       area_lead_status: ["active", "vacant", "handoff"],
       channel_type: ["general", "area", "ops", "project"],
+      comment_entity_type: ["forum_thread", "proposal", "incident", "policy"],
       contact_type: ["vendor", "supplier", "partner", "landlord", "city"],
       directory_visibility: [
         "board_only",

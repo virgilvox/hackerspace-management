@@ -11,6 +11,11 @@ All notable changes to this project are documented here. Format follows [Keep a 
   - Customize -> Area leads: create area-lead roles, see Vacant until assigned, assign/unassign a member from a picker. The assigned member effectively holds that role, so any Ops item whose access list includes it opens to them.
   - SECURITY DEFINER helpers `user_effective_roles` and `user_has_permission`.
 
+### Changed
+- All emails are canonicalized to trimmed lowercase (sign-in, sign-up, add/update member, contacts, imports) so case/whitespace variants no longer create duplicate members or fail sign-in.
+- `types/database.ts` brought in sync with the schema (8 tables, the `comment_entity_type` enum, and the new columns); docs (`DATABASE_SCHEMA.md`, `DB_SCHEMA_MAP.md`, `API_REFERENCE.md`) refreshed for migrations 016-024.
+- The member directory has a per-row "make area lead" assignment for admin/board (mirrors Customize -> Area leads).
+
 ### Security
 - Closed two member self-escalation paths: a non-privileged member can no longer change their own `tier_id` or `onboarding_completed_at` on the `space_members` row (migration 024 extends the self-change trigger). Onboarding completion now goes through the service client after server-side validation.
 - Added in-code space scoping to forum/comment/channel mutations (defence-in-depth on top of RLS).

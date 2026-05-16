@@ -57,10 +57,22 @@ export default async function MembersPage() {
     .eq('space_id', self.space_id)
     .order('joined_at')
 
+  // Area-lead roles, so admin/board can assign a lead straight from a member
+  // row (the same capability also lives in Customize -> Area leads).
+  const canManageLeads = self.role === 'admin' || self.role === 'board'
+  const { data: areaLeadRoles } = canManageLeads
+    ? await supabase
+        .from('area_leads')
+        .select('id, area_name, lead_id')
+        .eq('space_id', self.space_id)
+        .order('area_name')
+    : { data: [] }
+
   return (
     <MembersClient
       members={members ?? []}
       currentRole={self.role}
+      areaLeadRoles={(areaLeadRoles ?? []) as Array<{ id: string; area_name: string; lead_id: string | null }>}
     />
   )
 }

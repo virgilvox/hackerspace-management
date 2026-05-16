@@ -1,9 +1,12 @@
 # Hackerspace.sh - Database Schema Reference
 
-> **Last Updated**: 2026-03-10  
-> **Database**: PostgreSQL via Supabase  
-> **Tables**: 13  
-> **Source of Truth**: Live database schema
+> **Last Updated**: 2026-05-15  
+> **Database**: PostgreSQL via self-hosted Supabase  
+> **Tables**: ~30  
+> **Source of Truth**: `scripts/schema.sql` (canonical, idempotent); numbered
+> migrations `scripts/0NN_*.sql` upgrade existing deployments. The 13-table
+> reference below is the original baseline; tables added by migrations
+> 014-024 are summarized in the "Migrations 014-024" section at the end.
 
 ---
 
@@ -680,3 +683,32 @@ CREATE INDEX idx_activity_space ON activity_log(space_id, created_at);
 | `009_fix_member_insert_rls.sql` | 1.8 | Fixed member INSERT RLS for admin/board |
 | `010_fix_channel_trigger.sql` | 1.9 | Removed non-existent description column from trigger |
 | `011_fix_member_status_enum.sql` | 2.0 | Fixed enum values (active→current, pending→unverified) |
+
+---
+
+## Migrations 014-024 (additions since the 13-table baseline)
+
+`scripts/schema.sql` is the canonical idempotent schema; each numbered
+migration is mirrored as a section in it. Tables/columns added:
+
+| Mig | Adds |
+|-----|------|
+| 014 | `space_members.user_id` made nullable (offline/imported members) |
+| 015 | `prevent_member_self_role_change()` trigger (self-escalation guard) |
+| 016 | Governance kernel: `proposals`, `proposal_votes`, `incidents`, `incident_updates`, `policies` + quorum/tally/SLA functions |
+| 017 | Governance RLS hardening (cross-tenant edge cases) |
+| 018 | `space_members.skills/interests/willing_to/affiliations/coi_last_disclosed_at`; `knowledge_base.is_meeting_minutes/meeting_date`; financial/member-directory visibility settings |
+| 019 | Auto-expire open proposals past their voting window |
+| 020 | `space_areas` (per-space configurable areas) + seeded defaults |
+| 021 | `forum_threads`, `comments` (polymorphic: forum_thread/proposal/incident/policy), `space_tiers` + `space_members.tier_id`, `space_role_labels`, `space_custom_roles`, `space_member_custom_roles`, `space_invites`; `secrets.encrypted_value/encryption_version`; `knowledge_base.render_markdown`; comms_channels member-creatable |
+| 022 | `space_onboarding_steps`; `space_members.onboarding_completed_at/onboarding_progress`; seed default steps |
+| 023 | `space_role_permissions`, `ops_acl`; `user_effective_roles()`, `user_has_permission()` (SECURITY DEFINER); `secrets`/`knowledge_base` SELECT rewritten as `existing-rule OR ops_acl-match` (additive) |
+| 024 | `prevent_member_self_role_change()` extended to also block self-change of `tier_id` and `onboarding_completed_at` |
+
+New enum: `comment_entity_type` = `forum_thread | proposal | incident | policy`.
+
+Every new table has RLS enabled with SELECT/INSERT/UPDATE/DELETE policies
+(writes admin/board, deletes admin, reads space members) and, where it has
+`updated_at`, a `touch_updated_at` trigger. The ACL model is additive:
+with zero `ops_acl`/`space_role_permissions` rows the app behaves exactly
+as the role-based baseline.

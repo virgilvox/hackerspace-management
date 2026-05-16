@@ -33,13 +33,18 @@ export const flexibleDateTime = () =>
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
 
+// Canonicalize every email to trimmed lowercase so case/whitespace variants
+// cannot create duplicate members/contacts or fail sign-in.
+export const emailField = (msg = 'Invalid email address') =>
+  z.string().max(200).email(msg).transform(s => s.trim().toLowerCase())
+
 export const signInSchema = z.object({
-  email: z.string().email('Invalid email address'),
+  email: emailField(),
   password: z.string().min(1, 'Password is required'),
 })
 
 export const signUpSchema = z.object({
-  email: z.string().email('Invalid email address'),
+  email: emailField(),
   password: z.string().min(8, 'Password must be at least 8 characters'),
   fullName: z.string().min(1, 'Full name is required').max(100, 'Name is too long'),
   action: z.enum(['create', 'join']),
@@ -92,7 +97,7 @@ export const updateProjectStatusSchema = z.object({
 // ─── Members ─────────────────────────────────────────────────────────────────
 
 export const addMemberSchema = z.object({
-  email: z.string().email('Invalid email address'),
+  email: emailField(),
   display_name: z.string().min(1, 'Display name is required').max(100),
   phone: z.string().max(20).optional().nullable(),
   handle: z.string().max(50).optional().nullable(),
@@ -105,7 +110,7 @@ export const addMemberSchema = z.object({
 export const updateMemberSchema = z.object({
   memberId: z.string().uuid('Invalid member ID'),
   display_name: z.string().min(1).max(100).optional(),
-  email: z.string().email().optional(),
+  email: emailField().optional(),
   phone: z.string().max(20).optional().nullable(),
   handle: z.string().max(50).optional().nullable(),
   role: z.enum(['admin', 'board', 'treasurer', 'member', 'associate']).optional(),
@@ -121,7 +126,7 @@ export const updateMemberSchema = z.object({
 export const createContactSchema = z.object({
   name: z.string().min(1, 'Name is required').max(200),
   contact_type: z.enum(['vendor', 'supplier', 'partner', 'landlord', 'city']),
-  email: z.string().email().optional().nullable(),
+  email: emailField().optional().nullable(),
   phone: z.string().max(20).optional().nullable(),
   details: z.string().max(500).optional().nullable(),
   note: z.string().max(2000).optional().nullable(),
@@ -524,7 +529,7 @@ export const assignAreaLeadSchema = z.object({
 
 // ─── Bulk import ─────────────────────────────────────────────────────────────
 
-const importEmail = z.string().email('Invalid email').max(200).transform(s => s.trim().toLowerCase())
+const importEmail = emailField('Invalid email')
 
 export const importMembersSchema = z.array(
   z.object({

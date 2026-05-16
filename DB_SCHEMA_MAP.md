@@ -1,8 +1,8 @@
 # DB Schema Map — Quick Reference
 
-> **Last Updated**: 2026-03-10  
+> **Last Updated**: 2026-05-15  
 > **Full Documentation**: See [docs/DATABASE_SCHEMA.md](./docs/DATABASE_SCHEMA.md) for complete reference  
-> **Source of Truth**: Live database schema
+> **Source of Truth**: `scripts/schema.sql` (canonical, idempotent)
 
 ---
 
@@ -390,3 +390,27 @@ Default channels created by trigger on space INSERT: `general`, `announcements`,
 | 011 | Renamed tasks `type` column to `task_type` (canonical enum column name) |
 | 012 | Canonical sync — task_type enum, cleaned duplicate columns |
 | 013 | Added `space_members.last_paid_at` timestamptz — required by importMembers and linkPaymentToMember |
+
+---
+
+## Tables added by migrations 016-024 (quick map)
+
+| Table | Key columns | Purpose |
+|-------|-------------|---------|
+| `proposals` / `proposal_votes` | space_id, status, quorum_*, voting_*; member_id, position | Async governance voting |
+| `incidents` / `incident_updates` | space_id, status, sla_*; visibility | Incident reports + log |
+| `policies` | space_id, slug, version, status, body_* | Versioned policy library |
+| `space_areas` | space_id, code, name, sort_order, is_archived | Per-space configurable areas |
+| `forum_threads` | space_id, author_id, title, category, pinned, locked, comment_count | Forum |
+| `comments` | space_id, entity_type, entity_id, author_id, parent_id, body | Polymorphic comments (forum/proposal/incident/policy) |
+| `space_tiers` | space_id, slug, name, monthly_price_cents, billing_cadence, is_system | Custom membership tiers (`space_members.tier_id` FK) |
+| `space_role_labels` | space_id, role, display_name, color | Rename/recolor built-in roles |
+| `space_custom_roles` / `space_member_custom_roles` | space_id, slug, name, color / member_id, custom_role_id | Custom non-privileged roles + assignment |
+| `space_invites` | space_id, code, label, expires_at, max_uses, uses_count, is_enabled | Multi-code invites |
+| `space_onboarding_steps` | space_id, step_key, step_type, title, body, config, is_enabled, is_required | Configurable member onboarding |
+| `space_role_permissions` | space_id, subject, permission | Role/custom-role permission grants |
+| `ops_acl` | space_id, entity_type, entity_id, role | Per-item Ops access list (secret/kb/process/area_lead) |
+
+Column additions: `space_members.tier_id`, `onboarding_completed_at`, `onboarding_progress`; `secrets.encrypted_value`, `encryption_version`; `knowledge_base.render_markdown`, `is_meeting_minutes`, `meeting_date`. New enum `comment_entity_type`.
+
+Helper functions: `user_effective_roles(uid,sid)`, `user_has_permission(uid,sid,perm)` (both SECURITY DEFINER, search_path=public), plus governance quorum/tally/SLA functions.
