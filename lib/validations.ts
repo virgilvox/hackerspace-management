@@ -553,6 +553,119 @@ export const importPaymentsCsvSchema = z.array(
   }),
 ).max(10000)
 
+// ─── Custom forms and waivers ────────────────────────────────────────────────
+
+export const formFieldTypes = [
+  'short_text',
+  'long_text',
+  'email',
+  'number',
+  'date',
+  'checkbox',
+  'select',
+  'radio',
+] as const
+export const formKinds = ['form', 'waiver'] as const
+export const formVisibilities = ['public_anon', 'public_auth', 'members'] as const
+export const formStatuses = ['draft', 'published', 'closed'] as const
+
+const formSlug = z
+  .string()
+  .min(1, 'Slug is required')
+  .max(80, 'Slug must be 80 characters or fewer')
+  .regex(
+    /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/,
+    'Slug must be lowercase letters, numbers, and internal hyphens only',
+  )
+
+export const formFieldSchema = z
+  .object({
+    key: z
+      .string()
+      .min(1)
+      .max(60)
+      .regex(/^[a-z0-9_]+$/, 'Field key must be lowercase letters, numbers, underscores'),
+    type: z.enum(formFieldTypes),
+    label: z.string().min(1, 'Field label is required').max(200),
+    help: z.string().max(1000).optional().nullable(),
+    required: z.boolean().optional().default(false),
+    options: z.array(z.string().min(1).max(200)).max(100).optional(),
+  })
+  .superRefine((f, ctx) => {
+    if ((f.type === 'select' || f.type === 'radio') && (!f.options || f.options.length === 0)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Field "${f.label}" needs at least one option`,
+        path: ['options'],
+      })
+    }
+  })
+
+// The field array is rejected if two fields share a key (answers are keyed by
+// field key, so duplicates would silently overwrite).
+export const formSchemaArray = z
+  .array(formFieldSchema)
+  .max(200, 'A form cannot have more than 200 fields')
+  .superRefine((fields, ctx) => {
+    const seen = new Set<string>()
+    for (const f of fields) {
+      if (seen.has(f.key)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Duplicate field key "${f.key}"`,
+        })
+      }
+      seen.add(f.key)
+    }
+  })
+
+export const createFormSchema = z.object({
+  slug: formSlug,
+  title: z.string().min(1, 'Title is required').max(200),
+  description: z.string().max(2000).optional().nullable(),
+  kind: z.enum(formKinds).optional().default('form'),
+  visibility: z.enum(formVisibilities).optional().default('members'),
+  schema: formSchemaArray.optional().default([]),
+  legal_text: z.string().max(100000).optional().nullable(),
+})
+
+// slug is intentionally immutable after creation: a published form/waiver may
+// already be linked from elsewhere and submissions reference it.
+export const updateFormSchema = z.object({
+  formId: z.string().uuid('Invalid form ID'),
+  title: z.string().min(1).max(200).optional(),
+  description: z.string().max(2000).optional().nullable(),
+  visibility: z.enum(formVisibilities).optional(),
+  schema: formSchemaArray.optional(),
+  legal_text: z.string().max(100000).optional().nullable(),
+})
+
+export const setFormStatusSchema = z.object({
+  formId: z.string().uuid('Invalid form ID'),
+  status: z.enum(formStatuses),
+})
+
+export const formIdSchema = z.object({ formId: z.string().uuid('Invalid form ID') })
+
+// Envelope only. The answers object is validated dynamically against the
+// form's stored field schema inside submitForm (see lib/forms-schema.ts).
+export const submitFormSchema = z
+  .object({
+    formId: z.string().uuid('Invalid form ID').optional(),
+    slug: formSlug.optional(),
+    answers: z.record(z.unknown()).default({}),
+    email: emailField().optional().nullable(),
+    consent: z.boolean().optional(),
+  })
+  .refine(d => Boolean(d.formId) || Boolean(d.slug), {
+    message: 'formId or slug is required',
+  })
+
+export const linkSubmissionsSchema = z.object({
+  memberId: z.string().uuid('Invalid member ID'),
+  email: emailField(),
+})
+
 // ─── Generic ID schemas ──────────────────────────────────────────────────────
 
 export const uuidSchema = z.string().uuid('Invalid ID format')

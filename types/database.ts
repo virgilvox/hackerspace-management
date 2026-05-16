@@ -1576,6 +1576,11 @@ export type Database = {
         Args: { allowed_roles: string[]; sid: string; uid: string }
         Returns: boolean
       }
+      user_effective_roles: { Args: { uid: string; sid: string }; Returns: string[] }
+      user_has_permission: {
+        Args: { uid: string; sid: string; perm: string }
+        Returns: boolean
+      }
     }
     Enums: {
       area_lead_status: "active" | "vacant" | "handoff"

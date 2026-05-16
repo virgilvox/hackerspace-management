@@ -4,7 +4,7 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
-## 2026-05-16 (pass 18) — Forms + waivers Phase 1 (schema + RLS), LOCAL, awaiting deploy approval
+## 2026-05-16 (pass 18) — Forms + waivers Phases 1-2 (schema/RLS + server actions), LOCAL, awaiting deploy approval
 
 Branch: `main`. Migration: `026` (not yet deployed). `pnpm build` + `pnpm exec vitest run` gate pending in this entry's session.
 
@@ -25,10 +25,22 @@ Branch: `main`. Migration: `026` (not yet deployed). `pnpm build` + `pnpm exec v
 - New `forms.manage` permission added to `lib/permissions-catalog.ts` (group Community) + board default; `seed_default_role_permissions()` extended; backfill `board -> forms.manage` for existing spaces (ON CONFLICT DO NOTHING).
 - `types/database.ts`: `forms` + `form_submissions` added. Docs updated: DATABASE_SCHEMA (026 row), DB_SCHEMA_MAP (quick-map + migrations), ARCHITECTURE (forms note).
 
+### Phase 1 self-audit (commit `66dd9b7`, local)
+
+Audited the migration before continuing. Three fixes applied: dropped redundant `idx_forms_slug` (UNIQUE already indexes slug); tightened `forms_select` to `forms.manage` (all) OR member+`status='published'` (drafts/closed no longer exposed via raw PostgREST); made the `submitter_email`/`member_id` submission indexes partial. None weaken access; the SELECT change strengthens it. Safe because `forms` is a new table with no existing dependents.
+
+### Forms + waivers Phase 2 (this session) — server actions + Zod + tests, LOCAL
+
+- `lib/validations.ts`: form field/array schemas (8 field types, duplicate-key + select-options refinements), `createForm`/`updateForm`/`setFormStatus`/`formId`/`submitForm`/`linkSubmissions` schemas. slug immutable on update.
+- `lib/forms-schema.ts` (pure, unit-tested): `parseFormSchema` + `validateAnswers` (server-side answer validation against the stored schema; unknown keys discarded so no arbitrary jsonb injection).
+- `lib/actions/forms.ts`: `createForm`, `updateForm` (waiver version bump on legal/schema change, non-blocking), `setFormStatus`, `deleteForm` (refused when submissions exist), `listForms`, `getFormResults`, `exportFormResultsCsv` (audited), `submitForm` (service-client read + write, visibility + consent enforcement, snapshot, IP/UA capture, no anon DB grant), `linkSubmissionsForMember` (forms.manage manual-link; auto verified-email path is Phase 5). forms.manage gate via `user_has_permission` RPC + RLS defense-in-depth.
+- `types/database.ts`: typed `user_has_permission` + `user_effective_roles` (were stale since 023). `lib/actions/index.ts` re-exports forms. `__tests__/forms.test.ts` (14 tests). API_REFERENCE updated.
+- Gate: `pnpm exec vitest run` 285/285; `pnpm build` exit 0, clean.
+
 ### Open / next
 
-- **Awaiting user approval to deploy** (push to `main` = prod). Local commit only this session; do NOT push without explicit go.
-- Phases 2-5 not started: server actions + Zod (`submitForm` via service client + email→member resolution + snapshot; list/results/CSV; linkSubmissionsForMember); builder UI + `/f/[slug]`; onboarding form step + required-waiver enforcement; retro-link hooks (join/signup/addMember/import + email verification).
+- **Awaiting user approval to deploy** (push to `main` = prod). Phase 1 commits `3a2d3ca`+`66dd9b7` and Phase 2 are LOCAL only; do NOT push without explicit go. Migration `026` ships with Phase 1.
+- Phase 2 not browser-tested (no UI yet — actions only). Phases 3-5 not started: builder UI + `/forms` + public `/f/[slug]`; onboarding form-step + required-waiver enforcement; automatic retro-link hooks (join/signup/addMember/import + email verification) — `linkSubmissionsForMember` primitive already exists.
 - After an approved push: watch the Actions run, then smoke-test that `026` applied (`_migrations_applied` row) and a space's board has `forms.manage`.
 
 ---

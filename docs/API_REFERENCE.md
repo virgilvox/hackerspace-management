@@ -855,7 +855,7 @@ async function handleSubmit() {
 
 ---
 
-## Server actions added (migrations 016-024)
+## Server actions added (migrations 016-026)
 
 All are `'use server'` in `lib/actions/*`, re-exported from `lib/actions/index.ts`,
 validate input with Zod via `parseInput`, authorize via `requireMember` /
@@ -887,3 +887,11 @@ validate input with Zod via `parseInput`, authorize via `requireMember` /
 
 ### Bulk import — `imports.ts`, `payments.ts`
 `importMembers`, `importPaymentsCsv`: per-row Zod validation, lowercased emails, `flexibleDateTime` date normalization, enum-checked platform/tier, positive finite amounts; invalid rows skipped and returned as a `skipped` count.
+
+### Forms & waivers — `forms.ts` (migration 026)
+Management actions are gated by `forms.manage` (checked via the `user_has_permission` RPC; the `forms` RLS independently enforces it):
+- `createForm(input)` — friendly error on slug collision (slug is globally unique). `updateForm(input)` — slug is immutable; for a published waiver, a legal-text or schema change bumps `version` (existing submissions stay valid against their own snapshot, non-blocking re-sign). `setFormStatus(input)` — draft/published/closed. `deleteForm(input)` — refused if the form has any submissions (close instead; submissions are immutable records). `listForms()`, `getFormResults(input)`, `exportFormResultsCsv(input)` (audited via `activity_log`).
+- `submitForm(input)` — public entry point (anonymous, signed-in non-member, or member by form `visibility`). Reads the form with the service client (anon has no `forms` grant), enforces visibility + waiver consent, validates `answers` against the stored field schema (`lib/forms-schema.ts`, unknown keys discarded), snapshots schema/legal-text/version, captures IP + user-agent, and writes the row with the service client (`form_submissions` has no write policy, so this is the only path; rows are immutable).
+- `linkSubmissionsForMember(input)` — `forms.manage` admin manual-link of prior anonymous submissions by email. The automatic verified-email retro-link is Phase 5.
+
+Not implemented yet (planned): builder UI, public `/f/[slug]` page, onboarding form-step integration, automatic retro-link on email verification.
