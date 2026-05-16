@@ -94,6 +94,18 @@ export type Database = {
         Update: { member_id?: string; custom_role_id?: string; assigned_at?: string }
         Relationships: []
       }
+      forms: {
+        Row: { id: string; space_id: string; slug: string; title: string; description: string | null; kind: string; visibility: string; status: string; schema: Json; legal_text: string | null; version: number; created_by: string | null; created_at: string; updated_at: string }
+        Insert: { id?: string; space_id: string; slug: string; title: string; description?: string | null; kind?: string; visibility?: string; status?: string; schema?: Json; legal_text?: string | null; version?: number; created_by?: string | null; created_at?: string; updated_at?: string }
+        Update: { id?: string; space_id?: string; slug?: string; title?: string; description?: string | null; kind?: string; visibility?: string; status?: string; schema?: Json; legal_text?: string | null; version?: number; created_by?: string | null; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
+      form_submissions: {
+        Row: { id: string; form_id: string; space_id: string; member_id: string | null; submitter_email: string | null; answers: Json; form_snapshot: Json; legal_text_snapshot: string | null; form_version: number; ip: string | null; user_agent: string | null; created_at: string }
+        Insert: { id?: string; form_id: string; space_id: string; member_id?: string | null; submitter_email?: string | null; answers?: Json; form_snapshot: Json; legal_text_snapshot?: string | null; form_version: number; ip?: string | null; user_agent?: string | null; created_at?: string }
+        Update: { id?: string; form_id?: string; space_id?: string; member_id?: string | null; submitter_email?: string | null; answers?: Json; form_snapshot?: Json; legal_text_snapshot?: string | null; form_version?: number; ip?: string | null; user_agent?: string | null; created_at?: string }
+        Relationships: []
+      }
       activity_log: {
         Row: {
           action: string

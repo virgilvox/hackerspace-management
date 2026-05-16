@@ -21,6 +21,7 @@ export const PERMISSIONS = [
   { code: 'payments.manage',    group: 'Finance', label: 'Manage payments' },
   { code: 'governance.manage',  group: 'Governance', label: 'Manage proposals, incidents, policies' },
   { code: 'forum.moderate',     group: 'Community', label: 'Moderate forum and comments' },
+  { code: 'forms.manage',       group: 'Community', label: 'Manage forms and waivers' },
   { code: 'customize.manage',   group: 'Admin', label: 'Customize roles, tiers, areas, invites, onboarding' },
   { code: 'settings.manage',    group: 'Admin', label: 'Space settings, integrations, webhooks' },
 ] as const
@@ -39,7 +40,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, PermissionCode[]> = {
     'ops.kb.read', 'ops.kb.write', 'ops.process.read', 'ops.process.write',
     'ops.secrets.read', 'ops.secrets.write', 'ops.arealeads.manage',
     'members.manage', 'payments.manage', 'governance.manage',
-    'forum.moderate', 'customize.manage', 'settings.manage',
+    'forum.moderate', 'forms.manage', 'customize.manage', 'settings.manage',
   ],
   treasurer: ['payments.manage', 'ops.kb.read', 'ops.process.read'],
   member: ['ops.kb.read', 'ops.process.read'],

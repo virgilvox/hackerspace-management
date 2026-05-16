@@ -4,6 +4,35 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-16 (pass 18) — Forms + waivers Phase 1 (schema + RLS), LOCAL, awaiting deploy approval
+
+Branch: `main`. Migration: `026` (not yet deployed). `pnpm build` + `pnpm exec vitest run` gate pending in this entry's session.
+
+### State reconciliation (pass-17 prose was stale)
+
+- Pass-17 said Tier 2+3 (`a1ea92a`, `b7461f0`) were "LOCAL/unpushed". They are in fact DEPLOYED: `git log origin/main..main` is empty, and Actions run `25973229017` (commit `3ace1af`) succeeded. So at pass-18 start: `origin/main == main`, clean, all UX Tiers 1-3 live. The pass-17 entry is left as-written (append-only); this is the correction of record.
+- Branches present: `main`, `ux-polish-wip` (deletable backup), `hotfix-incident` (stale, not deleted — flag for user).
+
+### Incident-filing RLS open item — STILL OPEN
+
+- User confirms it has NOT been retried on prod since `025`. `025` only fixed cause #2 (policy drift). Item stays open: before any RLS change, retry on prod; if it still fails, run the discriminating SQL in the pass-17 entry to separate cause #1 (auth.uid() null in SSR) vs #3 (membership data drift). Permissions/RLS surface NOT to be modified without that diagnosis + user approval (guardrail).
+
+### Forms + waivers Phase 1 (this session) — schema + RLS only, LOCAL
+
+- New `scripts/026_forms.sql` (idempotent) + mirrored as `schema.sql` Section 17 + Section 15 seed-function updated.
+- Tables: `forms` (space_id, globally-UNIQUE `slug`, `kind` form/waiver, `visibility` public_anon/public_auth/members, `status` draft/published/closed, `schema` jsonb, `legal_text`, `version`, `created_by`) and `form_submissions` (form_id, denormalized space_id, member_id, submitter_email, answers, `form_snapshot`/`legal_text_snapshot`/`form_version` immutable snapshots, ip, user_agent). Indexes on space/slug/form/email/member.
+- RLS (additive, default-deny): `forms` SELECT = space members; INSERT/UPDATE/DELETE = `user_has_permission(..., 'forms.manage')`. `form_submissions` SELECT = `forms.manage` only; **no write policy at all** → RLS hard-denies every non-service client and makes submissions immutable. Every submission funnels through one validated service-client server action (Phase 2). Public `/f/[slug]` will be served by a service-client server action, so `anon` gets no grant on `forms` (user-chosen option).
+- New `forms.manage` permission added to `lib/permissions-catalog.ts` (group Community) + board default; `seed_default_role_permissions()` extended; backfill `board -> forms.manage` for existing spaces (ON CONFLICT DO NOTHING).
+- `types/database.ts`: `forms` + `form_submissions` added. Docs updated: DATABASE_SCHEMA (026 row), DB_SCHEMA_MAP (quick-map + migrations), ARCHITECTURE (forms note).
+
+### Open / next
+
+- **Awaiting user approval to deploy** (push to `main` = prod). Local commit only this session; do NOT push without explicit go.
+- Phases 2-5 not started: server actions + Zod (`submitForm` via service client + email→member resolution + snapshot; list/results/CSV; linkSubmissionsForMember); builder UI + `/f/[slug]`; onboarding form step + required-waiver enforcement; retro-link hooks (join/signup/addMember/import + email verification).
+- After an approved push: watch the Actions run, then smoke-test that `026` applied (`_migrations_applied` row) and a space's board has `forms.manage`.
+
+---
+
 ## 2026-05-15/16 (pass 17) — UX polish Tier 1 (minus S3) + incident-RLS hotfix, both DEPLOYED
 
 Branch: `main`, clean. `origin/main` advanced `4c9b551` -> `1340b4c` (incident hotfix) -> `b8bb213` (UX Tier 1 minus S3 + docs), all deployed via GitHub Actions. Migrations applied through `025`. `pnpm build` clean, `pnpm exec vitest run` 271/271. Safety branch `ux-polish-wip` = pre-restructure stack (deletable once trust established).

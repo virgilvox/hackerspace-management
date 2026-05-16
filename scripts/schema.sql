@@ -1821,8 +1821,8 @@ BEGIN
     ('board','ops.kb.read'),('board','ops.kb.write'),('board','ops.process.read'),
     ('board','ops.process.write'),('board','ops.secrets.read'),('board','ops.secrets.write'),
     ('board','ops.arealeads.manage'),('board','members.manage'),('board','payments.manage'),
-    ('board','governance.manage'),('board','forum.moderate'),('board','customize.manage'),
-    ('board','settings.manage'),
+    ('board','governance.manage'),('board','forum.moderate'),('board','forms.manage'),
+    ('board','customize.manage'),('board','settings.manage'),
     ('treasurer','payments.manage'),('treasurer','ops.kb.read'),('treasurer','ops.process.read'),
     ('member','ops.kb.read'),('member','ops.process.read'),
     ('associate','ops.kb.read')
@@ -1874,3 +1874,95 @@ DROP TRIGGER IF EXISTS trg_prevent_member_self_role_change ON public.space_membe
 CREATE TRIGGER trg_prevent_member_self_role_change
   BEFORE UPDATE ON public.space_members
   FOR EACH ROW EXECUTE FUNCTION public.prevent_member_self_role_change();
+
+
+-- =============================================================================
+-- 17. Custom forms and waivers (schema + RLS).
+--     Equivalent to scripts/026_forms.sql. The forms.manage seed for board is
+--     already in seed_default_role_permissions() in Section 15; the backfill
+--     below is a no-op on a clean database (no spaces yet) and idempotent on an
+--     existing one.
+--
+--     RLS is additive and default-deny:
+--       * forms SELECT = any member of the space. The public unauthenticated
+--         /f/[slug] page is served by a service-client server action, so the
+--         anon role gets no grant on this table.
+--       * forms write = user_has_permission(..., 'forms.manage').
+--       * form_submissions SELECT = user_has_permission(..., 'forms.manage');
+--         anon can never read submissions.
+--       * form_submissions has NO write policy: with RLS on, that denies every
+--         non-service client, funnelling all writes through the validated
+--         service-client server action and making submissions immutable.
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS public.forms (
+  id          uuid        PRIMARY KEY DEFAULT uuid_generate_v4(),
+  space_id    uuid        NOT NULL REFERENCES public.spaces(id) ON DELETE CASCADE,
+  slug        text        NOT NULL UNIQUE
+                          CHECK (slug ~ '^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$'
+                                 AND char_length(slug) BETWEEN 1 AND 80),
+  title       text        NOT NULL CHECK (char_length(title) BETWEEN 1 AND 200),
+  description text,
+  kind        text        NOT NULL DEFAULT 'form'
+                          CHECK (kind IN ('form','waiver')),
+  visibility  text        NOT NULL DEFAULT 'members'
+                          CHECK (visibility IN ('public_anon','public_auth','members')),
+  status      text        NOT NULL DEFAULT 'draft'
+                          CHECK (status IN ('draft','published','closed')),
+  schema      jsonb       NOT NULL DEFAULT '[]',
+  legal_text  text,
+  version     integer     NOT NULL DEFAULT 1 CHECK (version >= 1),
+  created_by  uuid        REFERENCES public.space_members(id) ON DELETE SET NULL,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  updated_at  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_forms_space  ON public.forms (space_id, status);
+CREATE INDEX IF NOT EXISTS idx_forms_slug   ON public.forms (slug);
+
+CREATE TABLE IF NOT EXISTS public.form_submissions (
+  id                 uuid        PRIMARY KEY DEFAULT uuid_generate_v4(),
+  form_id            uuid        NOT NULL REFERENCES public.forms(id) ON DELETE CASCADE,
+  space_id           uuid        NOT NULL REFERENCES public.spaces(id) ON DELETE CASCADE,
+  member_id          uuid        REFERENCES public.space_members(id) ON DELETE SET NULL,
+  submitter_email    text,
+  answers            jsonb       NOT NULL DEFAULT '{}',
+  form_snapshot      jsonb       NOT NULL,
+  legal_text_snapshot text,
+  form_version       integer     NOT NULL,
+  ip                 inet,
+  user_agent         text,
+  created_at         timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_form_submissions_form  ON public.form_submissions (form_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_form_submissions_space ON public.form_submissions (space_id);
+CREATE INDEX IF NOT EXISTS idx_form_submissions_email ON public.form_submissions (submitter_email);
+CREATE INDEX IF NOT EXISTS idx_form_submissions_member ON public.form_submissions (member_id);
+
+ALTER TABLE public.forms            ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.form_submissions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS forms_select ON public.forms;
+DROP POLICY IF EXISTS forms_insert ON public.forms;
+DROP POLICY IF EXISTS forms_update ON public.forms;
+DROP POLICY IF EXISTS forms_delete ON public.forms;
+CREATE POLICY forms_select ON public.forms FOR SELECT
+  USING (space_id IN (SELECT public.get_user_space_ids(auth.uid())));
+CREATE POLICY forms_insert ON public.forms FOR INSERT
+  WITH CHECK (public.user_has_permission(auth.uid(), space_id, 'forms.manage'));
+CREATE POLICY forms_update ON public.forms FOR UPDATE
+  USING (public.user_has_permission(auth.uid(), space_id, 'forms.manage'));
+CREATE POLICY forms_delete ON public.forms FOR DELETE
+  USING (public.user_has_permission(auth.uid(), space_id, 'forms.manage'));
+
+DROP POLICY IF EXISTS form_submissions_select ON public.form_submissions;
+CREATE POLICY form_submissions_select ON public.form_submissions FOR SELECT
+  USING (public.user_has_permission(auth.uid(), space_id, 'forms.manage'));
+
+DROP TRIGGER IF EXISTS trg_forms_touch ON public.forms;
+CREATE TRIGGER trg_forms_touch
+  BEFORE UPDATE ON public.forms
+  FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
+
+INSERT INTO public.space_role_permissions (space_id, subject, permission)
+SELECT id, 'board', 'forms.manage' FROM public.spaces
+ON CONFLICT (space_id, subject, permission) DO NOTHING;

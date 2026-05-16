@@ -415,6 +415,25 @@ Integration credentials stored in `integrations.config` (JSONB):
 | 010 | Fixed channel trigger (removed description column) |
 | 011 | Fixed enum values (active→current, pending→unverified) |
 
+Migrations 012-026 are tracked authoritatively in `docs/DATABASE_SCHEMA.md`
+(governance kernel, areas, forum/tiers/roles/invites, configurable onboarding,
+customizable permissions + Ops ACLs, self-change hardening, and `026` custom
+forms + waivers).
+
+### Forms & waivers (migration 026 — Phase 1: schema + RLS)
+
+`forms` and `form_submissions` back a custom form/waiver builder. Phase 1 is
+schema + RLS only; server actions, the builder UI, the public `/f/[slug]` page,
+onboarding integration, and retro-linking are later phases. Security shape:
+all submissions (anonymous, public-authenticated, or members) are written by a
+single validated server action using the service client AFTER server-side
+schema validation and snapshotting (same pattern as `finishOnboarding`); the
+`form_submissions` table has no INSERT/UPDATE/DELETE policy, so RLS hard-denies
+every non-service client and submissions are immutable. The public fill page is
+served by a service-client server action, so the `anon` Postgres role gets no
+grant on `forms`. Form management is gated by the new additive `forms.manage`
+permission via `user_has_permission`.
+
 ---
 
 ## 13. Known Limitations

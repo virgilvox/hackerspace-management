@@ -390,10 +390,12 @@ Default channels created by trigger on space INSERT: `general`, `announcements`,
 | 011 | Renamed tasks `type` column to `task_type` (canonical enum column name) |
 | 012 | Canonical sync — task_type enum, cleaned duplicate columns |
 | 013 | Added `space_members.last_paid_at` timestamptz — required by importMembers and linkPaymentToMember |
+| 014-025 | See `docs/DATABASE_SCHEMA.md` migrations table (governance kernel, areas, forum/tiers/roles/invites, onboarding, permissions/ACLs, self-change hardening, incidents_insert re-assert) |
+| 026 | `forms`, `form_submissions` + `forms.manage` permission (additive, default-deny RLS; submissions immutable + service-client-only) |
 
 ---
 
-## Tables added by migrations 016-024 (quick map)
+## Tables added by migrations 016-026 (quick map)
 
 | Table | Key columns | Purpose |
 |-------|-------------|---------|
@@ -410,6 +412,8 @@ Default channels created by trigger on space INSERT: `general`, `announcements`,
 | `space_onboarding_steps` | space_id, step_key, step_type, title, body, config, is_enabled, is_required | Configurable member onboarding |
 | `space_role_permissions` | space_id, subject, permission | Role/custom-role permission grants |
 | `ops_acl` | space_id, entity_type, entity_id, role | Per-item Ops access list (secret/kb/process/area_lead) |
+| `forms` | space_id, slug (global UNIQUE), kind (form/waiver), visibility (public_anon/public_auth/members), status (draft/published/closed), schema jsonb, legal_text, version | Custom forms + waivers. Write-gated by `forms.manage`; public page served via service-client server action (no anon grant) |
+| `form_submissions` | form_id, space_id, member_id, submitter_email, answers jsonb, form_snapshot jsonb, legal_text_snapshot, form_version, ip, user_agent | Append-only submissions. Per-row snapshot = immutable waiver record. SELECT = `forms.manage`; NO write policy (service-client only; immutable) |
 
 Column additions: `space_members.tier_id`, `onboarding_completed_at`, `onboarding_progress`; `secrets.encrypted_value`, `encryption_version`; `knowledge_base.render_markdown`, `is_meeting_minutes`, `meeting_date`. New enum `comment_entity_type`.
 
