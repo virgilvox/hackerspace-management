@@ -8,6 +8,7 @@ import { useConfirm } from '@/components/ui/confirm'
 import type { Tables } from '@/types/database'
 import { PageTitle } from '@/components/ui/page-title'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription, EmptyContent } from '@/components/ui/empty'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 type Project = Tables<'projects'>
 
@@ -164,14 +165,12 @@ export function ProjectsClient({
         )}
       </div>
 
-      {showCreate && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-card border border-border rounded-lg w-full max-w-lg">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-              <h2 className="font-sans text-base font-semibold text-foreground">New Project</h2>
-              <button onClick={() => setShowCreate(false)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
-            </div>
-            <form onSubmit={handleCreate} className="p-6 space-y-4">
+      <Dialog open={showCreate} onOpenChange={(o) => { if (!o) setShowCreate(false) }}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>New Project</DialogTitle>
+          </DialogHeader>
+            <form onSubmit={handleCreate} className="space-y-4">
               <div>
                 <label htmlFor="project-title" className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Title *</label>
                 <input id="project-title" type="text" required autoFocus value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
@@ -212,9 +211,8 @@ export function ProjectsClient({
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

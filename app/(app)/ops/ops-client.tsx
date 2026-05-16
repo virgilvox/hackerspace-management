@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Search, Lock, Pin, Eye, EyeOff, Pencil, Trash2, X, ChevronDown, Users2, FileText } from 'lucide-react'
+import { Plus, Search, Lock, Pin, Eye, EyeOff, Pencil, Trash2, ChevronDown, Users2, FileText } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { createKbEntry, updateKbEntry, deleteKbEntry } from '@/lib/actions'
@@ -12,6 +12,7 @@ import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import type { Tables, TablesInsert } from '@/types/database'
 import { PageTitle } from '@/components/ui/page-title'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useConfirm } from '@/components/ui/confirm'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyContent } from '@/components/ui/empty'
 
@@ -94,13 +95,12 @@ function KbModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-card border border-border rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-          <p className="font-sans text-sm font-semibold text-foreground">{isEdit ? 'Edit Entry' : 'New KB Entry'}</p>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
-        </div>
-        <form onSubmit={handleSave} className="p-5 space-y-4">
+    <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="font-sans text-sm font-semibold text-foreground">{isEdit ? 'Edit Entry' : 'New KB Entry'}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSave} className="space-y-4">
           <div>
             <label className="font-sans text-xs font-medium text-muted-foreground block mb-1.5">Title *</label>
             <input
@@ -182,8 +182,8 @@ function KbModal({
             </button>
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -222,13 +222,12 @@ function AddSecretModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-card border border-border rounded-lg w-full max-w-md" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-          <p className="font-sans text-sm font-semibold text-foreground">Add Secret / Credential</p>
-          <button onClick={onClose}><X className="w-4 h-4 text-muted-foreground" /></button>
-        </div>
-        <form onSubmit={handleSave} className="p-5 space-y-4">
+    <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="font-sans text-sm font-semibold text-foreground">Add Secret / Credential</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSave} className="space-y-4">
           <div>
             <label className="font-sans text-xs font-medium text-muted-foreground block mb-1.5">Label *</label>
             <input
@@ -266,8 +265,8 @@ function AddSecretModal({
             </button>
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -317,13 +316,12 @@ function AreaLeadModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-card border border-border rounded-lg w-full max-w-md" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-          <p className="font-sans text-sm font-semibold text-foreground">{isEdit ? 'Edit Area Lead' : 'Add Area Lead'}</p>
-          <button onClick={onClose}><X className="w-4 h-4 text-muted-foreground" /></button>
-        </div>
-        <form onSubmit={handleSave} className="p-5 space-y-4">
+    <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="font-sans text-sm font-semibold text-foreground">{isEdit ? 'Edit Area Lead' : 'Add Area Lead'}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSave} className="space-y-4">
           <div>
             <label className="font-sans text-xs font-medium text-muted-foreground block mb-1.5">Area Name *</label>
             <input value={areaName} onChange={e => setAreaName(e.target.value)} className="w-full bg-background border border-border rounded px-3 py-2 font-sans text-sm text-foreground focus:outline-none focus:border-primary transition" placeholder="e.g. Woodshop" required />
@@ -343,8 +341,8 @@ function AreaLeadModal({
             </button>
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -507,17 +505,14 @@ function KbEntryRow({
         </div>
       </div>
 
-      {viewing && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setViewing(false)}>
-          <div
-            onClick={e => e.stopPropagation()}
-            className="bg-card rounded border border-border w-full max-w-3xl max-h-[90vh] overflow-y-auto"
-          >
-            <div className="sticky top-0 bg-card border-b border-border px-5 py-3 flex items-start gap-3">
+      <Dialog open={viewing} onOpenChange={(o) => { if (!o) setViewing(false) }}>
+        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="flex items-start gap-3 pr-6">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   {entry.icon && <span className="text-lg">{entry.icon}</span>}
-                  <h2 className="font-sans text-lg font-semibold text-foreground">{entry.title}</h2>
+                  <DialogTitle className="font-sans text-lg font-semibold text-foreground">{entry.title}</DialogTitle>
                   {entry.is_pinned && <Pin className="w-3.5 h-3.5 text-primary" />}
                 </div>
                 <p className="font-mono text-[10px] text-muted-foreground mt-1">
@@ -530,26 +525,23 @@ function KbEntryRow({
               <button onClick={() => onEdit(entry)} className="text-muted-foreground hover:text-primary transition p-1" title="Edit">
                 <Pencil className="w-4 h-4" />
               </button>
-              <button onClick={() => setViewing(false)} className="text-muted-foreground hover:text-foreground transition p-1" title="Close">
-                <X className="w-4 h-4" />
-              </button>
             </div>
-            <div className="px-5 py-5">
-              <div className="prose prose-sm prose-neutral dark:prose-invert max-w-none break-words">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{entry.content ?? ''}</ReactMarkdown>
-              </div>
-              {canManageAcl && (
-                <OpsAclEditor
-                  entityType={aclEntityType}
-                  entityId={entry.id}
-                  options={aclRoleOptions ?? []}
-                  initial={aclInitial}
-                />
-              )}
+          </DialogHeader>
+          <div>
+            <div className="prose prose-sm prose-neutral dark:prose-invert max-w-none break-words">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{entry.content ?? ''}</ReactMarkdown>
             </div>
+            {canManageAcl && (
+              <OpsAclEditor
+                entityType={aclEntityType}
+                entityId={entry.id}
+                options={aclRoleOptions ?? []}
+                initial={aclInitial}
+              />
+            )}
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

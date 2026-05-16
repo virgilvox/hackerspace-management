@@ -1,8 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, X, ChevronDown, Users } from 'lucide-react'
+import { Plus, ChevronDown, Users } from 'lucide-react'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { addMember, updateMember, approveMember, removeMember, assignAreaLead } from '@/lib/actions'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
@@ -382,48 +383,42 @@ export function MembersClient({ members: initialMembers, currentRole, areaLeadRo
       </div>
 
       {/* Add Member Modal */}
-      {showAdd && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-card border border-border rounded-lg w-full max-w-lg">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-              <h2 className="font-sans text-base font-semibold text-foreground">Add Member</h2>
-              <button onClick={() => setShowAdd(false)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
+      <Dialog open={showAdd} onOpenChange={(o) => { if (!o) setShowAdd(false) }}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add Member</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleAdd} className="space-y-4">
+            <MemberFormFields />
+            {error && <p className="font-mono text-xs text-red-500">{error}</p>}
+            <div className="flex gap-3 pt-2">
+              <button type="button" onClick={() => setShowAdd(false)} className="flex-1 border border-border text-foreground font-sans text-sm py-2 rounded hover:border-primary/50 transition">Cancel</button>
+              <button type="submit" disabled={loading} className="flex-1 bg-primary text-white font-sans text-sm py-2 rounded hover:bg-primary/90 transition disabled:opacity-60">
+                {loading ? 'Adding...' : 'Add Member'}
+              </button>
             </div>
-            <form onSubmit={handleAdd} className="p-6 space-y-4">
-              <MemberFormFields />
-              {error && <p className="font-mono text-xs text-red-500">{error}</p>}
-              <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setShowAdd(false)} className="flex-1 border border-border text-foreground font-sans text-sm py-2 rounded hover:border-primary/50 transition">Cancel</button>
-                <button type="submit" disabled={loading} className="flex-1 bg-primary text-white font-sans text-sm py-2 rounded hover:bg-primary/90 transition disabled:opacity-60">
-                  {loading ? 'Adding...' : 'Add Member'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Member Modal */}
-      {editMember && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-card border border-border rounded-lg w-full max-w-lg">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-              <h2 className="font-sans text-base font-semibold text-foreground">Edit {editMember.display_name}</h2>
-              <button onClick={() => setEditMember(null)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
+      <Dialog open={!!editMember} onOpenChange={(o) => { if (!o) setEditMember(null) }}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit {editMember?.display_name}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEdit} className="space-y-4">
+            <MemberFormFields />
+            {error && <p className="font-mono text-xs text-red-500">{error}</p>}
+            <div className="flex gap-3 pt-2">
+              <button type="button" onClick={() => setEditMember(null)} className="flex-1 border border-border text-foreground font-sans text-sm py-2 rounded hover:border-primary/50 transition">Cancel</button>
+              <button type="submit" disabled={loading} className="flex-1 bg-primary text-white font-sans text-sm py-2 rounded hover:bg-primary/90 transition disabled:opacity-60">
+                {loading ? 'Saving...' : 'Save Changes'}
+              </button>
             </div>
-            <form onSubmit={handleEdit} className="p-6 space-y-4">
-              <MemberFormFields />
-              {error && <p className="font-mono text-xs text-red-500">{error}</p>}
-              <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setEditMember(null)} className="flex-1 border border-border text-foreground font-sans text-sm py-2 rounded hover:border-primary/50 transition">Cancel</button>
-                <button type="submit" disabled={loading} className="flex-1 bg-primary text-white font-sans text-sm py-2 rounded hover:bg-primary/90 transition disabled:opacity-60">
-                  {loading ? 'Saving...' : 'Save Changes'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Plus, X, Pencil, Contact as ContactIcon } from 'lucide-react'
 import { createContact, updateContact, deleteContact } from '@/lib/actions'
 import { useConfirm } from '@/components/ui/confirm'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import type { Tables } from '@/types/database'
 import { PageTitle } from '@/components/ui/page-title'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyContent } from '@/components/ui/empty'
@@ -259,29 +260,23 @@ export function ContactsClient({ contacts: initialContacts }: { contacts: Contac
         )}
       </div>
 
-      {showCreate && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-card border border-border rounded-lg w-full max-w-lg">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-              <h2 className="font-sans text-base font-semibold text-foreground">Add Contact</h2>
-              <button onClick={() => { setShowCreate(false); resetForm() }} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
-            </div>
-            <ContactForm onSubmit={handleCreate} submitLabel="Add Contact" />
-          </div>
-        </div>
-      )}
+      <Dialog open={showCreate} onOpenChange={(o) => { if (!o) { setShowCreate(false); resetForm() } }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add Contact</DialogTitle>
+          </DialogHeader>
+          <ContactForm onSubmit={handleCreate} submitLabel="Add Contact" />
+        </DialogContent>
+      </Dialog>
 
-      {editContact && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-card border border-border rounded-lg w-full max-w-lg">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-              <h2 className="font-sans text-base font-semibold text-foreground">Edit {editContact.name}</h2>
-              <button onClick={() => { setEditContact(null); resetForm() }} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
-            </div>
-            <ContactForm onSubmit={handleEdit} submitLabel="Save Changes" />
-          </div>
-        </div>
-      )}
+      <Dialog open={!!editContact} onOpenChange={(o) => { if (!o) { setEditContact(null); resetForm() } }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{editContact ? `Edit ${editContact.name}` : 'Edit Contact'}</DialogTitle>
+          </DialogHeader>
+          <ContactForm onSubmit={handleEdit} submitLabel="Save Changes" />
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

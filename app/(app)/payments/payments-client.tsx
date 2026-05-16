@@ -1,8 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { X, RefreshCcw, Receipt } from 'lucide-react'
+import { RefreshCcw, Receipt } from 'lucide-react'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { toast } from 'sonner'
 import { logCashPayment, linkPaymentToMember } from '@/lib/actions'
 import type { Tables } from '@/types/database'
@@ -262,14 +263,12 @@ export function PaymentsClient({ payments: initialPayments, members, integration
       </div>
 
       {/* Log Cash Modal */}
-      {showLogCash && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-card border border-border rounded-lg w-full max-w-md">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-              <h2 className="font-sans text-base font-semibold text-foreground">Log Cash Payment</h2>
-              <button onClick={() => setShowLogCash(false)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
-            </div>
-            <form onSubmit={handleLogCash} className="p-6 space-y-4">
+      <Dialog open={showLogCash} onOpenChange={(o) => { if (!o) setShowLogCash(false) }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Log Cash Payment</DialogTitle>
+          </DialogHeader>
+            <form onSubmit={handleLogCash} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label htmlFor="cash-amount" className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Amount *</label>
@@ -308,44 +307,40 @@ export function PaymentsClient({ payments: initialPayments, members, integration
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
       {/* Link Member Modal */}
-      {linkingPayment && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-card border border-border rounded-lg w-full max-w-md">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-              <div>
-                <h2 className="font-sans text-base font-semibold text-foreground">Link to Member</h2>
-                <p className="font-mono text-xs text-muted-foreground mt-0.5">
-                  {'$'}{linkingPayment.amount} via {linkingPayment.platform?.toUpperCase()} — {linkingPayment.from_identifier}
-                </p>
-              </div>
-              <button onClick={() => setLinkingPayment(null)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
-            </div>
-            <div className="p-4 max-h-80 overflow-y-auto divide-y divide-border">
-              {members.map(m => (
-                <button
-                  key={m.id}
-                  onClick={() => handleLink(linkingPayment.id, m.id)}
-                  disabled={loading}
-                  className="w-full flex items-center gap-3 py-3 hover:bg-muted/30 transition text-left disabled:opacity-50"
-                >
-                  <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center text-[10px] font-mono font-bold text-primary flex-shrink-0">
-                    {m.display_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-                  </div>
-                  <div>
-                    <p className="font-sans text-sm text-foreground">{m.display_name}</p>
-                    <p className="font-mono text-[10px] text-muted-foreground">{m.email}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
+      <Dialog open={!!linkingPayment} onOpenChange={(o) => { if (!o) setLinkingPayment(null) }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-sans text-base font-semibold text-foreground">Link to Member</DialogTitle>
+            {linkingPayment && (
+              <DialogDescription className="font-mono text-xs text-muted-foreground">
+                {'$'}{linkingPayment.amount} via {linkingPayment.platform?.toUpperCase()} · {linkingPayment.from_identifier}
+              </DialogDescription>
+            )}
+          </DialogHeader>
+          <div className="max-h-80 overflow-y-auto divide-y divide-border">
+            {linkingPayment && members.map(m => (
+              <button
+                key={m.id}
+                onClick={() => handleLink(linkingPayment.id, m.id)}
+                disabled={loading}
+                className="w-full flex items-center gap-3 py-3 hover:bg-muted/30 transition text-left disabled:opacity-50"
+              >
+                <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center text-[10px] font-mono font-bold text-primary flex-shrink-0">
+                  {m.display_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                </div>
+                <div>
+                  <p className="font-sans text-sm text-foreground">{m.display_name}</p>
+                  <p className="font-mono text-[10px] text-muted-foreground">{m.email}</p>
+                </div>
+              </button>
+            ))}
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

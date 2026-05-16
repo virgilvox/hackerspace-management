@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import type { Tables } from '@/types/database'
 import { PageTitle } from '@/components/ui/page-title'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyContent } from '@/components/ui/empty'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 type Task = Tables<'tasks'>
 
@@ -244,17 +245,13 @@ export function TasksClient({ tasks: initialTasks, members, currentUserId, space
       </div>
 
       {/* Create Task Modal */}
-      {showCreate && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-card border border-border rounded-lg w-full max-w-lg">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-              <h2 className="font-sans text-base font-semibold text-foreground">New Task</h2>
-              <button onClick={() => setShowCreate(false)} className="text-muted-foreground hover:text-foreground">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+      <Dialog open={showCreate} onOpenChange={(o) => { if (!o) setShowCreate(false) }}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>New Task</DialogTitle>
+          </DialogHeader>
 
-            <form onSubmit={handleCreate} className="p-6 space-y-4">
+          <form onSubmit={handleCreate} className="space-y-4">
               <div>
                 <label htmlFor="task-title" className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Title *</label>
                 <input
@@ -351,9 +348,8 @@ export function TasksClient({ tasks: initialTasks, members, currentUserId, space
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
