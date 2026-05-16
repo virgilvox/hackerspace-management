@@ -7,6 +7,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { createKbEntry, updateKbEntry, deleteKbEntry } from '@/lib/actions'
 import { revealSecret, deleteSecret } from '@/lib/actions/secrets'
+import { OpsAclEditor } from '@/components/ops/ops-acl-editor'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import type { Tables, TablesInsert } from '@/types/database'
@@ -22,6 +23,9 @@ interface Props {
   areaLeads: AreaLead[]
   secrets: Secret[]
   canSeeSecrets: boolean
+  canManageAcl?: boolean
+  aclRoleOptions?: { value: string; label: string }[]
+  aclByEntity?: Record<string, string[]>
 }
 
 type Tab = 'kb' | 'processes' | 'secrets' | 'area-leads'
@@ -342,10 +346,17 @@ function AreaLeadModal({
 }
 
 // ─── Secret Row (reveal on click) ─────────────────────────────────────────────
-function SecretRow({ secret, onDelete }: { secret: Secret; onDelete: (id: string) => void }) {
+function SecretRow({ secret, onDelete, canManageAcl, aclRoleOptions, aclInitial }: {
+  secret: Secret
+  onDelete: (id: string) => void
+  canManageAcl?: boolean
+  aclRoleOptions?: { value: string; label: string }[]
+  aclInitial?: string[]
+}) {
   const [revealed, setRevealed] = useState(false)
   const [value, setValue] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [showAcl, setShowAcl] = useState(false)
 
   async function reveal() {
     if (revealed) { setRevealed(false); setValue(null); return }
@@ -366,31 +377,50 @@ function SecretRow({ secret, onDelete }: { secret: Secret; onDelete: (id: string
   }
 
   return (
-    <div className="flex items-center gap-3 px-4 py-3">
-      <div className="w-8 h-8 rounded bg-amber-50 border border-amber-200 flex items-center justify-center flex-shrink-0">
-        <Lock className="w-4 h-4 text-amber-500" />
+    <div className="px-4 py-3">
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 rounded bg-amber-50 border border-amber-200 flex items-center justify-center flex-shrink-0">
+          <Lock className="w-4 h-4 text-amber-500" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-sans text-sm font-medium text-foreground">{secret.title}</p>
+          {secret.area && <p className="font-mono text-[10px] text-muted-foreground">{secret.area}</p>}
+          {revealed && value && (
+            <p className="font-mono text-xs text-foreground bg-muted px-2 py-1 rounded mt-1 break-all">{value}</p>
+          )}
+        </div>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          {canManageAcl && (
+            <button
+              onClick={() => setShowAcl(v => !v)}
+              className="font-mono text-[10px] border border-border px-2 py-0.5 rounded hover:border-primary hover:text-primary transition"
+              title="Who can access this secret"
+            >
+              Access
+            </button>
+          )}
+          <button
+            onClick={reveal}
+            disabled={loading}
+            className="flex items-center gap-1 font-mono text-[10px] border border-border px-2 py-0.5 rounded hover:border-primary hover:text-primary transition"
+            title={revealed ? 'Hide' : 'Reveal'}
+          >
+            {loading ? '...' : revealed ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+            {revealed ? 'Hide' : 'Reveal'}
+          </button>
+          <button onClick={handleDelete} className="text-muted-foreground hover:text-red-500 transition p-1" title="Delete">
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
-      <div className="flex-1 min-w-0">
-        <p className="font-sans text-sm font-medium text-foreground">{secret.title}</p>
-        {secret.area && <p className="font-mono text-[10px] text-muted-foreground">{secret.area}</p>}
-        {revealed && value && (
-          <p className="font-mono text-xs text-foreground bg-muted px-2 py-1 rounded mt-1 break-all">{value}</p>
-        )}
-      </div>
-      <div className="flex items-center gap-1.5 flex-shrink-0">
-        <button
-          onClick={reveal}
-          disabled={loading}
-          className="flex items-center gap-1 font-mono text-[10px] border border-border px-2 py-0.5 rounded hover:border-primary hover:text-primary transition"
-          title={revealed ? 'Hide' : 'Reveal'}
-        >
-          {loading ? '...' : revealed ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-          {revealed ? 'Hide' : 'Reveal'}
-        </button>
-        <button onClick={handleDelete} className="text-muted-foreground hover:text-red-500 transition p-1" title="Delete">
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
-      </div>
+      {showAcl && canManageAcl && (
+        <OpsAclEditor
+          entityType="secret"
+          entityId={secret.id}
+          options={aclRoleOptions ?? []}
+          initial={aclInitial ?? []}
+        />
+      )}
     </div>
   )
 }
@@ -504,7 +534,7 @@ function KbEntryRow({
 }
 
 // ─── Main Component ────────────────────────────────────────────────────────────
-export function OpsClient({ member, spaceId, kbEntries: initial, areaLeads: initialLeads, secrets: initialSecrets, canSeeSecrets }: Props) {
+export function OpsClient({ member, spaceId, kbEntries: initial, areaLeads: initialLeads, secrets: initialSecrets, canSeeSecrets, canManageAcl = false, aclRoleOptions = [], aclByEntity = {} }: Props) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<Tab>('kb')
   const [search, setSearch] = useState('')
@@ -722,7 +752,14 @@ export function OpsClient({ member, spaceId, kbEntries: initial, areaLeads: init
             ) : filteredSecrets.length > 0 ? (
               <div className="bg-card rounded border border-border divide-y divide-border">
                 {filteredSecrets.map(s => (
-                  <SecretRow key={s.id} secret={s} onDelete={id => setSecrets(prev => prev.filter(x => x.id !== id))} />
+                  <SecretRow
+                    key={s.id}
+                    secret={s}
+                    onDelete={id => setSecrets(prev => prev.filter(x => x.id !== id))}
+                    canManageAcl={canManageAcl}
+                    aclRoleOptions={aclRoleOptions}
+                    aclInitial={aclByEntity[`secret:${s.id}`] ?? []}
+                  />
                 ))}
               </div>
             ) : (

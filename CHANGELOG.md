@@ -4,6 +4,17 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### Added
+- **Customizable permissions, per-item Ops ACLs, area-lead roles** (migration 023, additive and backward compatible):
+  - Customize -> Permissions: a role x permission grid. Admin holds everything implicitly and cannot be locked out. Grants per built-in/custom role.
+  - Per-item access control on Ops secrets (and KB/processes via the same infra): pick which roles, multiple, can access an item. Empty = existing default visibility. Secrets/KB SELECT policies were rewritten as `existing-rule OR acl-match`, so nothing changes until an admin sets an ACL.
+  - Customize -> Area leads: create area-lead roles, see Vacant until assigned, assign/unassign a member from a picker. The assigned member effectively holds that role, so any Ops item whose access list includes it opens to them.
+  - SECURITY DEFINER helpers `user_effective_roles` and `user_has_permission`.
+
+### Fixed
+- `revealSecret` no longer silently returns the stale plaintext column when a row is marked encrypted but has no ciphertext; it surfaces the corruption instead.
+- `upsertAreaLead` rejects a null/empty area code (Postgres treats NULLs as distinct in unique constraints, which had allowed duplicate area-lead rows).
+
 ### Changed
 - Landing page rebuilt in the `/resources` editorial aesthetic: scoped dark theme (IBM Plex Mono + Libre Baskerville, lime accent, faint grid), a server component (~150 lines, down from a 539-line client monolith), and split into `components/landing/*`. Added a single-row resource showcase of six square tiles with the project SVG logos.
 

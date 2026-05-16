@@ -124,6 +124,14 @@ export async function revealSecret(secretId: string) {
 
   if (error || !data) return { error: error?.message ?? 'Not found' }
 
+  // A row marked encrypted (version > 0) MUST have ciphertext. If it does
+  // not, the row is corrupt: do not silently fall back to the (empty/stale)
+  // plaintext column, which would either leak nothing useful or mask data
+  // loss. Surface it instead.
+  if ((data.encryption_version ?? 0) > 0 && !data.encrypted_value) {
+    return { error: 'This secret is marked encrypted but has no ciphertext. It may be corrupted; re-enter it.' }
+  }
+
   let plaintext: string
   try {
     if (data.encryption_version === 1 && data.encrypted_value) {

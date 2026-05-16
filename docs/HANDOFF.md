@@ -4,6 +4,41 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-15 (pass 15) — Permissions, Ops ACLs, area-lead roles
+
+Branch: `main`. Migration: 023 (applies on next deploy).
+
+### Pre-work audit (background agent)
+
+No regressions from recent passes; routing now clean (the duplicate `app/page.tsx` was the only structural anti-pattern and it is gone). Verbatim current RLS captured. `types/database.ts` is stale for 8 prior-pass tables but masked by `ignoreBuildErrors` (type debt, not a runtime bug). Two latent Ops bugs found and fixed this pass.
+
+### What shipped
+
+Security-sensitive subsystem, built ADDITIVE so a space with no permission/ACL rows behaves exactly as before.
+
+- **Migration `scripts/023_permissions.sql`** (folded into `schema.sql` section 15):
+  - `space_role_permissions` (space_id, subject, permission) and `ops_acl` (space_id, entity_type in secret|kb|process|area_lead, entity_id, role). Full RLS; writes admin/board.
+  - `user_effective_roles(uid,sid)` SECURITY DEFINER: built-in role + custom-role slugs + `area_lead:<area_leads.id>` for areas the member leads.
+  - `user_has_permission(uid,sid,perm)` SECURITY DEFINER: admin implicit-all, else a grant via an effective role.
+  - `secrets`/`knowledge_base` SELECT rewritten as `EXACT existing rule OR ops_acl match`. Zero behavior change with no ACL rows.
+  - Seed trigger + backfill of sensible default `space_role_permissions` (board/treasurer/member/associate; admin never stored).
+- **Area-lead roles reuse the existing `area_leads` table** (decision: do not duplicate the concept). A row is a role; `lead_id IS NULL` => Vacant; assigning sets `lead_id`; the member then holds `area_lead:<id>` via `user_effective_roles`.
+- `lib/permissions-catalog.ts` (fixed code list + per-role defaults + guardrails), Zod schemas, `lib/actions/permissions.ts` (setRolePermissions, setOpsAcl, createAreaLeadRole, assign/unassign/deleteAreaLeadRole).
+- UI: Customize gains **Permissions** (role x permission matrix; admin shown as implicit-all/locked) and **Area leads** (create role, Vacant state, member-picker assign/unassign) panels — new modular files under `customize/panels/`. Reusable `components/ops/ops-acl-editor.tsx` wired into the Secrets list ("Access" toggle, multi-role) via `ops/page.tsx` plumbing (custom roles + area-lead sentinels as options).
+- Latent bug fixes: `revealSecret` now errors on a corrupt encrypted-but-no-ciphertext row instead of silently returning the stale plaintext column; `upsertAreaLead` rejects null/empty `area_code` (Postgres treats NULLs as distinct, which allowed duplicate rows).
+- `types/database.ts`: added `space_role_permissions` and `ops_acl`. Catalog unit tests (5) added; 271 tests pass.
+
+### Deferred (tracked, honest)
+
+- KB/process per-item ACL: infra (RLS, setOpsAcl with kb/process, OpsAclEditor) is complete; only the ops-client KB-modal wiring is not done yet (the Secrets path, the explicit ask, is wired). Mechanical follow-up.
+- "Make area lead" directly from the members directory row: assignment is fully available in Customize -> Area leads; the members-list shortcut is deferred.
+- Broad permission-based gating of every server action / RLS rewrite app-wide is intentionally NOT done; this pass keeps existing role checks and only OR-widens via ACLs. `user_has_permission` exists for incremental adoption.
+- `types/database.ts` still stale for the other 8 prior tables (loose casts; build green).
+
+### Verification
+
+- `pnpm build` clean; `pnpm test` 271/271. Migration 023 is idempotent and applies via deploy.sh's tracked runner.
+
 ## 2026-05-15 (pass 14) — Landing redesign + KB search fix
 
 Branch: `main`.

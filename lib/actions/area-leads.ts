@@ -16,6 +16,13 @@ export async function upsertAreaLead(formData: {
   const v = parseInput(upsertAreaLeadSchema, formData)
   if (!v.ok) return { error: v.error }
 
+  // area_code is the (space_id, area_code) upsert conflict target. Postgres
+  // treats NULLs as distinct in unique constraints, so a null/empty code
+  // would let duplicate area-lead rows accumulate. Require it.
+  if (!v.data.area_code || !v.data.area_code.trim()) {
+    return { error: 'An area code is required.' }
+  }
+
   const supabase = await createClient()
   const auth = await requireMemberWithRole(supabase, ADMIN_ROLES, 'Admin access required')
   if (!auth.ok) return { error: auth.error }

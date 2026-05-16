@@ -34,6 +34,18 @@ export type Database = {
   }
   public: {
     Tables: {
+      space_role_permissions: {
+        Row: { id: string; space_id: string; subject: string; permission: string; created_at: string }
+        Insert: { id?: string; space_id: string; subject: string; permission: string; created_at?: string }
+        Update: { id?: string; space_id?: string; subject?: string; permission?: string; created_at?: string }
+        Relationships: []
+      }
+      ops_acl: {
+        Row: { id: string; space_id: string; entity_type: string; entity_id: string; role: string; created_at: string }
+        Insert: { id?: string; space_id: string; entity_type: string; entity_id: string; role: string; created_at?: string }
+        Update: { id?: string; space_id?: string; entity_type?: string; entity_id?: string; role?: string; created_at?: string }
+        Relationships: []
+      }
       activity_log: {
         Row: {
           action: string

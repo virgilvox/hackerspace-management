@@ -2,21 +2,34 @@
 
 import { useState } from 'react'
 import { RolesPanel } from './panels/roles-panel'
+import { PermissionsPanel } from './panels/permissions-panel'
 import { TiersPanel } from './panels/tiers-panel'
 import { AreasPanel } from './panels/areas-panel'
+import { AreaLeadsPanel } from './panels/area-leads-panel'
 import { InvitesPanel } from './panels/invites-panel'
 import { OnboardingPanel } from './panels/onboarding-panel'
 import type { RoleLabelRow, CustomRole, Tier, Invite, Step, Area } from './panels/types'
 
-type Section = 'roles' | 'tiers' | 'areas' | 'invites' | 'onboarding'
+type Section = 'roles' | 'permissions' | 'tiers' | 'areas' | 'area-leads' | 'invites' | 'onboarding'
 
 const SECTIONS: { key: Section; label: string }[] = [
   { key: 'roles', label: 'Roles' },
+  { key: 'permissions', label: 'Permissions' },
   { key: 'tiers', label: 'Membership tiers' },
   { key: 'areas', label: 'Areas' },
+  { key: 'area-leads', label: 'Area leads' },
   { key: 'invites', label: 'Invite codes' },
   { key: 'onboarding', label: 'Onboarding' },
 ]
+
+interface AreaLead {
+  id: string
+  area_code: string | null
+  area_name: string
+  lead_id: string | null
+  lead_handle: string | null
+  status: string
+}
 
 interface Props {
   isAdmin: boolean
@@ -26,6 +39,9 @@ interface Props {
   invites: Invite[]
   onboardingSteps: Step[]
   areas: Area[]
+  rolePerms: Array<{ subject: string; permission: string }>
+  areaLeads: AreaLead[]
+  members: Array<{ id: string; display_name: string | null; handle: string | null }>
 }
 
 export function CustomizeClient(props: Props) {
@@ -57,8 +73,10 @@ export function CustomizeClient(props: Props) {
 
         <div className="flex-1 min-w-0">
           {section === 'roles' && <RolesPanel isAdmin={props.isAdmin} roleLabels={props.roleLabels} customRoles={props.customRoles} />}
+          {section === 'permissions' && <PermissionsPanel isAdmin={props.isAdmin} customRoles={props.customRoles} rolePerms={props.rolePerms} />}
           {section === 'tiers' && <TiersPanel isAdmin={props.isAdmin} tiers={props.tiers} />}
           {section === 'areas' && <AreasPanel isAdmin={props.isAdmin} areas={props.areas} />}
+          {section === 'area-leads' && <AreaLeadsPanel isAdmin={props.isAdmin} areaLeads={props.areaLeads} members={props.members} />}
           {section === 'invites' && <InvitesPanel isAdmin={props.isAdmin} invites={props.invites} />}
           {section === 'onboarding' && <OnboardingPanel isAdmin={props.isAdmin} steps={props.onboardingSteps} />}
         </div>

@@ -1692,3 +1692,147 @@ DROP TRIGGER IF EXISTS trg_onboarding_steps_touch ON public.space_onboarding_ste
 CREATE TRIGGER trg_onboarding_steps_touch
   BEFORE UPDATE ON public.space_onboarding_steps
   FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
+
+
+-- =============================================================================
+-- 15. Customizable permissions, per-item Ops ACLs, area-lead effective roles.
+--     Equivalent to scripts/023_permissions.sql. Additive: the new SELECT
+--     branches only widen access; with no rows in the new tables behavior is
+--     unchanged.
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS public.space_role_permissions (
+  id          uuid        PRIMARY KEY DEFAULT uuid_generate_v4(),
+  space_id    uuid        NOT NULL REFERENCES public.spaces(id) ON DELETE CASCADE,
+  subject     text        NOT NULL CHECK (char_length(subject) BETWEEN 1 AND 50),
+  permission  text        NOT NULL CHECK (char_length(permission) BETWEEN 1 AND 60),
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (space_id, subject, permission)
+);
+CREATE INDEX IF NOT EXISTS idx_role_perms_space ON public.space_role_permissions (space_id, subject);
+
+CREATE TABLE IF NOT EXISTS public.ops_acl (
+  id          uuid        PRIMARY KEY DEFAULT uuid_generate_v4(),
+  space_id    uuid        NOT NULL REFERENCES public.spaces(id) ON DELETE CASCADE,
+  entity_type text        NOT NULL CHECK (entity_type IN ('secret','kb','process','area_lead')),
+  entity_id   uuid        NOT NULL,
+  role        text        NOT NULL CHECK (char_length(role) BETWEEN 1 AND 64),
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (space_id, entity_type, entity_id, role)
+);
+CREATE INDEX IF NOT EXISTS idx_ops_acl_entity ON public.ops_acl (entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_ops_acl_space  ON public.ops_acl (space_id);
+
+CREATE OR REPLACE FUNCTION public.user_effective_roles(uid uuid, sid uuid)
+  RETURNS SETOF text LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $$
+  SELECT sm.role::text FROM public.space_members sm
+  WHERE sm.user_id = uid AND sm.space_id = sid
+  UNION
+  SELECT cr.slug
+  FROM public.space_members sm
+  JOIN public.space_member_custom_roles mcr ON mcr.member_id = sm.id
+  JOIN public.space_custom_roles cr ON cr.id = mcr.custom_role_id
+  WHERE sm.user_id = uid AND sm.space_id = sid
+  UNION
+  SELECT 'area_lead:' || al.id::text
+  FROM public.space_members sm
+  JOIN public.area_leads al ON al.lead_id = sm.id
+  WHERE sm.user_id = uid AND sm.space_id = sid AND al.space_id = sid;
+$$;
+
+CREATE OR REPLACE FUNCTION public.user_has_permission(uid uuid, sid uuid, perm text)
+  RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $$
+  SELECT public.user_has_role_in_space(uid, sid, ARRAY['admin'])
+      OR EXISTS (
+        SELECT 1 FROM public.space_role_permissions p
+        WHERE p.space_id = sid AND p.permission = perm
+          AND p.subject IN (SELECT public.user_effective_roles(uid, sid))
+      );
+$$;
+
+ALTER TABLE public.space_role_permissions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ops_acl                ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS role_perms_select ON public.space_role_permissions;
+DROP POLICY IF EXISTS role_perms_insert ON public.space_role_permissions;
+DROP POLICY IF EXISTS role_perms_update ON public.space_role_permissions;
+DROP POLICY IF EXISTS role_perms_delete ON public.space_role_permissions;
+CREATE POLICY role_perms_select ON public.space_role_permissions FOR SELECT
+  USING (space_id IN (SELECT public.get_user_space_ids(auth.uid())));
+CREATE POLICY role_perms_insert ON public.space_role_permissions FOR INSERT
+  WITH CHECK (public.user_has_role_in_space(auth.uid(), space_id, ARRAY['admin','board']));
+CREATE POLICY role_perms_update ON public.space_role_permissions FOR UPDATE
+  USING (public.user_has_role_in_space(auth.uid(), space_id, ARRAY['admin','board']));
+CREATE POLICY role_perms_delete ON public.space_role_permissions FOR DELETE
+  USING (public.user_has_role_in_space(auth.uid(), space_id, ARRAY['admin','board']));
+
+DROP POLICY IF EXISTS ops_acl_select ON public.ops_acl;
+DROP POLICY IF EXISTS ops_acl_insert ON public.ops_acl;
+DROP POLICY IF EXISTS ops_acl_update ON public.ops_acl;
+DROP POLICY IF EXISTS ops_acl_delete ON public.ops_acl;
+CREATE POLICY ops_acl_select ON public.ops_acl FOR SELECT
+  USING (space_id IN (SELECT public.get_user_space_ids(auth.uid())));
+CREATE POLICY ops_acl_insert ON public.ops_acl FOR INSERT
+  WITH CHECK (public.user_has_role_in_space(auth.uid(), space_id, ARRAY['admin','board']));
+CREATE POLICY ops_acl_update ON public.ops_acl FOR UPDATE
+  USING (public.user_has_role_in_space(auth.uid(), space_id, ARRAY['admin','board']));
+CREATE POLICY ops_acl_delete ON public.ops_acl FOR DELETE
+  USING (public.user_has_role_in_space(auth.uid(), space_id, ARRAY['admin','board']));
+
+DROP POLICY IF EXISTS secrets_select ON public.secrets;
+CREATE POLICY secrets_select ON public.secrets FOR SELECT
+  USING (
+    public.user_has_role_in_space(auth.uid(), space_id, ARRAY['admin','board'])
+    OR EXISTS (
+      SELECT 1 FROM public.ops_acl a
+      WHERE a.space_id = secrets.space_id AND a.entity_type = 'secret'
+        AND a.entity_id = secrets.id
+        AND a.role IN (SELECT public.user_effective_roles(auth.uid(), secrets.space_id))
+    )
+  );
+
+DROP POLICY IF EXISTS kb_select ON public.knowledge_base;
+CREATE POLICY kb_select ON public.knowledge_base FOR SELECT
+  USING (
+    (
+      space_id IN (SELECT public.get_user_space_ids(auth.uid()))
+      AND (
+        visibility = 'all_members'
+        OR (visibility = 'board'      AND public.user_has_role_in_space(auth.uid(), space_id, ARRAY['admin','board','treasurer']))
+        OR (visibility = 'admin_only' AND public.user_has_role_in_space(auth.uid(), space_id, ARRAY['admin']))
+      )
+    )
+    OR EXISTS (
+      SELECT 1 FROM public.ops_acl a
+      WHERE a.space_id = knowledge_base.space_id AND a.entity_type IN ('kb','process')
+        AND a.entity_id = knowledge_base.id
+        AND a.role IN (SELECT public.user_effective_roles(auth.uid(), knowledge_base.space_id))
+    )
+  );
+
+CREATE OR REPLACE FUNCTION public.seed_default_role_permissions()
+  RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO public.space_role_permissions (space_id, subject, permission)
+  SELECT NEW.id, d.subject, d.permission
+  FROM (VALUES
+    ('board','ops.kb.read'),('board','ops.kb.write'),('board','ops.process.read'),
+    ('board','ops.process.write'),('board','ops.secrets.read'),('board','ops.secrets.write'),
+    ('board','ops.arealeads.manage'),('board','members.manage'),('board','payments.manage'),
+    ('board','governance.manage'),('board','forum.moderate'),('board','customize.manage'),
+    ('board','settings.manage'),
+    ('treasurer','payments.manage'),('treasurer','ops.kb.read'),('treasurer','ops.process.read'),
+    ('member','ops.kb.read'),('member','ops.process.read'),
+    ('associate','ops.kb.read')
+  ) AS d(subject, permission)
+  ON CONFLICT (space_id, subject, permission) DO NOTHING;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_seed_default_role_permissions ON public.spaces;
+CREATE TRIGGER trg_seed_default_role_permissions
+  AFTER INSERT ON public.spaces
+  FOR EACH ROW EXECUTE FUNCTION public.seed_default_role_permissions();

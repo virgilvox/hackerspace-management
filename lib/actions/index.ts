@@ -41,3 +41,6 @@ export * from './invites'
 
 // Configurable member onboarding
 export * from './onboarding'
+
+// Customizable permissions, per-item Ops ACLs, area-lead roles
+export * from './permissions'
