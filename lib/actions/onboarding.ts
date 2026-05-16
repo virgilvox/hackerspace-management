@@ -10,6 +10,7 @@ import {
   uuidSchema,
 } from '@/lib/validations'
 import { claimMyAnonymousSubmissions } from './forms'
+import { evaluateRequiredFormStep } from '@/lib/forms-logic'
 
 const ONBOARDING_ADMIN_ROLES = ['admin', 'board'] as const
 
@@ -184,23 +185,34 @@ export async function finishOnboarding() {
       return { error: 'Please complete the required steps before finishing.' }
     }
     const formId = (s.config as { form_id?: string } | null)?.form_id
-    if (!formId) continue
-
-    const { data: form } = await supabase
-      .from('forms')
-      .select('id, status')
-      .eq('id', formId)
-      .eq('space_id', member.space_id)
-      .maybeSingle()
-    if (!form || form.status !== 'published') continue
-
-    const { count } = await admin
-      .from('form_submissions')
-      .select('id', { count: 'exact', head: true })
-      .eq('form_id', formId)
-      .eq('space_id', member.space_id)
-      .eq('member_id', member.id)
-    if ((count ?? 0) === 0) {
+    let formPublished = false
+    let submissionExists = false
+    if (formId) {
+      const { data: form } = await supabase
+        .from('forms')
+        .select('id, status')
+        .eq('id', formId)
+        .eq('space_id', member.space_id)
+        .maybeSingle()
+      formPublished = !!form && form.status === 'published'
+      if (formPublished) {
+        const { count } = await admin
+          .from('form_submissions')
+          .select('id', { count: 'exact', head: true })
+          .eq('form_id', formId)
+          .eq('space_id', member.space_id)
+          .eq('member_id', member.id)
+        submissionExists = (count ?? 0) > 0
+      }
+    }
+    if (
+      evaluateRequiredFormStep({
+        stepType: s.step_type,
+        formId,
+        formPublished,
+        submissionExists,
+      }) === 'block'
+    ) {
       return { error: 'Please complete the required form before finishing.' }
     }
   }

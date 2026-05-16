@@ -22,6 +22,11 @@ import {
   getPublicFormSchema,
 } from '@/lib/validations'
 import { parseFormSchema, validateAnswers } from '@/lib/forms-schema'
+import {
+  csvCell,
+  parseClientIp,
+  shouldBumpFormVersion,
+} from '@/lib/forms-logic'
 
 const SUBMISSIONS_CAP = 5000
 
@@ -117,9 +122,12 @@ export async function updateForm(input: unknown) {
   const legalChanged = u.legal_text !== undefined && u.legal_text !== existing.legal_text
   const schemaChanged = u.schema !== undefined
   if (
-    existing.kind === 'waiver' &&
-    existing.status === 'published' &&
-    (legalChanged || schemaChanged)
+    shouldBumpFormVersion({
+      kind: existing.kind,
+      status: existing.status,
+      legalChanged,
+      schemaChanged,
+    })
   ) {
     patch.version = (existing.version as number) + 1
   }
@@ -237,13 +245,6 @@ export async function getFormResults(input: unknown) {
   return { data: { form, submissions: submissions ?? [] } }
 }
 
-function csvCell(value: unknown): string {
-  if (value === null || value === undefined) return ''
-  const s = typeof value === 'string' ? value : JSON.stringify(value)
-  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`
-  return s
-}
-
 export async function exportFormResultsCsv(input: unknown) {
   const gate = await requireFormsManager()
   if (!gate.ok) return { error: gate.error }
@@ -299,15 +300,6 @@ export async function exportFormResultsCsv(input: unknown) {
   return {
     data: { filename: `${form.slug}-responses.csv`, csv: lines.join('\r\n') },
   }
-}
-
-const IP_RE = /^[0-9a-fA-F:.]{3,45}$/
-
-function clientIp(h: Headers): string | null {
-  const fwd = h.get('x-forwarded-for')
-  const candidate = (fwd ? fwd.split(',')[0] : h.get('x-real-ip'))?.trim()
-  if (!candidate || !IP_RE.test(candidate)) return null
-  return candidate
 }
 
 /**
@@ -375,7 +367,7 @@ export async function submitForm(input: unknown) {
     form_snapshot: form.schema,
     legal_text_snapshot: form.legal_text ?? null,
     form_version: form.version,
-    ip: clientIp(h),
+    ip: parseClientIp(h.get('x-forwarded-for'), h.get('x-real-ip')),
     user_agent: h.get('user-agent'),
   })
   if (insErr) return { error: insErr.message }

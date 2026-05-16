@@ -20,6 +20,7 @@ import {
 } from '@/lib/actions'
 import { formFieldTypes } from '@/lib/validations'
 import type { FormField } from '@/lib/forms-schema'
+import { slugify, deriveFieldKeys } from '@/lib/forms-logic'
 import { FormRenderer } from './form-renderer'
 
 type Kind = 'form' | 'waiver'
@@ -49,27 +50,7 @@ const TYPE_LABELS: Record<(typeof formFieldTypes)[number], string> = {
   radio: 'Choice',
 }
 
-function slugify(s: string, sep: '-' | '_') {
-  const cleaned = s
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, sep)
-    .replace(new RegExp(`^\\${sep}+|\\${sep}+$`, 'g'), '')
-  return cleaned
-}
-
-// Keys are derived from labels so the builder only ever asks for a label.
-// Duplicates and empties are made safe here, matching the server schema.
-function deriveKeys(fields: FormField[]): FormField[] {
-  const seen = new Set<string>()
-  return fields.map((f, i) => {
-    const base = slugify(f.label || '', '_') || `field_${i + 1}`
-    let key = base
-    let n = 2
-    while (seen.has(key)) key = `${base}_${n++}`
-    seen.add(key)
-    return { ...f, key }
-  })
-}
+const deriveKeys = (fields: FormField[]): FormField[] => deriveFieldKeys(fields)
 
 export function FormBuilder({ initial }: { initial: BuilderForm }) {
   const router = useRouter()
