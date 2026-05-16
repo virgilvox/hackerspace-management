@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { Check } from 'lucide-react'
 import { setOpsAcl } from '@/lib/actions'
 
 export interface AclRoleOption { value: string; label: string }
@@ -37,6 +38,8 @@ export function OpsAclEditor({ entityType, entityId, options, initial }: Props) 
         else back.add(value)
         return back
       })
+    } else {
+      toast.success('Access updated')
     }
   }
 
@@ -55,11 +58,13 @@ export function OpsAclEditor({ entityType, entityId, options, initial }: Props) 
               <button
                 key={o.value}
                 type="button"
+                aria-pressed={on}
                 onClick={() => toggle(o.value, !on)}
-                className={`flex items-center font-mono text-[10px] px-3 py-2 min-h-[44px] rounded border transition ${
+                className={`flex items-center gap-1 font-mono text-[10px] px-3 py-2 min-h-[44px] rounded border transition ${
                   on ? 'bg-primary/10 text-primary border-primary/30' : 'border-border text-muted-foreground hover:border-primary hover:text-primary'
                 }`}
               >
+                {on && <Check className="w-3 h-3" />}
                 {o.label}
               </button>
             )

@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Search, Lock, Pin, Eye, EyeOff, Pencil, Trash2, ChevronDown, Users2, FileText } from 'lucide-react'
+import { Plus, Search, Lock, Pin, Eye, EyeOff, Pencil, Trash2, ChevronDown, Users2, FileText, Copy, Check } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { createKbEntry, updateKbEntry, deleteKbEntry } from '@/lib/actions'
@@ -359,16 +359,49 @@ function SecretRow({ secret, onDelete, canManageAcl, aclRoleOptions, aclInitial 
   const [value, setValue] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [showAcl, setShowAcl] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  function hide() {
+    if (hideTimer.current) { clearTimeout(hideTimer.current); hideTimer.current = null }
+    setRevealed(false)
+    setValue(null)
+    setCopied(false)
+  }
 
   async function reveal() {
-    if (revealed) { setRevealed(false); setValue(null); return }
+    if (revealed) { hide(); return }
     setLoading(true)
     const result = await revealSecret(secret.id)
     setLoading(false)
     if (result.error) { toast.error(result.error); return }
     setValue(result.value ?? '')
     setRevealed(true)
+    if (hideTimer.current) clearTimeout(hideTimer.current)
+    hideTimer.current = setTimeout(hide, 30000)
   }
+
+  async function copy() {
+    if (!value) return
+    try {
+      await navigator.clipboard.writeText(value)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {
+      toast.error('Could not copy to clipboard')
+    }
+  }
+
+  // Re-hide a revealed secret when the window loses focus (screen share /
+  // shoulder surfing), and drop the plaintext + timer on unmount.
+  useEffect(() => {
+    const onBlur = () => hide()
+    window.addEventListener('blur', onBlur)
+    return () => {
+      window.removeEventListener('blur', onBlur)
+      if (hideTimer.current) clearTimeout(hideTimer.current)
+    }
+  }, [])
 
   async function handleDelete() {
     if (!(await confirm({ title: 'Delete secret', description: `"${secret.title}" cannot be undone.`, confirmText: 'Delete', destructive: true }))) return
@@ -388,7 +421,18 @@ function SecretRow({ secret, onDelete, canManageAcl, aclRoleOptions, aclInitial 
           <p className="font-sans text-sm font-medium text-foreground">{secret.title}</p>
           {secret.area && <p className="font-mono text-[10px] text-muted-foreground">{secret.area}</p>}
           {revealed && value && (
-            <p className="font-mono text-xs text-foreground bg-muted px-2 py-1 rounded mt-1 break-all">{value}</p>
+            <div className="flex items-start gap-1.5 mt-1">
+              <p className="flex-1 font-mono text-xs text-foreground bg-muted px-2 py-1 rounded break-all">{value}</p>
+              <button
+                type="button"
+                onClick={copy}
+                aria-label="Copy secret to clipboard"
+                className="flex items-center gap-1 font-mono text-[10px] border border-border px-2 py-1 rounded hover:border-primary hover:text-primary transition flex-shrink-0"
+              >
+                {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                {copied ? 'Copied' : 'Copy'}
+              </button>
+            </div>
           )}
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0">

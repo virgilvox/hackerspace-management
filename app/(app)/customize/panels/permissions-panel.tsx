@@ -60,6 +60,14 @@ export function PermissionsPanel({ isAdmin, customRoles, rolePerms }: Props) {
         <span className="font-sans text-xs text-muted-foreground">holds all permissions (implicit, locked)</span>
       </div>
 
+      {!isAdmin && (
+        <div className="mb-4 rounded border border-border bg-muted/40 px-3 py-2" role="status">
+          <p className="font-sans text-xs text-muted-foreground">
+            View only. Only an admin can change permissions.
+          </p>
+        </div>
+      )}
+
       <div className="overflow-x-auto">
         <table className="w-full border-collapse">
           <thead>
@@ -118,6 +126,7 @@ function PermGroup({
               <input
                 type="checkbox"
                 disabled={!isAdmin}
+                aria-label={`${p.label} for ${s.label}`}
                 checked={grants[s.key]?.has(p.code) ?? false}
                 onChange={e => onToggle(s.key, p.code, e.target.checked)}
               />
