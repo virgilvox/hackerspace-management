@@ -125,3 +125,18 @@
     @apply bg-background text-foreground;
   }
 }
+
+/*
+ * Keyboard focus visibility (WCAG 2.4.7). Many form controls and links use
+ * `focus:outline-none` with only a 1px border color shift, which is not a
+ * perceivable focus indicator. This rule is intentionally unlayered so it
+ * wins over Tailwind's utilities layer without !important. Scoped to form
+ * controls and links; buttons already get a focus-visible ring from
+ * components/ui/button. :where() keeps specificity at 0 so a component can
+ * still opt out with its own rule.
+ */
+:where(input, select, textarea, a[href]):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 2px;
+}

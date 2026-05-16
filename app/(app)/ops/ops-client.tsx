@@ -397,7 +397,7 @@ function SecretRow({ secret, onDelete, canManageAcl, aclRoleOptions, aclInitial 
           {canManageAcl && (
             <button
               onClick={() => setShowAcl(v => !v)}
-              className="font-mono text-[10px] border border-border px-2 py-0.5 rounded hover:border-primary hover:text-primary transition"
+              className="flex items-center font-mono text-[10px] border border-border px-3 py-2 min-h-[44px] rounded hover:border-primary hover:text-primary transition"
               title="Who can access this secret"
             >
               Access
@@ -406,13 +406,13 @@ function SecretRow({ secret, onDelete, canManageAcl, aclRoleOptions, aclInitial 
           <button
             onClick={reveal}
             disabled={loading}
-            className="flex items-center gap-1 font-mono text-[10px] border border-border px-2 py-0.5 rounded hover:border-primary hover:text-primary transition"
+            className="flex items-center gap-1 font-mono text-[10px] border border-border px-3 py-2 min-h-[44px] rounded hover:border-primary hover:text-primary transition"
             title={revealed ? 'Hide' : 'Reveal'}
           >
             {loading ? '...' : revealed ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
             {revealed ? 'Hide' : 'Reveal'}
           </button>
-          <button onClick={handleDelete} className="text-muted-foreground hover:text-red-500 transition p-1" title="Delete">
+          <button onClick={handleDelete} className="flex items-center justify-center min-w-[44px] min-h-[44px] -my-2 text-muted-foreground hover:text-red-500 transition" title="Delete">
             <Trash2 className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -497,10 +497,10 @@ function KbEntryRow({
             {VISIBILITY_LABELS[entry.visibility] ?? entry.visibility}
           </span>
           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition">
-            <button onClick={handleEdit} className="text-muted-foreground hover:text-primary transition p-1" title="Edit">
+            <button onClick={handleEdit} className="flex items-center justify-center min-w-[44px] min-h-[44px] -my-2 text-muted-foreground hover:text-primary transition" title="Edit">
               <Pencil className="w-3.5 h-3.5" />
             </button>
-            <button onClick={handleDelete} className="text-muted-foreground hover:text-red-500 transition p-1" title="Delete">
+            <button onClick={handleDelete} className="flex items-center justify-center min-w-[44px] min-h-[44px] -my-2 text-muted-foreground hover:text-red-500 transition" title="Delete">
               <Trash2 className="w-3.5 h-3.5" />
             </button>
           </div>

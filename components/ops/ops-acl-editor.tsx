@@ -56,7 +56,7 @@ export function OpsAclEditor({ entityType, entityId, options, initial }: Props) 
                 key={o.value}
                 type="button"
                 onClick={() => toggle(o.value, !on)}
-                className={`font-mono text-[10px] px-2 py-1 rounded border transition ${
+                className={`flex items-center font-mono text-[10px] px-3 py-2 min-h-[44px] rounded border transition ${
                   on ? 'bg-primary/10 text-primary border-primary/30' : 'border-border text-muted-foreground hover:border-primary hover:text-primary'
                 }`}
               >

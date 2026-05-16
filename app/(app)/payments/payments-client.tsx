@@ -101,16 +101,15 @@ export function PaymentsClient({ payments: initialPayments, members, integration
   async function handleLink(paymentId: string, memberId: string) {
     setLoading(true)
     const result = await linkPaymentToMember(paymentId, memberId)
-    if (!result.error) {
-      const linkedMember = members.find(m => m.id === memberId)
-      setPayments(prev => prev.map(p => p.id === paymentId ? {
-        ...p,
-        member_id: memberId,
-        link_status: 'linked',
-        space_members: linkedMember ? { display_name: linkedMember.display_name } : null,
-      } : p))
-      setLinkingPayment(null)
-    }
+    if (result?.error) { toast.error(result.error); setLoading(false); return }
+    const linkedMember = members.find(m => m.id === memberId)
+    setPayments(prev => prev.map(p => p.id === paymentId ? {
+      ...p,
+      member_id: memberId,
+      link_status: 'linked',
+      space_members: linkedMember ? { display_name: linkedMember.display_name } : null,
+    } : p))
+    setLinkingPayment(null)
     setLoading(false)
   }
 
@@ -273,29 +272,29 @@ export function PaymentsClient({ payments: initialPayments, members, integration
             <form onSubmit={handleLogCash} className="p-6 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Amount *</label>
-                  <input type="number" step="0.01" min="0" required value={cashForm.amount}
+                  <label htmlFor="cash-amount" className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Amount *</label>
+                  <input id="cash-amount" type="number" step="0.01" min="0" required value={cashForm.amount}
                     onChange={e => setCashForm(f => ({ ...f, amount: e.target.value }))}
                     placeholder="50.00"
                     className="w-full bg-background border border-border rounded px-3 py-2 font-sans text-sm text-foreground focus:outline-none focus:border-primary transition" />
                 </div>
                 <div>
-                  <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Date</label>
-                  <input type="date" value={cashForm.date}
+                  <label htmlFor="cash-date" className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Date</label>
+                  <input id="cash-date" type="date" value={cashForm.date}
                     onChange={e => setCashForm(f => ({ ...f, date: e.target.value }))}
                     className="w-full bg-background border border-border rounded px-3 py-2 font-sans text-sm text-foreground focus:outline-none focus:border-primary" />
                 </div>
               </div>
               <div>
-                <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Note / From *</label>
-                <input type="text" required value={cashForm.from_note}
+                <label htmlFor="cash-from-note" className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Note / From *</label>
+                <input id="cash-from-note" type="text" required value={cashForm.from_note}
                   onChange={e => setCashForm(f => ({ ...f, from_note: e.target.value }))}
                   placeholder="John Smith — March dues"
                   className="w-full bg-background border border-border rounded px-3 py-2 font-sans text-sm text-foreground focus:outline-none focus:border-primary transition" />
               </div>
               <div>
-                <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Link to Member</label>
-                <select value={cashForm.member_id} onChange={e => setCashForm(f => ({ ...f, member_id: e.target.value }))}
+                <label htmlFor="cash-member" className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Link to Member</label>
+                <select id="cash-member" value={cashForm.member_id} onChange={e => setCashForm(f => ({ ...f, member_id: e.target.value }))}
                   className="w-full bg-background border border-border rounded px-3 py-2 font-sans text-sm text-foreground focus:outline-none focus:border-primary">
                   <option value="">— Unlinked —</option>
                   {members.map(m => <option key={m.id} value={m.id}>{m.display_name} ({m.email})</option>)}

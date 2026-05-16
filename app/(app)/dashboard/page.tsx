@@ -100,7 +100,7 @@ export default async function DashboardPage() {
     <div className="min-h-screen bg-background">
       <div className="bg-sidebar px-4 md:px-6 py-3 flex items-center justify-between">
         <PageTitle>Dashboard</PageTitle>
-        <Link href="/tasks" className="flex items-center gap-1.5 bg-primary text-white text-xs font-sans px-3 py-1.5 rounded hover:bg-primary/90 transition">
+        <Link href="/tasks" className="flex items-center gap-1.5 bg-primary text-white text-xs font-sans px-3 py-1.5 min-h-[44px] rounded hover:bg-primary/90 transition">
           <IcoPlus className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">Quick Task</span>
           <span className="sm:hidden">Task</span>
@@ -211,7 +211,7 @@ export default async function DashboardPage() {
                       ) : (
                         <span className="font-mono text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded">OPEN</span>
                       )}
-                      <Link href="/tasks" className="font-mono text-[10px] border border-border px-2 py-0.5 rounded hover:border-primary hover:text-primary transition">
+                      <Link href="/tasks" className="flex items-center font-mono text-[10px] border border-border px-3 py-2 min-h-[44px] rounded hover:border-primary hover:text-primary transition">
                         CLAIM
                       </Link>
                     </div>

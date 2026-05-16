@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Plus, X } from 'lucide-react'
 import { createProject, updateProjectStatus, deleteProject } from '@/lib/actions'
+import { toast } from 'sonner'
 import { useConfirm } from '@/components/ui/confirm'
 import type { Tables } from '@/types/database'
 import { PageTitle } from '@/components/ui/page-title'
@@ -55,15 +56,15 @@ export function ProjectsClient({
 
   async function handleStatusChange(projectId: string, newStatus: string) {
     const result = await updateProjectStatus(projectId, newStatus)
-    if (!result.error) {
-      setProjects(prev => prev.map(p => p.id === projectId ? { ...p, status: newStatus } : p))
-    }
+    if (result?.error) { toast.error(result.error); return }
+    setProjects(prev => prev.map(p => p.id === projectId ? { ...p, status: newStatus } : p))
   }
 
   async function handleDelete(projectId: string) {
     if (!(await confirm({ title: 'Delete project', description: 'This project will be permanently removed.', confirmText: 'Delete', destructive: true }))) return
     const result = await deleteProject(projectId)
-    if (!result.error) setProjects(prev => prev.filter(p => p.id !== projectId))
+    if (result?.error) { toast.error(result.error); return }
+    setProjects(prev => prev.filter(p => p.id !== projectId))
   }
 
   return (
@@ -89,7 +90,7 @@ export function ProjectsClient({
             <EmptyContent>
               <button
                 onClick={() => setShowCreate(true)}
-                className="flex items-center gap-1.5 bg-primary text-white text-xs font-sans px-3 py-1.5 rounded hover:bg-primary/90 transition"
+                className="flex items-center gap-1.5 bg-primary text-white text-xs font-sans px-3 py-1.5 min-h-[44px] rounded hover:bg-primary/90 transition"
               >
                 <Plus className="w-3.5 h-3.5" /> New Project
               </button>
@@ -172,34 +173,34 @@ export function ProjectsClient({
             </div>
             <form onSubmit={handleCreate} className="p-6 space-y-4">
               <div>
-                <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Title *</label>
-                <input type="text" required autoFocus value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+                <label htmlFor="project-title" className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Title *</label>
+                <input id="project-title" type="text" required autoFocus value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
                   placeholder="CNC Controller Upgrade"
                   className="w-full bg-background border border-border rounded px-3 py-2 font-sans text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition" />
               </div>
               <div>
-                <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Description</label>
-                <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                <label htmlFor="project-description" className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Description</label>
+                <textarea id="project-description" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
                   rows={2} className="w-full bg-background border border-border rounded px-3 py-2 font-sans text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition resize-none" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Area</label>
-                  <select value={form.area} onChange={e => setForm(f => ({ ...f, area: e.target.value }))}
+                  <label htmlFor="project-area" className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Area</label>
+                  <select id="project-area" value={form.area} onChange={e => setForm(f => ({ ...f, area: e.target.value }))}
                     className="w-full bg-background border border-border rounded px-3 py-2 font-sans text-sm text-foreground focus:outline-none focus:border-primary">
                     <option value="">No area</option>
                     {AREAS.map(a => <option key={a}>{a}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Due Date</label>
-                  <input type="date" value={form.due_date} onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))}
+                  <label htmlFor="project-due-date" className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Due Date</label>
+                  <input id="project-due-date" type="date" value={form.due_date} onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))}
                     className="w-full bg-background border border-border rounded px-3 py-2 font-sans text-sm text-foreground focus:outline-none focus:border-primary" />
                 </div>
               </div>
               <div>
-                <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Tags (comma-separated)</label>
-                <input type="text" value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))}
+                <label htmlFor="project-tags" className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Tags (comma-separated)</label>
+                <input id="project-tags" type="text" value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))}
                   placeholder="electronics, hardware, cnc"
                   className="w-full bg-background border border-border rounded px-3 py-2 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition" />
               </div>

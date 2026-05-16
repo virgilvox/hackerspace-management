@@ -101,17 +101,15 @@ export function MembersClient({ members: initialMembers, currentRole, areaLeadRo
 
   async function handleApprove(memberId: string) {
     const result = await approveMember(memberId)
-    if (!result.error) {
-      setMembers(prev => prev.map(m => m.id === memberId ? { ...m, status: 'current', approved: true } : m))
-    }
+    if (result?.error) { toast.error(result.error); return }
+    setMembers(prev => prev.map(m => m.id === memberId ? { ...m, status: 'current', approved: true } : m))
   }
 
   async function handleRemove(memberId: string) {
     if (!(await confirm({ title: 'Remove member', description: 'This member will be removed from the space.', confirmText: 'Remove', destructive: true }))) return
     const result = await removeMember(memberId)
-    if (!result.error) {
-      setMembers(prev => prev.filter(m => m.id !== memberId))
-    }
+    if (result?.error) { toast.error(result.error); return }
+    setMembers(prev => prev.filter(m => m.id !== memberId))
   }
 
   function openEdit(m: Member) {
@@ -133,32 +131,32 @@ export function MembersClient({ members: initialMembers, currentRole, areaLeadRo
     <>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Full Name *</label>
-          <input type="text" required value={form.display_name} onChange={e => setForm(f => ({ ...f, display_name: e.target.value }))}
+          <label htmlFor="member-display-name" className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Full Name *</label>
+          <input id="member-display-name" type="text" required value={form.display_name} onChange={e => setForm(f => ({ ...f, display_name: e.target.value }))}
             className="w-full bg-background border border-border rounded px-3 py-2 font-sans text-sm text-foreground focus:outline-none focus:border-primary transition" />
         </div>
         <div>
-          <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Email *</label>
-          <input type="email" required value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+          <label htmlFor="member-email" className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Email *</label>
+          <input id="member-email" type="email" required value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
             className="w-full bg-background border border-border rounded px-3 py-2 font-sans text-sm text-foreground focus:outline-none focus:border-primary transition" />
         </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Phone</label>
-          <input type="tel" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+          <label htmlFor="member-phone" className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Phone</label>
+          <input id="member-phone" type="tel" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
             className="w-full bg-background border border-border rounded px-3 py-2 font-sans text-sm text-foreground focus:outline-none focus:border-primary transition" />
         </div>
         <div>
-          <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Handle</label>
-          <input type="text" value={form.handle} placeholder="@username" onChange={e => setForm(f => ({ ...f, handle: e.target.value }))}
+          <label htmlFor="member-handle" className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Handle</label>
+          <input id="member-handle" type="text" value={form.handle} placeholder="@username" onChange={e => setForm(f => ({ ...f, handle: e.target.value }))}
             className="w-full bg-background border border-border rounded px-3 py-2 font-mono text-sm text-foreground focus:outline-none focus:border-primary transition" />
         </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Tier</label>
-          <select value={form.tier} onChange={e => setForm(f => ({ ...f, tier: e.target.value }))}
+          <label htmlFor="member-tier" className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Tier</label>
+          <select id="member-tier" value={form.tier} onChange={e => setForm(f => ({ ...f, tier: e.target.value }))}
             className="w-full bg-background border border-border rounded px-3 py-2 font-sans text-sm text-foreground focus:outline-none focus:border-primary">
             <option value="plus">Plus</option>
             <option value="basic">Basic</option>
@@ -167,8 +165,8 @@ export function MembersClient({ members: initialMembers, currentRole, areaLeadRo
           </select>
         </div>
         <div>
-          <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Role</label>
-          <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))}
+          <label htmlFor="member-role" className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Role</label>
+          <select id="member-role" value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))}
             className="w-full bg-background border border-border rounded px-3 py-2 font-sans text-sm text-foreground focus:outline-none focus:border-primary">
             <option value="member">Member</option>
             <option value="board">Board</option>
@@ -179,8 +177,8 @@ export function MembersClient({ members: initialMembers, currentRole, areaLeadRo
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Joined At</label>
-          <input type="date" value={form.joined_at?.slice(0, 10)} onChange={e => setForm(f => ({ ...f, joined_at: e.target.value }))}
+          <label htmlFor="member-joined-at" className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Joined At</label>
+          <input id="member-joined-at" type="date" value={form.joined_at?.slice(0, 10)} onChange={e => setForm(f => ({ ...f, joined_at: e.target.value }))}
             className="w-full bg-background border border-border rounded px-3 py-2 font-sans text-sm text-foreground focus:outline-none focus:border-primary" />
         </div>
         <div className="flex items-center gap-3 pt-6">
@@ -238,6 +236,7 @@ export function MembersClient({ members: initialMembers, currentRole, areaLeadRo
             </svg>
             <input
               type="text"
+              aria-label="Search members"
               placeholder="Search..."
               value={search}
               onChange={e => setSearch(e.target.value)}
@@ -326,20 +325,20 @@ export function MembersClient({ members: initialMembers, currentRole, areaLeadRo
                           {m.status === 'unverified' && (
                             <button
                               onClick={() => handleApprove(m.id)}
-                              className="font-mono text-[10px] border border-primary/30 text-primary bg-primary/5 px-2 py-0.5 rounded hover:bg-primary/10 transition"
+                              className="font-mono text-[10px] border border-primary/30 text-primary bg-primary/5 px-3 py-2 min-h-[44px] rounded hover:bg-primary/10 transition"
                             >
                               APPROVE
                             </button>
                           )}
                           <button
                             onClick={() => openEdit(m)}
-                            className="font-mono text-[10px] border border-border px-2 py-0.5 rounded hover:border-primary hover:text-primary transition"
+                            className="font-mono text-[10px] border border-border px-3 py-2 min-h-[44px] rounded hover:border-primary hover:text-primary transition"
                           >
                             EDIT
                           </button>
                           <button
                             onClick={() => handleRemove(m.id)}
-                            className="font-mono text-[10px] border border-border px-2 py-0.5 rounded hover:border-red-300 hover:text-red-600 transition"
+                            className="font-mono text-[10px] border border-border px-3 py-2 min-h-[44px] rounded hover:border-red-300 hover:text-red-600 transition"
                           >
                             REMOVE
                           </button>
@@ -347,7 +346,7 @@ export function MembersClient({ members: initialMembers, currentRole, areaLeadRo
                             <select
                               defaultValue=""
                               onChange={e => { makeAreaLead(m.id, e.target.value); e.currentTarget.value = '' }}
-                              className="font-mono text-[10px] border border-border px-1.5 py-0.5 rounded bg-background text-muted-foreground hover:border-primary hover:text-primary transition focus:outline-none"
+                              className="font-mono text-[10px] border border-border px-2 py-2 min-h-[44px] rounded bg-background text-muted-foreground hover:border-primary hover:text-primary transition focus:outline-none"
                               title="Assign this member as an area lead"
                             >
                               <option value="">+ area lead</option>

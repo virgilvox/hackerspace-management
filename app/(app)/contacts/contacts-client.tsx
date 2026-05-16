@@ -110,13 +110,13 @@ export function ContactsClient({ contacts: initialContacts }: { contacts: Contac
     <form onSubmit={onSubmit} className="p-6 space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Name *</label>
-          <input type="text" required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+          <label htmlFor="contact-name" className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Name *</label>
+          <input id="contact-name" type="text" required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
             className="w-full bg-background border border-border rounded px-3 py-2 font-sans text-sm text-foreground focus:outline-none focus:border-primary transition" />
         </div>
         <div>
-          <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Type</label>
-          <select value={form.contact_type} onChange={e => setForm(f => ({ ...f, contact_type: e.target.value }))}
+          <label htmlFor="contact-type" className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Type</label>
+          <select id="contact-type" value={form.contact_type} onChange={e => setForm(f => ({ ...f, contact_type: e.target.value }))}
             className="w-full bg-background border border-border rounded px-3 py-2 font-sans text-sm text-foreground focus:outline-none focus:border-primary">
             {Object.keys(CATEGORY_COLORS).map(t => <option key={t}>{t}</option>)}
           </select>
@@ -124,31 +124,31 @@ export function ContactsClient({ contacts: initialContacts }: { contacts: Contac
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Email</label>
-          <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+          <label htmlFor="contact-email" className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Email</label>
+          <input id="contact-email" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
             className="w-full bg-background border border-border rounded px-3 py-2 font-sans text-sm text-foreground focus:outline-none focus:border-primary transition" />
         </div>
         <div>
-          <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Phone</label>
-          <input type="tel" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+          <label htmlFor="contact-phone" className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Phone</label>
+          <input id="contact-phone" type="tel" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
             className="w-full bg-background border border-border rounded px-3 py-2 font-sans text-sm text-foreground focus:outline-none focus:border-primary transition" />
         </div>
       </div>
       <div>
-        <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Details / Notes</label>
-        <textarea value={form.details} onChange={e => setForm(f => ({ ...f, details: e.target.value }))}
+        <label htmlFor="contact-details" className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Details / Notes</label>
+        <textarea id="contact-details" value={form.details} onChange={e => setForm(f => ({ ...f, details: e.target.value }))}
           rows={2} className="w-full bg-background border border-border rounded px-3 py-2 font-sans text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition resize-none" />
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Group Label</label>
-          <input type="text" value={form.group_label} onChange={e => setForm(f => ({ ...f, group_label: e.target.value }))}
+          <label htmlFor="contact-group-label" className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Group Label</label>
+          <input id="contact-group-label" type="text" value={form.group_label} onChange={e => setForm(f => ({ ...f, group_label: e.target.value }))}
             placeholder="e.g. Equipment Vendors"
             className="w-full bg-background border border-border rounded px-3 py-2 font-sans text-sm text-foreground focus:outline-none focus:border-primary transition" />
         </div>
         <div>
-          <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Tags</label>
-          <input type="text" value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))}
+          <label htmlFor="contact-tags" className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Tags</label>
+          <input id="contact-tags" type="text" value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))}
             placeholder="laser, cnc, maintenance"
             className="w-full bg-background border border-border rounded px-3 py-2 font-mono text-xs text-foreground focus:outline-none focus:border-primary transition" />
         </div>
@@ -184,6 +184,7 @@ export function ContactsClient({ contacts: initialContacts }: { contacts: Contac
           </svg>
           <input
             type="text"
+            aria-label="Search contacts"
             placeholder="Search contacts..."
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -220,14 +221,14 @@ export function ContactsClient({ contacts: initialContacts }: { contacts: Contac
                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition">
                           <button
                             onClick={() => openEdit(contact)}
-                            className="text-muted-foreground hover:text-primary transition"
+                            className="flex items-center justify-center min-w-[44px] min-h-[44px] -my-2 text-muted-foreground hover:text-primary transition"
                             aria-label="Edit contact"
                           >
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => handleDelete(contact.id)}
-                            className="text-muted-foreground hover:text-destructive transition"
+                            className="flex items-center justify-center min-w-[44px] min-h-[44px] -my-2 text-muted-foreground hover:text-destructive transition"
                             aria-label="Delete contact"
                           >
                             <X className="w-3.5 h-3.5" />

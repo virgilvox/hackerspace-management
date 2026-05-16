@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import { Plus, X, CheckCircle2 } from 'lucide-react'
 import { createTask, claimTask, completeTask, deleteTask } from '@/lib/actions'
+import { toast } from 'sonner'
 import type { Tables } from '@/types/database'
 import { PageTitle } from '@/components/ui/page-title'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyContent } from '@/components/ui/empty'
@@ -80,28 +81,25 @@ export function TasksClient({ tasks: initialTasks, members, currentUserId, space
 
   async function handleClaim(taskId: string) {
     const result = await claimTask(taskId)
-    if (!result.error) {
-      const member = members.find(m => m.user_id === currentUserId)
-      setTasks(prev => prev.map(t =>
-        t.id === taskId
-          ? { ...t, status: 'claimed', claimed_by: currentUserId, claimed_by_name: member?.display_name }
-          : t
-      ))
-    }
+    if (result?.error) { toast.error(result.error); return }
+    const member = members.find(m => m.user_id === currentUserId)
+    setTasks(prev => prev.map(t =>
+      t.id === taskId
+        ? { ...t, status: 'claimed', claimed_by: currentUserId, claimed_by_name: member?.display_name }
+        : t
+    ))
   }
 
   async function handleComplete(taskId: string) {
     const result = await completeTask(taskId)
-    if (!result.error) {
-      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'completed' } : t))
-    }
+    if (result?.error) { toast.error(result.error); return }
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'completed' } : t))
   }
 
   async function handleDelete(taskId: string) {
     const result = await deleteTask(taskId)
-    if (!result.error) {
-      setTasks(prev => prev.filter(t => t.id !== taskId))
-    }
+    if (result?.error) { toast.error(result.error); return }
+    setTasks(prev => prev.filter(t => t.id !== taskId))
   }
 
   const tabCounts = {
@@ -201,7 +199,7 @@ export function TasksClient({ tasks: initialTasks, members, currentUserId, space
               {task.status === 'open' && (
                 <button
                   onClick={() => handleClaim(task.id)}
-                  className="font-mono text-[10px] border border-border px-2 py-0.5 rounded hover:border-primary hover:text-primary transition whitespace-nowrap"
+                  className="font-mono text-[10px] border border-border px-3 py-2 min-h-[44px] rounded hover:border-primary hover:text-primary transition whitespace-nowrap"
                 >
                   CLAIM
                 </button>
@@ -210,7 +208,7 @@ export function TasksClient({ tasks: initialTasks, members, currentUserId, space
               {(task.status === 'claimed' || task.status === 'in_progress') && task.claimed_by === currentUserId && (
                 <button
                   onClick={() => handleComplete(task.id)}
-                  className="font-mono text-[10px] border border-green-200 text-green-700 px-2 py-0.5 rounded hover:bg-green-50 transition whitespace-nowrap"
+                  className="font-mono text-[10px] border border-green-200 text-green-700 px-3 py-2 min-h-[44px] rounded hover:bg-green-50 transition whitespace-nowrap"
                 >
                   DONE
                 </button>
@@ -218,7 +216,7 @@ export function TasksClient({ tasks: initialTasks, members, currentUserId, space
 
               <button
                 onClick={() => handleDelete(task.id)}
-                className="text-muted-foreground hover:text-destructive transition flex-shrink-0"
+                className="flex items-center justify-center min-w-[44px] min-h-[44px] -my-2 text-muted-foreground hover:text-destructive transition flex-shrink-0"
                 aria-label="Delete task"
               >
                 <X className="w-3.5 h-3.5" />
@@ -258,8 +256,9 @@ export function TasksClient({ tasks: initialTasks, members, currentUserId, space
 
             <form onSubmit={handleCreate} className="p-6 space-y-4">
               <div>
-                <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Title *</label>
+                <label htmlFor="task-title" className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Title *</label>
                 <input
+                  id="task-title"
                   type="text"
                   value={form.title}
                   onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
@@ -271,8 +270,9 @@ export function TasksClient({ tasks: initialTasks, members, currentUserId, space
               </div>
 
               <div>
-                <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Description</label>
+                <label htmlFor="task-description" className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Description</label>
                 <textarea
+                  id="task-description"
                   value={form.description}
                   onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
                   placeholder="Optional details..."
@@ -283,8 +283,9 @@ export function TasksClient({ tasks: initialTasks, members, currentUserId, space
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Type</label>
+                  <label htmlFor="task-type" className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Type</label>
                   <select
+                    id="task-type"
                     value={form.type}
                     onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
                     className="w-full bg-background border border-border rounded px-3 py-2 font-sans text-sm text-foreground focus:outline-none focus:border-primary"
@@ -294,8 +295,9 @@ export function TasksClient({ tasks: initialTasks, members, currentUserId, space
                   </select>
                 </div>
                 <div>
-                  <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Area</label>
+                  <label htmlFor="task-area" className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Area</label>
                   <select
+                    id="task-area"
                     value={form.area}
                     onChange={e => setForm(f => ({ ...f, area: e.target.value }))}
                     className="w-full bg-background border border-border rounded px-3 py-2 font-sans text-sm text-foreground focus:outline-none focus:border-primary"
@@ -308,8 +310,9 @@ export function TasksClient({ tasks: initialTasks, members, currentUserId, space
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Recurrence</label>
+                  <label htmlFor="task-recurrence" className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Recurrence</label>
                   <select
+                    id="task-recurrence"
                     value={form.recurrence}
                     onChange={e => setForm(f => ({ ...f, recurrence: e.target.value }))}
                     className="w-full bg-background border border-border rounded px-3 py-2 font-sans text-sm text-foreground focus:outline-none focus:border-primary"
@@ -318,8 +321,9 @@ export function TasksClient({ tasks: initialTasks, members, currentUserId, space
                   </select>
                 </div>
                 <div>
-                  <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Due Date</label>
+                  <label htmlFor="task-due-date" className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Due Date</label>
                   <input
+                    id="task-due-date"
                     type="date"
                     value={form.due_date}
                     onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))}
