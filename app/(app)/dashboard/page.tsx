@@ -96,6 +96,63 @@ export default async function DashboardPage() {
     { label: 'Unlinked Payments', value: unlinkedPayments ?? 0, Ico: IcoPay, sub: 'needs reconciliation', warn: (unlinkedPayments ?? 0) > 0 },
   ]
 
+  // First-run: an admin/board member alone in a space with nothing set up yet
+  // gets a guided checklist instead of a grid of zeros.
+  const isFirstRun =
+    isAdminOrBoard &&
+    (activeMembers ?? 0) <= 1 &&
+    (openTasks ?? 0) === 0 &&
+    (unlinkedPayments ?? 0) === 0 &&
+    (projects ?? []).length === 0 &&
+    (activity ?? []).length === 0 &&
+    pendingProposals.length === 0 &&
+    pendingIncidents.length === 0
+
+  if (isFirstRun) {
+    const steps = [
+      { href: '/members', Ico: IcoUsers, title: 'Invite or add members', desc: 'Add people directly, or share an invite code from Customize.' },
+      { href: '/customize', Ico: IcoPlus, title: 'Set up onboarding', desc: 'Decide what new members see and agree to when they join.' },
+      { href: '/tasks', Ico: IcoTask, title: 'Create your first task or chore', desc: 'Capture the recurring upkeep your space depends on.' },
+      { href: '/settings', Ico: IcoPay, title: 'Connect payments', desc: 'Link a payment platform to track dues and reconcile income.' },
+    ]
+    const firstName = member.display_name?.split(' ')[0] || 'there'
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="bg-sidebar px-4 md:px-6 py-3 flex items-center justify-between">
+          <PageTitle>Dashboard</PageTitle>
+        </div>
+        <div className="p-4 md:p-6">
+          <Empty className="bg-card border border-border">
+            <EmptyHeader>
+              <EmptyMedia variant="icon"><IcoPlus /></EmptyMedia>
+              <EmptyTitle>Welcome, {firstName}. Let&apos;s set up your space.</EmptyTitle>
+              <EmptyDescription>
+                Your space is empty. These first steps get it running. This panel goes away once there is activity.
+              </EmptyDescription>
+            </EmptyHeader>
+            <div className="grid sm:grid-cols-2 gap-3 w-full max-w-2xl mt-2">
+              {steps.map(({ href, Ico, title, desc }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className="flex items-start gap-3 text-left bg-background border border-border rounded-lg p-4 hover:border-primary transition"
+                >
+                  <span className="w-8 h-8 rounded bg-muted flex items-center justify-center flex-shrink-0">
+                    <Ico className="w-4 h-4 text-primary" />
+                  </span>
+                  <span>
+                    <span className="block font-sans text-sm font-medium text-foreground">{title}</span>
+                    <span className="block font-sans text-xs text-muted-foreground mt-0.5">{desc}</span>
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </Empty>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <div className="bg-sidebar px-4 md:px-6 py-3 flex items-center justify-between">

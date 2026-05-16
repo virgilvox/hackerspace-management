@@ -42,6 +42,9 @@ export function OnboardingFlow({ spaceName, steps, canSkip, profile: initialProf
   const [busy, setBusy] = useState(false)
   const [acked, setAcked] = useState<Record<string, boolean>>({})
   const [profile, setProfile] = useState(initialProfile)
+  // Controlled raw text for the skills field so edits survive navigating
+  // Back/forward and the user sees exactly what they typed (no normalize).
+  const [skillsText, setSkillsText] = useState(initialProfile.skills.join(', '))
 
   const step = steps[index]
   const isLast = index === steps.length - 1
@@ -167,8 +170,11 @@ export function OnboardingFlow({ spaceName, steps, canSkip, profile: initialProf
                   <label className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase block mb-1">Skills (comma separated)</label>
                   <input
                     type="text"
-                    defaultValue={profile.skills.join(', ')}
-                    onChange={e => setProfile({ ...profile, skills: e.target.value.split(',').map(s => s.trim()).filter(Boolean).slice(0, 40) })}
+                    value={skillsText}
+                    onChange={e => {
+                      setSkillsText(e.target.value)
+                      setProfile({ ...profile, skills: e.target.value.split(',').map(s => s.trim()).filter(Boolean).slice(0, 40) })
+                    }}
                     className="w-full bg-background border border-border text-foreground font-sans text-sm rounded px-3 py-2 focus:outline-none focus:border-primary"
                   />
                 </div>
@@ -200,6 +206,9 @@ export function OnboardingFlow({ spaceName, steps, canSkip, profile: initialProf
                     />
                     <span className="font-sans text-sm text-foreground">{ackLabel}</span>
                   </label>
+                )}
+                {requireAck && !acked[step.id] && (
+                  <p className="font-sans text-xs text-muted-foreground">Check the box above to continue.</p>
                 )}
               </div>
             )}
