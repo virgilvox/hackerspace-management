@@ -6,7 +6,7 @@
 > **Source of Truth**: `scripts/schema.sql` (canonical, idempotent); numbered
 > migrations `scripts/0NN_*.sql` upgrade existing deployments. The 13-table
 > reference below is the original baseline; tables added by migrations
-> 014-024 are summarized in the "Migrations 014-024" section at the end.
+> 014-025 are summarized in the "Migrations 014-025" section at the end.
 
 ---
 
@@ -686,7 +686,7 @@ CREATE INDEX idx_activity_space ON activity_log(space_id, created_at);
 
 ---
 
-## Migrations 014-024 (additions since the 13-table baseline)
+## Migrations 014-025 (additions since the 13-table baseline)
 
 `scripts/schema.sql` is the canonical idempotent schema; each numbered
 migration is mirrored as a section in it. Tables/columns added:
@@ -704,6 +704,7 @@ migration is mirrored as a section in it. Tables/columns added:
 | 022 | `space_onboarding_steps`; `space_members.onboarding_completed_at/onboarding_progress`; seed default steps |
 | 023 | `space_role_permissions`, `ops_acl`; `user_effective_roles()`, `user_has_permission()` (SECURITY DEFINER); `secrets`/`knowledge_base` SELECT rewritten as `existing-rule OR ops_acl-match` (additive) |
 | 024 | `prevent_member_self_role_change()` extended to also block self-change of `tier_id` and `onboarding_completed_at` |
+| 025 | Re-asserts the hardened `incidents_insert` policy verbatim (production convergence; access-neutral, no schema change) |
 
 New enum: `comment_entity_type` = `forum_thread | proposal | incident | policy`.
 

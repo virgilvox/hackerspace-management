@@ -16,6 +16,12 @@ All notable changes to this project are documented here. Format follows [Keep a 
 - `types/database.ts` brought in sync with the schema (8 tables, the `comment_entity_type` enum, and the new columns); docs (`DATABASE_SCHEMA.md`, `DB_SCHEMA_MAP.md`, `API_REFERENCE.md`) refreshed for migrations 016-024.
 - The member directory has a per-row "make area lead" assignment for admin/board (mirrors Customize -> Area leads).
 
+### Fixed
+- Production report: a basic member filing an incident hit `new row violates row-level security policy for table "incidents"`, including the anonymous path. Not reproducible from source (the code and the 016/017 policy both permit it). Migration 025 idempotently re-asserts the hardened `incidents_insert` policy verbatim so the deployed policy converges to the known-good definition (access-neutral, no schema change). The file-incident action now maps an RLS rejection to an actionable message and logs the technical detail server-side. If the report persists after deploy, the root cause is not policy drift; see `docs/HANDOFF.md` for the discriminating queries.
+
+### UX
+- Accessibility and consistency polish pass (Tier 1 systemic, in progress): distinct Ops nav icon (was a duplicate of Settings), `aria-current` on active nav, accessible mobile drawer (role/aria-modal, Escape, scroll lock, focus management), skip-to-content link, shared `BrandMark` in the sidebar, a shared `PageTitle`/`SectionTitle` primitive adopted app-wide, and a single shared `Empty` primitive replacing ~18 ad-hoc empty states (projects gains a real empty state with a CTA).
+
 ### Security
 - Closed two member self-escalation paths: a non-privileged member can no longer change their own `tier_id` or `onboarding_completed_at` on the `space_members` row (migration 024 extends the self-change trigger). Onboarding completion now goes through the service client after server-side validation.
 - Added in-code space scoping to forum/comment/channel mutations (defence-in-depth on top of RLS).
