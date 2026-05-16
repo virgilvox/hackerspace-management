@@ -62,7 +62,7 @@ function slugify(s: string, sep: '-' | '_') {
 function deriveKeys(fields: FormField[]): FormField[] {
   const seen = new Set<string>()
   return fields.map((f, i) => {
-    let base = slugify(f.label || '', '_') || `field_${i + 1}`
+    const base = slugify(f.label || '', '_') || `field_${i + 1}`
     let key = base
     let n = 2
     while (seen.has(key)) key = `${base}_${n++}`
