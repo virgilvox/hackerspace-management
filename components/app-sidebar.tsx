@@ -14,7 +14,7 @@ import {
   Menu, X, LayoutDashboard, ListChecks, FolderKanban, Settings2, Wrench,
   MessageSquare, Users, CreditCard, BookUser, Download, LogOut,
   Vote, ShieldAlert, ScrollText, LineChart, UserCircle, UserSearch,
-  MessagesSquare, SlidersHorizontal,
+  MessagesSquare, SlidersHorizontal, ClipboardList,
 } from 'lucide-react'
 
 interface NavLinkProps {
@@ -144,6 +144,7 @@ export function AppSidebar({ member, roleName, taskBadge = 0, commsBadge = 0, pa
               <p className="text-[10px] uppercase tracking-widest text-[var(--sidebar-foreground)]/30 px-2 py-1 font-mono">Admin</p>
             </div>
             <NavLink href="/customize" label="Customize" icon={SlidersHorizontal} active={isActive('/customize')} onClick={onNav} />
+            <NavLink href="/forms" label="Forms & waivers" icon={ClipboardList} active={isActive('/forms')} onClick={onNav} />
             <NavLink href="/import" label="Import / Sync" icon={Download} active={isActive('/import')} onClick={onNav} />
             <NavLink href="/settings" label="Settings" icon={Settings2} active={isActive('/settings')} onClick={onNav} />
           </>

@@ -569,7 +569,7 @@ export const formKinds = ['form', 'waiver'] as const
 export const formVisibilities = ['public_anon', 'public_auth', 'members'] as const
 export const formStatuses = ['draft', 'published', 'closed'] as const
 
-const formSlug = z
+export const formSlug = z
   .string()
   .min(1, 'Slug is required')
   .max(80, 'Slug must be 80 characters or fewer')
@@ -665,6 +665,8 @@ export const linkSubmissionsSchema = z.object({
   memberId: z.string().uuid('Invalid member ID'),
   email: emailField(),
 })
+
+export const getPublicFormSchema = z.object({ slug: formSlug })
 
 // ─── Generic ID schemas ──────────────────────────────────────────────────────
 

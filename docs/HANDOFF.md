@@ -4,7 +4,7 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
-## 2026-05-16 (pass 18) — Forms + waivers Phases 1-2 (schema/RLS + server actions), LOCAL, awaiting deploy approval
+## 2026-05-16 (pass 18) — Forms + waivers Phases 1-3 (schema/RLS + server actions + builder UI), LOCAL, awaiting deploy approval
 
 Branch: `main`. Migration: `026` (not yet deployed). `pnpm build` + `pnpm exec vitest run` gate pending in this entry's session.
 
@@ -37,10 +37,20 @@ Audited the migration before continuing. Three fixes applied: dropped redundant 
 - `types/database.ts`: typed `user_has_permission` + `user_effective_roles` (were stale since 023). `lib/actions/index.ts` re-exports forms. `__tests__/forms.test.ts` (14 tests). API_REFERENCE updated.
 - Gate: `pnpm exec vitest run` 285/285; `pnpm build` exit 0, clean.
 
+### Forms + waivers Phase 3 (this session) — builder UI + public page, LOCAL
+
+- `components/forms/form-renderer.tsx`: one controlled renderer for all 8 field types, shared by the builder preview and the public page so they cannot drift.
+- `components/forms/form-builder.tsx`: the easy builder (locked first-class priority). Label-only field creation (keys auto-derived + de-duped at save, never typed), add via one-click type buttons, up/down reorder buttons (no integer order field), inline options editor, live preview pane. Edit mode adds publish/close/draft/delete (via `useConfirm`) and a copy-public-link affordance.
+- Pages (server-gated by `requireFormsManagerPage` in `lib/forms-guard.ts` — forms.manage via the same RPC, redirect non-managers; RLS still the real boundary): `/forms` directory (status/visibility badges, Empty state), `/forms/new`, `/forms/[id]/edit`, `/forms/[id]/results` (table + client CSV download via `exportFormResultsCsv`).
+- Public `app/f/[slug]/page.tsx` (top-level, outside `(app)`): `getPublicForm` (service client, published + public-visibility only — members-only forms are NOT exposed here; their schema stays in-app), waiver legal text + consent, optional email for anon, signed-in gate for `public_auth`, thank-you state.
+- Sidebar: "Forms & waivers" NavLink in the Admin block. Toasts use `sonner` (matched the codebase convention; the custom use-toast has no mounted Toaster). New `getPublicForm` + `formSlug` export; API_REFERENCE updated.
+- Gate: `pnpm exec vitest run` 285/285; `pnpm build` exit 0; `/forms`, `/forms/[id]`, `/forms/new`, `/f/[slug]` all compiled.
+- NOT browser-verified (no live browser this session): smoke-test the builder (add/reorder/remove fields, live preview, create + edit + publish + close + delete), the results CSV download, and a public submission for each visibility (anon, public_auth signed-out gate, waiver consent).
+
 ### Open / next
 
-- **Awaiting user approval to deploy** (push to `main` = prod). Phase 1 commits `3a2d3ca`+`66dd9b7` and Phase 2 are LOCAL only; do NOT push without explicit go. Migration `026` ships with Phase 1.
-- Phase 2 not browser-tested (no UI yet — actions only). Phases 3-5 not started: builder UI + `/forms` + public `/f/[slug]`; onboarding form-step + required-waiver enforcement; automatic retro-link hooks (join/signup/addMember/import + email verification) — `linkSubmissionsForMember` primitive already exists.
+- **Awaiting user approval to deploy** (push to `main` = prod). Phases 1-3 are all LOCAL (commits `3a2d3ca`, `66dd9b7`, Phase 2, Phase 3); do NOT push without explicit go. Migration `026` ships with the first push.
+- Phases 4-5 not started: onboarding form-step + required-waiver enforcement + auto-satisfy when a matching signed waiver exists; automatic retro-link hooks (join/signup/addMember/import + email verification) — `linkSubmissionsForMember` primitive already exists. Phase 3 is code-complete but NOT browser-verified (see Phase 3 smoke-test list above).
 - After an approved push: watch the Actions run, then smoke-test that `026` applied (`_migrations_applied` row) and a space's board has `forms.manage`.
 
 ---

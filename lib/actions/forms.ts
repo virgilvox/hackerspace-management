@@ -19,6 +19,7 @@ import {
   formIdSchema,
   submitFormSchema,
   linkSubmissionsSchema,
+  getPublicFormSchema,
 } from '@/lib/validations'
 import { parseFormSchema, validateAnswers } from '@/lib/forms-schema'
 
@@ -391,6 +392,29 @@ export async function submitForm(input: unknown) {
   })
 
   return { success: true as const }
+}
+
+/**
+ * Public read for the /f/[slug] page. Service client (anon has no grant on
+ * `forms`). Returns only a published form and only public-safe columns.
+ */
+export async function getPublicForm(input: unknown) {
+  const v = parseInput(getPublicFormSchema, input)
+  if (!v.ok) return { error: v.error }
+
+  const admin = createAdminClient()
+  const { data: form } = await admin
+    .from('forms')
+    .select('id, slug, title, description, kind, visibility, schema, legal_text, version, status')
+    .eq('slug', v.data.slug)
+    .single()
+
+  // Members-only forms are never served on the public page (that would expose
+  // their schema to anyone). They are filled from inside the app.
+  if (!form || form.status !== 'published' || form.visibility === 'members') {
+    return { error: 'This form is not available.' }
+  }
+  return { data: form }
 }
 
 /**
