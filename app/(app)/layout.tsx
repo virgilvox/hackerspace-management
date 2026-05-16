@@ -57,13 +57,19 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:top-2 focus:left-2 focus:rounded-md focus:bg-primary focus:px-3 focus:py-2 focus:text-sm focus:text-primary-foreground"
+      >
+        Skip to content
+      </a>
       <AppSidebar
         member={member}
         roleName={roleName}
         taskBadge={taskCount ?? 0}
         paymentBadge={paymentCount ?? 0}
       />
-      <main className="flex-1 overflow-y-auto pt-[52px] md:pt-0 flex flex-col">
+      <main id="main-content" tabIndex={-1} className="flex-1 overflow-y-auto pt-[52px] md:pt-0 flex flex-col">
         <div className="flex-1">{children}</div>
         {member.spaces && (member.spaces as { mission_statement?: string | null }).mission_statement && (
           <footer className="border-t border-border bg-card px-4 md:px-6 py-3">

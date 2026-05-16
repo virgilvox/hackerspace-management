@@ -2,15 +2,16 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { signOut } from '@/lib/auth-actions'
+import { BrandMark } from '@/components/brand-mark'
 import type { Tables } from '@/types/database'
 
 type SpaceMember = Tables<'space_members'>
 type Space = Tables<'spaces'>
 import {
-  Menu, X, LayoutDashboard, ListChecks, FolderKanban, Settings2,
+  Menu, X, LayoutDashboard, ListChecks, FolderKanban, Settings2, Wrench,
   MessageSquare, Users, CreditCard, BookUser, Download, LogOut,
   Vote, ShieldAlert, ScrollText, LineChart, UserCircle, UserSearch,
   MessagesSquare, SlidersHorizontal,
@@ -30,6 +31,7 @@ function NavLink({ href, label, icon: Icon, badge, active, onClick }: NavLinkPro
     <Link
       href={href}
       onClick={onClick}
+      aria-current={active ? 'page' : undefined}
       className={cn(
         'flex items-center justify-between mx-2 px-3 py-2 rounded-md text-sm transition-colors',
         active
@@ -64,6 +66,26 @@ export function AppSidebar({ member, roleName, taskBadge = 0, commsBadge = 0, pa
   const initials = (member.display_name || 'U').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
   const isAdmin = member.role === 'admin' || member.role === 'board'
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const menuButtonRef = useRef<HTMLButtonElement>(null)
+  const drawerCloseRef = useRef<HTMLButtonElement>(null)
+
+  // The mobile drawer is a modal surface: lock background scroll, close on
+  // Escape, and move focus into and back out of it for keyboard/AT users.
+  useEffect(() => {
+    if (!drawerOpen) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setDrawerOpen(false)
+    }
+    document.addEventListener('keydown', onKeyDown)
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    drawerCloseRef.current?.focus()
+    return () => {
+      document.removeEventListener('keydown', onKeyDown)
+      document.body.style.overflow = prevOverflow
+      menuButtonRef.current?.focus()
+    }
+  }, [drawerOpen])
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')
 
@@ -79,21 +101,21 @@ export function AppSidebar({ member, roleName, taskBadge = 0, commsBadge = 0, pa
       <div className="px-5 py-5 border-b border-[var(--sidebar-border)]">
         <Link href="/dashboard" onClick={onNav} className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded bg-[var(--sidebar-primary)] flex items-center justify-center">
-            <span className="text-white font-mono text-xs font-bold">{'{'}<span>hs</span>{'}'}</span>
+            <BrandMark className="w-4 h-4 text-white" />
           </div>
         </Link>
         <p className="text-[var(--sidebar-foreground)]/60 text-xs mt-1.5 font-mono truncate">{space?.name || 'My Space'}</p>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 py-4 overflow-y-auto">
+      <nav aria-label="Primary" className="flex-1 py-4 overflow-y-auto">
         <div className="px-3 mb-1">
           <p className="text-[10px] uppercase tracking-widest text-[var(--sidebar-foreground)]/30 px-2 py-1 font-mono">Workspace</p>
         </div>
         <NavLink href="/dashboard" label="Dashboard" icon={LayoutDashboard} active={isActive('/dashboard')} onClick={onNav} />
         <NavLink href="/tasks" label="Tasks & Chores" icon={ListChecks} active={isActive('/tasks')} badge={taskBadge} onClick={onNav} />
         <NavLink href="/projects" label="Projects" icon={FolderKanban} active={isActive('/projects')} onClick={onNav} />
-        <NavLink href="/ops" label="Ops & Facilities" icon={Settings2} active={isActive('/ops')} onClick={onNav} />
+        <NavLink href="/ops" label="Ops & Facilities" icon={Wrench} active={isActive('/ops')} onClick={onNav} />
         <NavLink href="/comms" label="Comms" icon={MessageSquare} active={isActive('/comms')} badge={commsBadge} onClick={onNav} />
         <NavLink href="/forum" label="Forum" icon={MessagesSquare} active={isActive('/forum')} onClick={onNav} />
 
@@ -158,14 +180,16 @@ export function AppSidebar({ member, roleName, taskBadge = 0, commsBadge = 0, pa
       <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-[var(--sidebar)] border-b border-[var(--sidebar-border)] flex items-center justify-between px-4 h-[52px]">
         <Link href="/dashboard" className="flex items-center gap-2">
           <div className="w-7 h-7 rounded bg-[var(--sidebar-primary)] flex items-center justify-center">
-            <span className="text-white font-mono text-[10px] font-bold">hs</span>
+            <BrandMark className="w-3.5 h-3.5 text-white" />
           </div>
           <span className="text-[var(--sidebar-foreground)]/60 text-xs font-mono truncate max-w-[150px]">{space?.name}</span>
         </Link>
         <button
+          ref={menuButtonRef}
           onClick={() => setDrawerOpen(true)}
-          className="text-[var(--sidebar-foreground)]/70 hover:text-[var(--sidebar-foreground)] p-1"
+          className="text-[var(--sidebar-foreground)]/70 hover:text-[var(--sidebar-foreground)] p-2.5 -mr-2"
           aria-label="Open menu"
+          aria-expanded={drawerOpen}
         >
           <Menu className="w-5 h-5" />
         </button>
@@ -175,10 +199,20 @@ export function AppSidebar({ member, roleName, taskBadge = 0, commsBadge = 0, pa
       {drawerOpen && (
         <div className="md:hidden fixed inset-0 z-50 flex">
           <div className="absolute inset-0 bg-black/50" onClick={closeDrawer} />
-          <div className="relative w-[280px] bg-[var(--sidebar)] flex flex-col h-full shadow-xl">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Menu"
+            className="relative w-[280px] bg-[var(--sidebar)] flex flex-col h-full shadow-xl"
+          >
             <div className="flex items-center justify-between px-4 h-[52px] border-b border-[var(--sidebar-border)]">
               <span className="text-[var(--sidebar-foreground)] text-sm font-mono font-bold">Menu</span>
-              <button onClick={closeDrawer} className="text-[var(--sidebar-foreground)]/50 hover:text-[var(--sidebar-foreground)]">
+              <button
+                ref={drawerCloseRef}
+                onClick={closeDrawer}
+                className="text-[var(--sidebar-foreground)]/50 hover:text-[var(--sidebar-foreground)] p-2.5 -mr-2"
+                aria-label="Close menu"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
