@@ -4,6 +4,36 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-15 — SESSION CLOSE: state of the app
+
+One-screen status for the next session. Detailed history in the pass entries below.
+
+### Live
+
+- Production: `https://hackerspace.sh`, single self-hosted DigitalOcean Droplet (Supabase + Next.js behind Caddy). Push to `main` -> GitHub Actions runs `/opt/hackerspace-ops/deploy.sh` (idempotent migrations via `public._migrations_applied`, build, restart). Latest deployed commit `4c9b551`. Migrations applied through `024`.
+- Branch `main`, clean. `pnpm test` 271/271. `pnpm build` clean.
+
+### Shipped & solid
+
+- Core: members, tasks/chores, projects, payments, ops (KB/processes/secrets/area-leads), comms, dashboard.
+- Governance: proposals+votes, incidents, policies, forum + polymorphic comments.
+- Per-space customization hub (`/customize`): roles + labels, **permissions matrix**, tiers (priced), areas, area-lead roles (vacant/assign), multi-code invites, onboarding builder.
+- Configurable member onboarding (`/onboarding`).
+- Security: AES-256-GCM secrets at rest with server-only reveal; additive Ops ACLs (`ops_acl`) + `user_has_permission`/`user_effective_roles`; self-escalation trigger hardened (incl. `tier_id`, `onboarding_completed_at`); cross-tenant in-code scoping; crypto invite codes; sanitized markdown/HTML.
+- Landing rebuilt in the editorial `/resources` aesthetic; terminal brand mark; resource showcase.
+- Docs current (DATABASE_SCHEMA / DB_SCHEMA_MAP / API_REFERENCE / CHANGELOG / UX_AND_PERSONAS / PERMISSIONS_DESIGN). `types/database.ts` in sync.
+
+### Deliberate non-changes (not bugs)
+
+- `next.config.mjs` keeps `typescript.ignoreBuildErrors: true` for pre-existing legacy `app/` TS noise. New code is type-clean; `tsc` is NOT a usable gate today (use build + tests + manual).
+- `/ops`, `/import` `return null` for unauthorized are unreachable behind the `(app)` layout gate.
+
+### Next focus (planned, not started)
+
+Deep UI/UX audit + polish. `docs/UX_AND_PERSONAS.md` has the persona model and the prior audit's deferred items: sidebar icon collision (Ops & Settings both `Settings2`), ~17 inconsistent empty states (no shared `Empty` component), heading-hierarchy primitives, in-app getting-started/help, role-filtered sidebar for non-privileged members. Newer surfaces (Customize hub, Permissions matrix, Onboarding flow, Forum, Ops ACL editor, Area leads) have not had a polish pass. Eliminating the legacy `app/` TS debt so `ignoreBuildErrors` can be removed is a separate worthwhile initiative.
+
+---
+
 ## 2026-05-15 (pass 16) — Full-app audit + security hardening
 
 Branch: `main`. Migration: 024 (plus 023 from pass 15 not yet deployed).
