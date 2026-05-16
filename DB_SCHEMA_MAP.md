@@ -392,6 +392,7 @@ Default channels created by trigger on space INSERT: `general`, `announcements`,
 | 013 | Added `space_members.last_paid_at` timestamptz — required by importMembers and linkPaymentToMember |
 | 014-025 | See `docs/DATABASE_SCHEMA.md` migrations table (governance kernel, areas, forum/tiers/roles/invites, onboarding, permissions/ACLs, self-change hardening, incidents_insert re-assert) |
 | 026 | `forms`, `form_submissions` + `forms.manage` permission (additive, default-deny RLS; submissions immutable + service-client-only) |
+| 027 | `space_onboarding_steps.step_type` CHECK adds `'form'` (onboarding can embed a form/waiver; form id in step `config.form_id`) |
 
 ---
 

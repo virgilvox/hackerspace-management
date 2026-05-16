@@ -15,7 +15,7 @@ const ONBOARDING_ADMIN_ROLES = ['admin', 'board'] as const
 // --- Admin: manage steps -----------------------------------------------------
 
 export async function createOnboardingStep(input: {
-  step_type: 'welcome' | 'code_of_conduct' | 'profile' | 'payment' | 'content'
+  step_type: 'welcome' | 'code_of_conduct' | 'profile' | 'payment' | 'content' | 'form'
   title: string
   body?: string | null
   config?: Record<string, unknown>
@@ -157,7 +157,7 @@ export async function finishOnboarding() {
 
   const { data: steps } = await supabase
     .from('space_onboarding_steps')
-    .select('id, is_required, is_enabled')
+    .select('id, is_required, is_enabled, step_type, config')
     .eq('space_id', member.space_id)
     .eq('is_enabled', true)
 
@@ -169,9 +169,39 @@ export async function finishOnboarding() {
 
   const progress = (row?.onboarding_progress ?? {}) as { completed_step_ids?: string[] }
   const done = new Set(progress.completed_step_ids ?? [])
-  const requiredMissing = (steps ?? []).filter(s => s.is_required && !done.has(s.id))
-  if (requiredMissing.length > 0) {
-    return { error: 'Please complete the required steps before finishing.' }
+  const candidates = (steps ?? []).filter(s => s.is_required && !done.has(s.id))
+
+  // A required 'form' step is also satisfied if a submission for the
+  // configured form already exists for this member (any version — re-sign is
+  // non-blocking). If the form is missing or not published, the step is
+  // treated as non-blocking: a misconfiguration must not trap members out of
+  // their own space. Submissions are forms.manage-only under RLS, so the
+  // existence probe uses the service client.
+  const admin = createAdminClient()
+  for (const s of candidates) {
+    if (s.step_type !== 'form') {
+      return { error: 'Please complete the required steps before finishing.' }
+    }
+    const formId = (s.config as { form_id?: string } | null)?.form_id
+    if (!formId) continue
+
+    const { data: form } = await supabase
+      .from('forms')
+      .select('id, status')
+      .eq('id', formId)
+      .eq('space_id', member.space_id)
+      .maybeSingle()
+    if (!form || form.status !== 'published') continue
+
+    const { count } = await admin
+      .from('form_submissions')
+      .select('id', { count: 'exact', head: true })
+      .eq('form_id', formId)
+      .eq('space_id', member.space_id)
+      .eq('member_id', member.id)
+    if ((count ?? 0) === 0) {
+      return { error: 'Please complete the required form before finishing.' }
+    }
   }
 
   // onboarding_completed_at is blocked by the self-change trigger (migration

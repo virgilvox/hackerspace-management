@@ -40,7 +40,14 @@ export interface Invite {
   created_at: string
 }
 
-export type OnboardingStepType = 'welcome' | 'code_of_conduct' | 'profile' | 'payment' | 'content'
+export type OnboardingStepType = 'welcome' | 'code_of_conduct' | 'profile' | 'payment' | 'content' | 'form'
+
+export interface FormOption {
+  id: string
+  title: string
+  kind: string
+  status: string
+}
 
 export interface Step {
   id: string

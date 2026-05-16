@@ -686,7 +686,7 @@ CREATE INDEX idx_activity_space ON activity_log(space_id, created_at);
 
 ---
 
-## Migrations 014-026 (additions since the 13-table baseline)
+## Migrations 014-027 (additions since the 13-table baseline)
 
 `scripts/schema.sql` is the canonical idempotent schema; each numbered
 migration is mirrored as a section in it. Tables/columns added:
@@ -705,6 +705,7 @@ migration is mirrored as a section in it. Tables/columns added:
 | 023 | `space_role_permissions`, `ops_acl`; `user_effective_roles()`, `user_has_permission()` (SECURITY DEFINER); `secrets`/`knowledge_base` SELECT rewritten as `existing-rule OR ops_acl-match` (additive) |
 | 024 | `prevent_member_self_role_change()` extended to also block self-change of `tier_id` and `onboarding_completed_at` |
 | 025 | Re-asserts the hardened `incidents_insert` policy verbatim (production convergence; access-neutral, no schema change) |
+| 027 | Adds `'form'` to the `space_onboarding_steps.step_type` CHECK so an onboarding step can embed a custom form/waiver (referenced form id stored in the step's existing `config` jsonb; no new column) |
 | 026 | `forms`, `form_submissions` (custom forms + waivers). Globally-unique form slug; jsonb field schema; per-submission snapshot of schema/legal-text/version for immutable waiver records. RLS additive + default-deny: forms SELECT = `forms.manage` holders (all) or members (published only), write = `user_has_permission(..., 'forms.manage')`; form_submissions SELECT = `forms.manage` only, NO write policy (every submission is written by one validated service-client server action, and submissions are immutable). New `forms.manage` permission seeded to board + backfilled |
 
 New enum: `comment_entity_type` = `forum_thread | proposal | incident | policy`.

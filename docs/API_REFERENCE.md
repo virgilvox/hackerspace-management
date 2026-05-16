@@ -894,4 +894,6 @@ Management actions are gated by `forms.manage` (checked via the `user_has_permis
 - `submitForm(input)` — public entry point (anonymous, signed-in non-member, or member by form `visibility`). Reads the form with the service client (anon has no `forms` grant), enforces visibility + waiver consent, validates `answers` against the stored field schema (`lib/forms-schema.ts`, unknown keys discarded), snapshots schema/legal-text/version, captures IP + user-agent, and writes the row with the service client (`form_submissions` has no write policy, so this is the only path; rows are immutable).
 - `linkSubmissionsForMember(input)` — `forms.manage` admin manual-link of prior anonymous submissions by email. The automatic verified-email retro-link is Phase 5.
 
-Not implemented yet (planned): builder UI, public `/f/[slug]` page, onboarding form-step integration, automatic retro-link on email verification.
+Onboarding integration (Phase 4, migration 027): a `space_onboarding_steps` step can have `step_type = 'form'` with `config.form_id`. The onboarding flow renders the form/waiver and submits via `submitForm`; `finishOnboarding` treats a required form step as satisfied if a submission for that form by the member already exists (any version — re-sign is non-blocking), and fails open if the configured form is missing/unpublished so a misconfiguration cannot trap members.
+
+Not implemented yet (planned): automatic retro-link on email verification + join/signup/addMember/import hooks (Phase 5). The `linkSubmissionsForMember` primitive exists.

@@ -4,7 +4,7 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
-## 2026-05-16 (pass 18) — Forms + waivers Phases 1-3 (schema/RLS + server actions + builder UI), LOCAL, awaiting deploy approval
+## 2026-05-16 (pass 18) — Forms + waivers Phases 1-4 (schema/RLS + actions + builder UI + onboarding step), LOCAL, awaiting deploy approval
 
 Branch: `main`. Migration: `026` (not yet deployed). `pnpm build` + `pnpm exec vitest run` gate pending in this entry's session.
 
@@ -47,11 +47,21 @@ Audited the migration before continuing. Three fixes applied: dropped redundant 
 - Gate: `pnpm exec vitest run` 285/285; `pnpm build` exit 0; `/forms`, `/forms/[id]`, `/forms/new`, `/f/[slug]` all compiled.
 - NOT browser-verified (no live browser this session): smoke-test the builder (add/reorder/remove fields, live preview, create + edit + publish + close + delete), the results CSV download, and a public submission for each visibility (anon, public_auth signed-out gate, waiver consent).
 
+### Forms + waivers Phase 4 (this session) — onboarding form step, LOCAL
+
+- `scripts/027_onboarding_form_step.sql` (idempotent constraint replace) + `schema.sql` Section 14 inline CHECK now allows `step_type = 'form'`. Referenced form id lives in the step's existing `config.form_id` (no new column). validations `onboardingStepTypeSchema` + onboarding action union + customize types/casts include `'form'`.
+- `finishOnboarding`: a required `form` step is satisfied if a submission for `config.form_id` by this member exists (any version — non-blocking re-sign / auto-satisfy). Fails open if the form is missing or unpublished so a misconfig cannot trap a member out of their space. Submission probe uses the service client (submissions are forms.manage-only under RLS).
+- `app/onboarding/page.tsx` enriches `form` steps with the published form def + a prior-submission flag; `onboarding-flow.tsx` renders `FormRenderer` + waiver legal text/consent and submits via `submitForm` then `markOnboardingStepDone`; already-submitted or unavailable forms show a non-blocking notice.
+- Admin: `customize/page.tsx` fetches the space's forms; `onboarding-panel.tsx` gets a "+ Form step" button and a form `<select>` (writes `config.form_id`); empty-state hint when no published forms.
+- Tests: `__tests__/forms.test.ts` +2 (onboarding form-step contract). Gate: `pnpm exec vitest run` 287/287; `pnpm build` exit 0; onboarding + customize compiled. NOT unit-tested: `finishOnboarding` enforcement/auto-satisfy is DB-bound (no mocked test); covered by reasoning + manual.
+- NOT browser-verified: admin adds a form step + picks a form; member onboarding renders/sumbits the form/waiver; required-form blocks finish until submitted; auto-satisfy when a prior submission exists; fail-open on unpublished form.
+
 ### Open / next
 
-- **Awaiting user approval to deploy** (push to `main` = prod). Phases 1-3 are all LOCAL (commits `3a2d3ca`, `66dd9b7`, Phase 2, Phase 3); do NOT push without explicit go. Migration `026` ships with the first push.
-- Phases 4-5 not started: onboarding form-step + required-waiver enforcement + auto-satisfy when a matching signed waiver exists; automatic retro-link hooks (join/signup/addMember/import + email verification) — `linkSubmissionsForMember` primitive already exists. Phase 3 is code-complete but NOT browser-verified (see Phase 3 smoke-test list above).
-- After an approved push: watch the Actions run, then smoke-test that `026` applied (`_migrations_applied` row) and a space's board has `forms.manage`.
+- **Awaiting user approval to deploy** (push to `main` = prod). Phases 1-4 are all LOCAL; do NOT push without explicit go. Migrations `026` + `027` ship with the first push.
+- Phase 5 not started: automatic retro-link on email verification + join/signup/addMember/import hooks — `linkSubmissionsForMember` primitive already exists (currently exposed as the forms.manage manual-link).
+- Phases 3-4 are code-complete but NOT browser-verified (see the smoke-test lists in each subsection). No live browser this session.
+- After an approved push: watch the Actions run; smoke-test that `026`+`027` applied (`_migrations_applied`), a space's board has `forms.manage`, and the builder/public page/onboarding form step work end to end.
 
 ---
 

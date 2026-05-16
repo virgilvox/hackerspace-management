@@ -5,6 +5,8 @@ import {
   submitFormSchema,
   formSchemaArray,
   formFieldSchema,
+  onboardingStepTypeSchema,
+  createOnboardingStepSchema,
 } from '@/lib/validations'
 import { parseFormSchema, validateAnswers, type FormField } from '@/lib/forms-schema'
 
@@ -107,6 +109,23 @@ describe('validateAnswers', () => {
       expect(r.value).toEqual({ full_name: 'Ada', agree: true, contact: 'ada@example.com' })
       expect('injected' in r.value).toBe(false)
     }
+  })
+})
+
+describe('onboarding form step (Phase 4)', () => {
+  it('onboardingStepTypeSchema accepts "form" and rejects unknown', () => {
+    expect(onboardingStepTypeSchema.safeParse('form').success).toBe(true)
+    expect(onboardingStepTypeSchema.safeParse('content').success).toBe(true)
+    expect(onboardingStepTypeSchema.safeParse('quiz').success).toBe(false)
+  })
+
+  it('createOnboardingStepSchema accepts a form step with a form_id config', () => {
+    const r = createOnboardingStepSchema.safeParse({
+      step_type: 'form',
+      title: 'Sign the liability waiver',
+      config: { form_id: '11111111-1111-1111-1111-111111111111' },
+    })
+    expect(r.success).toBe(true)
   })
 })
 

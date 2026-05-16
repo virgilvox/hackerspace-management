@@ -27,6 +27,7 @@ export default async function CustomizePage() {
     { data: tiers },
     { data: invites },
     { data: onboardingSteps },
+    { data: forms },
     { data: areas },
     { data: rolePerms },
     { data: areaLeads },
@@ -37,6 +38,7 @@ export default async function CustomizePage() {
     supabase.from('space_tiers').select('id, slug, name, description, monthly_price_cents, billing_cadence, is_system, is_archived, sort_order').eq('space_id', member.space_id).order('sort_order'),
     supabase.from('space_invites').select('id, code, label, expires_at, max_uses, uses_count, is_enabled, created_at').eq('space_id', member.space_id).order('created_at', { ascending: false }),
     supabase.from('space_onboarding_steps').select('id, step_key, step_type, title, body, config, is_enabled, is_required, is_system, sort_order').eq('space_id', member.space_id).order('sort_order'),
+    supabase.from('forms').select('id, title, kind, status').eq('space_id', member.space_id).order('created_at', { ascending: false }),
     supabase.from('space_areas').select('id, code, name, icon, sort_order, is_archived').eq('space_id', member.space_id).order('sort_order').order('name'),
     supabase.from('space_role_permissions').select('subject, permission').eq('space_id', member.space_id),
     supabase.from('area_leads').select('id, area_code, area_name, lead_id, lead_handle, status').eq('space_id', member.space_id).order('area_name'),
@@ -50,7 +52,8 @@ export default async function CustomizePage() {
       customRoles={(customRoles ?? []) as Array<{ id: string; slug: string; name: string; description: string | null; color: string | null; sort_order: number }>}
       tiers={(tiers ?? []) as Array<{ id: string; slug: string; name: string; description: string | null; monthly_price_cents: number; billing_cadence: string; is_system: boolean; is_archived: boolean; sort_order: number }>}
       invites={(invites ?? []) as Array<{ id: string; code: string; label: string | null; expires_at: string | null; max_uses: number | null; uses_count: number; is_enabled: boolean; created_at: string }>}
-      onboardingSteps={(onboardingSteps ?? []) as Array<{ id: string; step_key: string; step_type: 'welcome' | 'code_of_conduct' | 'profile' | 'payment' | 'content'; title: string; body: string | null; config: Record<string, unknown>; is_enabled: boolean; is_required: boolean; is_system: boolean; sort_order: number }>}
+      onboardingSteps={(onboardingSteps ?? []) as Array<{ id: string; step_key: string; step_type: 'welcome' | 'code_of_conduct' | 'profile' | 'payment' | 'content' | 'form'; title: string; body: string | null; config: Record<string, unknown>; is_enabled: boolean; is_required: boolean; is_system: boolean; sort_order: number }>}
+      forms={(forms ?? []) as Array<{ id: string; title: string; kind: string; status: string }>}
       areas={(areas ?? []) as Array<{ id: string; code: string; name: string; icon: string | null; sort_order: number; is_archived: boolean }>}
       rolePerms={(rolePerms ?? []) as Array<{ subject: string; permission: string }>}
       areaLeads={(areaLeads ?? []) as Array<{ id: string; area_code: string | null; area_name: string; lead_id: string | null; lead_handle: string | null; status: string }>}

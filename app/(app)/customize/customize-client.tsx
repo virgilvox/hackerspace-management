@@ -8,7 +8,7 @@ import { AreasPanel } from './panels/areas-panel'
 import { AreaLeadsPanel } from './panels/area-leads-panel'
 import { InvitesPanel } from './panels/invites-panel'
 import { OnboardingPanel } from './panels/onboarding-panel'
-import type { RoleLabelRow, CustomRole, Tier, Invite, Step, Area } from './panels/types'
+import type { RoleLabelRow, CustomRole, Tier, Invite, Step, Area, FormOption } from './panels/types'
 
 type Section = 'roles' | 'permissions' | 'tiers' | 'areas' | 'area-leads' | 'invites' | 'onboarding'
 
@@ -38,6 +38,7 @@ interface Props {
   tiers: Tier[]
   invites: Invite[]
   onboardingSteps: Step[]
+  forms: FormOption[]
   areas: Area[]
   rolePerms: Array<{ subject: string; permission: string }>
   areaLeads: AreaLead[]
@@ -78,7 +79,7 @@ export function CustomizeClient(props: Props) {
           {section === 'areas' && <AreasPanel isAdmin={props.isAdmin} areas={props.areas} />}
           {section === 'area-leads' && <AreaLeadsPanel isAdmin={props.isAdmin} areaLeads={props.areaLeads} members={props.members} />}
           {section === 'invites' && <InvitesPanel isAdmin={props.isAdmin} invites={props.invites} />}
-          {section === 'onboarding' && <OnboardingPanel isAdmin={props.isAdmin} steps={props.onboardingSteps} />}
+          {section === 'onboarding' && <OnboardingPanel isAdmin={props.isAdmin} steps={props.onboardingSteps} forms={props.forms} />}
         </div>
       </div>
     </div>

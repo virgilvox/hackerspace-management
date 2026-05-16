@@ -331,7 +331,7 @@ export const updateMyProfileSchema = z.object({
 
 // ─── Onboarding ──────────────────────────────────────────────────────────────
 
-export const onboardingStepTypeSchema = z.enum(['welcome', 'code_of_conduct', 'profile', 'payment', 'content'])
+export const onboardingStepTypeSchema = z.enum(['welcome', 'code_of_conduct', 'profile', 'payment', 'content', 'form'])
 
 export const createOnboardingStepSchema = z.object({
   step_type: onboardingStepTypeSchema,

@@ -5,14 +5,25 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { BrandMark } from '@/components/brand-mark'
 import { SafeMarkdown } from '@/components/safe-markdown'
+import { FormRenderer } from '@/components/forms/form-renderer'
+import type { FormField } from '@/lib/forms-schema'
 import {
   markOnboardingStepDone,
   finishOnboarding,
   skipOnboarding,
   updateMyProfile,
+  submitForm,
 } from '@/lib/actions'
 
-type StepType = 'welcome' | 'code_of_conduct' | 'profile' | 'payment' | 'content'
+type StepType = 'welcome' | 'code_of_conduct' | 'profile' | 'payment' | 'content' | 'form'
+
+interface StepFormDef {
+  id: string
+  title: string
+  kind: string
+  legalText: string | null
+  fields: FormField[]
+}
 
 interface Step {
   id: string
@@ -21,6 +32,8 @@ interface Step {
   body: string | null
   config: Record<string, unknown>
   is_required: boolean
+  formDef?: StepFormDef | null
+  alreadySubmitted?: boolean
 }
 
 interface Props {
@@ -45,12 +58,20 @@ export function OnboardingFlow({ spaceName, steps, canSkip, profile: initialProf
   // Controlled raw text for the skills field so edits survive navigating
   // Back/forward and the user sees exactly what they typed (no normalize).
   const [skillsText, setSkillsText] = useState(initialProfile.skills.join(', '))
+  const [formAnswers, setFormAnswers] = useState<Record<string, Record<string, unknown>>>({})
+  const [formConsent, setFormConsent] = useState<Record<string, boolean>>({})
 
   const step = steps[index]
   const isLast = index === steps.length - 1
   const requireAck = step.config?.require_ack === true
   const ackLabel = (step.config?.ack_label as string) || 'I have read and agree'
   const ackOk = !requireAck || acked[step.id]
+
+  const isFormStep = step.step_type === 'form'
+  const formDef = step.formDef ?? null
+  const formActionable = isFormStep && formDef && !step.alreadySubmitted
+  const isWaiver = formDef?.kind === 'waiver'
+  const consentOk = !formActionable || !isWaiver || formConsent[step.id] === true
 
   async function advance() {
     setBusy(true)
@@ -89,6 +110,28 @@ export function OnboardingFlow({ spaceName, steps, canSkip, profile: initialProf
       interests: profile.interests,
     })
     if ('error' in result && result.error) { setBusy(false); toast.error(result.error); return }
+    await markOnboardingStepDone(step.id)
+    setBusy(false)
+    if (isLast) await finish()
+    else setIndex(i => i + 1)
+  }
+
+  async function submitFormStep() {
+    setBusy(true)
+    // No form to fill (already done, or misconfigured/unpublished): treat as a
+    // plain non-blocking step so a member is never trapped.
+    if (formActionable && formDef) {
+      const res = await submitForm({
+        formId: formDef.id,
+        answers: formAnswers[step.id] ?? {},
+        consent: isWaiver ? formConsent[step.id] === true : undefined,
+      })
+      if ('error' in res && res.error) {
+        setBusy(false)
+        toast.error(res.error)
+        return
+      }
+    }
     await markOnboardingStepDone(step.id)
     setBusy(false)
     if (isLast) await finish()
@@ -193,6 +236,48 @@ export function OnboardingFlow({ spaceName, steps, canSkip, profile: initialProf
                   </a>
                 )}
               </div>
+            ) : step.step_type === 'form' ? (
+              <div className="space-y-4">
+                {step.body && <SafeMarkdown>{step.body}</SafeMarkdown>}
+                {!formDef ? (
+                  <p className="font-sans text-sm text-muted-foreground">
+                    This form is not available right now. You can continue.
+                  </p>
+                ) : step.alreadySubmitted ? (
+                  <p className="font-sans text-sm text-muted-foreground">
+                    You have already completed this. You can continue.
+                  </p>
+                ) : (
+                  <>
+                    {isWaiver && formDef.legalText && (
+                      <div className="max-h-72 overflow-y-auto whitespace-pre-wrap rounded border border-border bg-muted/30 p-3 font-sans text-sm">
+                        {formDef.legalText}
+                      </div>
+                    )}
+                    <FormRenderer
+                      fields={formDef.fields}
+                      values={formAnswers[step.id] ?? {}}
+                      onChange={(k, v) =>
+                        setFormAnswers(p => ({ ...p, [step.id]: { ...(p[step.id] ?? {}), [k]: v } }))
+                      }
+                      idPrefix={`ob-${step.id}`}
+                    />
+                    {isWaiver && (
+                      <label className="flex items-start gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formConsent[step.id] === true}
+                          onChange={e => setFormConsent(p => ({ ...p, [step.id]: e.target.checked }))}
+                          className="mt-0.5"
+                        />
+                        <span className="font-sans text-sm text-foreground">
+                          I have read and agree to the terms above.
+                        </span>
+                      </label>
+                    )}
+                  </>
+                )}
+              </div>
             ) : (
               <div className="space-y-4">
                 {step.body && <SafeMarkdown>{step.body}</SafeMarkdown>}
@@ -233,11 +318,27 @@ export function OnboardingFlow({ spaceName, steps, canSkip, profile: initialProf
                 </button>
               )}
               <button
-                onClick={step.step_type === 'profile' ? saveProfileAndAdvance : advance}
-                disabled={busy || !ackOk}
+                onClick={
+                  step.step_type === 'profile'
+                    ? saveProfileAndAdvance
+                    : step.step_type === 'form'
+                      ? submitFormStep
+                      : advance
+                }
+                disabled={busy || !ackOk || !consentOk}
                 className="bg-primary text-white text-sm font-sans px-4 py-2 rounded hover:bg-primary/90 transition disabled:opacity-50"
               >
-                {busy ? 'Saving...' : isLast ? 'Finish' : step.step_type === 'payment' ? 'I have set this up' : 'Continue'}
+                {busy
+                  ? 'Saving...'
+                  : isLast
+                    ? 'Finish'
+                    : step.step_type === 'payment'
+                      ? 'I have set this up'
+                      : formActionable
+                        ? isWaiver
+                          ? 'Sign & continue'
+                          : 'Submit & continue'
+                        : 'Continue'}
               </button>
             </div>
           </div>

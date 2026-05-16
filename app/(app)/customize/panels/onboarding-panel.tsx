@@ -7,29 +7,52 @@ import { createOnboardingStep, updateOnboardingStep, deleteOnboardingStep } from
 import { Card } from './card'
 import { useConfirm } from '@/components/ui/confirm'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
-import type { Step } from './types'
+import type { Step, FormOption } from './types'
 
-export function OnboardingPanel({ isAdmin, steps: initial }: { isAdmin: boolean; steps: Step[] }) {
+export function OnboardingPanel({
+  isAdmin,
+  steps: initial,
+  forms,
+}: {
+  isAdmin: boolean
+  steps: Step[]
+  forms: FormOption[]
+}) {
   const confirm = useConfirm()
   const [steps, setSteps] = useState<Step[]>(initial)
+  const publishedForms = forms.filter(f => f.status === 'published')
 
   return (
     <Card
       title="New member onboarding"
       blurb="These steps run, in order, the first time a new member opens the app. Reorder with the number. Disable to hide. Built-in steps cannot be deleted, only disabled. Body supports markdown and a safe subset of HTML."
       action={isAdmin ? (
-        <button
-          onClick={async () => {
-            const result = await createOnboardingStep({ step_type: 'content', title: 'New step', body: 'Edit this content in Customize, Onboarding.', sort_order: steps.reduce((m, s) => Math.max(m, s.sort_order), 0) + 1 })
-            if ('error' in result && result.error) { toast.error(result.error); return }
-            toast.success('Step added')
-            const id = (result as { id: string }).id
-            setSteps(prev => [...prev, { id, step_key: `custom-${id.slice(0, 12)}`, step_type: 'content', title: 'New step', body: 'Edit this content in Customize, Onboarding.', config: {}, is_enabled: true, is_required: false, is_system: false, sort_order: prev.reduce((m, s) => Math.max(m, s.sort_order), 0) + 1 }])
-          }}
-          className="font-mono text-[10px] border border-border px-3 py-1.5 rounded hover:border-primary hover:text-primary transition whitespace-nowrap"
-        >
-          + Custom step
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={async () => {
+              const result = await createOnboardingStep({ step_type: 'content', title: 'New step', body: 'Edit this content in Customize, Onboarding.', sort_order: steps.reduce((m, s) => Math.max(m, s.sort_order), 0) + 1 })
+              if ('error' in result && result.error) { toast.error(result.error); return }
+              toast.success('Step added')
+              const id = (result as { id: string }).id
+              setSteps(prev => [...prev, { id, step_key: `custom-${id.slice(0, 12)}`, step_type: 'content', title: 'New step', body: 'Edit this content in Customize, Onboarding.', config: {}, is_enabled: true, is_required: false, is_system: false, sort_order: prev.reduce((m, s) => Math.max(m, s.sort_order), 0) + 1 }])
+            }}
+            className="font-mono text-[10px] border border-border px-3 py-1.5 rounded hover:border-primary hover:text-primary transition whitespace-nowrap"
+          >
+            + Custom step
+          </button>
+          <button
+            onClick={async () => {
+              const result = await createOnboardingStep({ step_type: 'form', title: 'Sign a form or waiver', body: 'Pick which form members fill here.', sort_order: steps.reduce((m, s) => Math.max(m, s.sort_order), 0) + 1 })
+              if ('error' in result && result.error) { toast.error(result.error); return }
+              toast.success('Form step added — pick a form below')
+              const id = (result as { id: string }).id
+              setSteps(prev => [...prev, { id, step_key: `custom-${id.slice(0, 12)}`, step_type: 'form', title: 'Sign a form or waiver', body: 'Pick which form members fill here.', config: {}, is_enabled: true, is_required: false, is_system: false, sort_order: prev.reduce((m, s) => Math.max(m, s.sort_order), 0) + 1 }])
+            }}
+            className="font-mono text-[10px] border border-border px-3 py-1.5 rounded hover:border-primary hover:text-primary transition whitespace-nowrap"
+          >
+            + Form step
+          </button>
+        </div>
       ) : undefined}
     >
       {steps.length === 0 && (
@@ -50,8 +73,35 @@ export function OnboardingPanel({ isAdmin, steps: initial }: { isAdmin: boolean;
               <input type="text" defaultValue={s.title} disabled={!isAdmin} onBlur={async e => { const v = e.target.value.trim(); if (!v || v === s.title) return; const res = await updateOnboardingStep(s.id, { title: v }); if (res.error) { toast.error(res.error); return } setSteps(prev => prev.map(x => x.id === s.id ? { ...x, title: v } : x)) }} className="flex-1 min-w-[160px] bg-background border border-border text-foreground font-sans text-sm rounded px-2 py-1 focus:outline-none focus:border-primary" />
               {s.is_system && <span className="font-mono text-[10px] text-amber-600">built-in</span>}
             </div>
-            {(s.step_type === 'welcome' || s.step_type === 'code_of_conduct' || s.step_type === 'payment' || s.step_type === 'content') && (
+            {(s.step_type === 'welcome' || s.step_type === 'code_of_conduct' || s.step_type === 'payment' || s.step_type === 'content' || s.step_type === 'form') && (
               <textarea defaultValue={s.body ?? ''} disabled={!isAdmin} rows={4} maxLength={50000} onBlur={async e => { const v = e.target.value; if (v === (s.body ?? '')) return; const res = await updateOnboardingStep(s.id, { body: v }); if (res.error) { toast.error(res.error); return } setSteps(prev => prev.map(x => x.id === s.id ? { ...x, body: v } : x)) }} placeholder="Markdown / safe HTML" className="w-full bg-background border border-border text-foreground font-mono text-xs rounded px-2 py-2 focus:outline-none focus:border-primary mb-3" />
+            )}
+            {s.step_type === 'form' && (
+              <div className="mb-3">
+                {publishedForms.length === 0 ? (
+                  <p className="font-sans text-xs text-muted-foreground">No published forms yet. Create and publish one under Forms &amp; waivers, then pick it here.</p>
+                ) : (
+                  <select
+                    defaultValue={(s.config?.form_id as string) ?? ''}
+                    disabled={!isAdmin}
+                    onChange={async e => {
+                      const v = e.target.value
+                      const res = await updateOnboardingStep(s.id, { config: { ...s.config, form_id: v } })
+                      if (res.error) { toast.error(res.error); return }
+                      setSteps(prev => prev.map(x => x.id === s.id ? { ...x, config: { ...x.config, form_id: v } } : x))
+                      toast.success('Form linked')
+                    }}
+                    className="w-full bg-background border border-border text-foreground font-sans text-sm rounded px-2 py-2 focus:outline-none focus:border-primary"
+                  >
+                    <option value="">Select a form…</option>
+                    {publishedForms.map(f => (
+                      <option key={f.id} value={f.id}>
+                        {f.title}{f.kind === 'waiver' ? ' (waiver)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
             )}
             {s.step_type === 'payment' && (
               <input type="url" defaultValue={(s.config?.payment_url as string) ?? ''} disabled={!isAdmin} placeholder="Payment link (https://...)" onBlur={async e => { const v = e.target.value.trim(); if (v === ((s.config?.payment_url as string) ?? '')) return; const res = await updateOnboardingStep(s.id, { config: { ...s.config, payment_url: v } }); if (res.error) { toast.error(res.error); return } setSteps(prev => prev.map(x => x.id === s.id ? { ...x, config: { ...x.config, payment_url: v } } : x)) }} className="w-full bg-background border border-border text-foreground font-mono text-xs rounded px-2 py-2 focus:outline-none focus:border-primary mb-3" />

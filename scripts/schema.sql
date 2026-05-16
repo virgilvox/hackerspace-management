@@ -1628,7 +1628,7 @@ CREATE TABLE IF NOT EXISTS public.space_onboarding_steps (
   id          uuid        PRIMARY KEY DEFAULT uuid_generate_v4(),
   space_id    uuid        NOT NULL REFERENCES public.spaces(id) ON DELETE CASCADE,
   step_key    text        NOT NULL CHECK (char_length(step_key) BETWEEN 1 AND 60),
-  step_type   text        NOT NULL CHECK (step_type IN ('welcome','code_of_conduct','profile','payment','content')),
+  step_type   text        NOT NULL CHECK (step_type IN ('welcome','code_of_conduct','profile','payment','content','form')),
   title       text        NOT NULL CHECK (char_length(title) BETWEEN 1 AND 200),
   body        text,
   config      jsonb       NOT NULL DEFAULT '{}',

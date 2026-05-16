@@ -1,5 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { parseFormSchema } from '@/lib/forms-schema'
 import { OnboardingFlow } from './onboarding-flow'
 
 export const dynamic = 'force-dynamic'
@@ -40,17 +42,77 @@ export default async function OnboardingPage() {
   const canSkip = !steps.some(s => s.is_required)
   const spaceName = (member.spaces as { name?: string } | null)?.name ?? 'your space'
 
+  // Enrich form steps with the referenced (published) form and whether this
+  // member has already submitted it. Unpublished/missing forms resolve to no
+  // formDef; the flow then shows a non-blocking notice (mirrors the
+  // fail-open in finishOnboarding).
+  const formIds = Array.from(
+    new Set(
+      steps
+        .filter(s => s.step_type === 'form')
+        .map(s => (s.config as { form_id?: string } | null)?.form_id)
+        .filter((x): x is string => typeof x === 'string'),
+    ),
+  )
+
+  const formDefs = new Map<
+    string,
+    { id: string; title: string; kind: string; legal_text: string | null; fields: ReturnType<typeof parseFormSchema> }
+  >()
+  const submittedFormIds = new Set<string>()
+
+  if (formIds.length > 0) {
+    const { data: formRows } = await supabase
+      .from('forms')
+      .select('id, title, kind, legal_text, schema, status')
+      .eq('space_id', member.space_id)
+      .in('id', formIds)
+      .eq('status', 'published')
+    for (const f of formRows ?? []) {
+      formDefs.set(f.id, {
+        id: f.id,
+        title: f.title,
+        kind: f.kind,
+        legal_text: f.legal_text,
+        fields: parseFormSchema(f.schema),
+      })
+    }
+    // Submissions are forms.manage-only under RLS; probe with the service client.
+    const admin = createAdminClient()
+    const { data: subs } = await admin
+      .from('form_submissions')
+      .select('form_id')
+      .eq('space_id', member.space_id)
+      .eq('member_id', member.id)
+      .in('form_id', formIds)
+    for (const r of subs ?? []) submittedFormIds.add(r.form_id as string)
+  }
+
   return (
     <OnboardingFlow
       spaceName={spaceName}
-      steps={steps.map(s => ({
-        id: s.id,
-        step_type: s.step_type as 'welcome' | 'code_of_conduct' | 'profile' | 'payment' | 'content',
-        title: s.title,
-        body: s.body,
-        config: (s.config ?? {}) as Record<string, unknown>,
-        is_required: s.is_required,
-      }))}
+      steps={steps.map(s => {
+        const formId = (s.config as { form_id?: string } | null)?.form_id
+        const def = formId ? formDefs.get(formId) : undefined
+        return {
+          id: s.id,
+          step_type: s.step_type as 'welcome' | 'code_of_conduct' | 'profile' | 'payment' | 'content' | 'form',
+          title: s.title,
+          body: s.body,
+          config: (s.config ?? {}) as Record<string, unknown>,
+          is_required: s.is_required,
+          formDef: def
+            ? {
+                id: def.id,
+                title: def.title,
+                kind: def.kind,
+                legalText: def.legal_text,
+                fields: def.fields,
+              }
+            : null,
+          alreadySubmitted: formId ? submittedFormIds.has(formId) : false,
+        }
+      })}
       canSkip={canSkip}
       profile={{
         display_name: member.display_name ?? '',
