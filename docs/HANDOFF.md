@@ -62,6 +62,13 @@ Audited the migration before continuing. Three fixes applied: dropped redundant 
 - Phase 5 (retro-link): `claimMyAnonymousSubmissions()` in `forms.ts` — exported but safe (no trusted params; resolves member + email from the caller's session; gated on `email_confirmed_at`; idempotent). Hooked best-effort from `joinSpace` (member insert now returns id; links prior anon submissions for the verified email) and `finishOnboarding`. `addMember`/`importMembers` are deliberately NOT auto-linked (admin-asserted emails are unverified — the locked decision forbids auto-link there); the forms.manage `linkSubmissionsForMember` remains the admin manual-link. **Interpretation flagged for the user:** the brief listed addMember/import as hook points, but the locked verified-email rule wins; auto-linking unverified emails would risk mis-attributing a waiver.
 - Gate: `pnpm exec vitest run` 287/287; `pnpm build` exit 0. Retro-link logic is DB-bound — not unit-tested (no mocked test); covered by reasoning + manual.
 
+### Test-coverage hardening (this session) — LOCAL
+
+- Audit found the suite is pure-logic only (no test exercises Supabase; `actions.test.ts` only asserts its own mock). Forms security/correctness logic lived inside DB-coupled actions/components and was effectively untested.
+- New `lib/forms-logic.ts`: `csvCell`, `parseClientIp`, `shouldBumpFormVersion`, `evaluateRequiredFormStep`, `slugify`, `deriveFieldKeys` extracted behaviour-unchanged; `forms.ts`/`onboarding.ts`/`form-builder.tsx` now consume them (full suite stayed green = no behaviour change). Also collapsed the duplicate-`admin` build break noted earlier (already fixed in `40d4cda`).
+- `__tests__/forms.test.ts` 16 -> 62 tests (total 333): every `validateAnswers` branch (type coercion, length caps, required, unknown-key stripping, first-error ordering), `parseFormSchema`, all new Zod schemas incl. `formSlug` boundaries, and every extracted helper. Build re-verified properly (`Compiled successfully`, exit 0, routes present).
+- Still NOT covered (DB-bound, no mock harness in repo): the action *orchestration* itself (visibility enforcement in `submitForm`, RLS, retro-link IO). The decision logic they call is now unit-tested; the IO wiring needs the manual smoke-tests listed above.
+
 ### Open / next
 
 - **Forms + waivers feature is code-complete (Phases 1-5).** All work is LOCAL; do NOT push without explicit go. Migrations `026` + `027` ship with the first push.
