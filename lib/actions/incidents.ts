@@ -70,7 +70,27 @@ export async function fileIncident(formData: {
     .select()
     .single()
 
-  if (error) return { error: error.message }
+  if (error) {
+    // A row-level-security rejection here means the caller's membership is not
+    // resolving against this space in the database (see scripts/025 header).
+    // The raw Postgres text is not actionable for a reporter, so surface a
+    // clear message and keep the technical detail in the server log.
+    const isRls = error.code === '42501' || /row-level security/i.test(error.message)
+    if (isRls) {
+      console.error('fileIncident RLS rejection', {
+        space_id: member.space_id,
+        member_id: member.id,
+        is_anonymous: isAnonymous,
+        code: error.code,
+        message: error.message,
+      })
+      return {
+        error:
+          'Could not file the report: your membership is not fully linked to this space. Contact a space admin.',
+      }
+    }
+    return { error: error.message }
+  }
 
   // Don't include the reporter's identity in the activity log if anonymous.
   await logActivity(
