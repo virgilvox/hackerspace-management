@@ -60,6 +60,10 @@ export function OnboardingFlow({ spaceName, steps, canSkip, profile: initialProf
   const [skillsText, setSkillsText] = useState(initialProfile.skills.join(', '))
   const [formAnswers, setFormAnswers] = useState<Record<string, Record<string, unknown>>>({})
   const [formConsent, setFormConsent] = useState<Record<string, boolean>>({})
+  // Form steps already submitted in THIS session. Prevents a second insert if
+  // the member navigates Back then Forward over a form/waiver step (the
+  // server-side alreadySubmitted prop is a snapshot from page load).
+  const [submittedNow, setSubmittedNow] = useState<Record<string, boolean>>({})
 
   const step = steps[index]
   const isLast = index === steps.length - 1
@@ -69,7 +73,8 @@ export function OnboardingFlow({ spaceName, steps, canSkip, profile: initialProf
 
   const isFormStep = step.step_type === 'form'
   const formDef = step.formDef ?? null
-  const formActionable = isFormStep && formDef && !step.alreadySubmitted
+  const effectiveSubmitted = step.alreadySubmitted === true || submittedNow[step.id] === true
+  const formActionable = isFormStep && !!formDef && !effectiveSubmitted
   const isWaiver = formDef?.kind === 'waiver'
   const consentOk = !formActionable || !isWaiver || formConsent[step.id] === true
 
@@ -131,6 +136,7 @@ export function OnboardingFlow({ spaceName, steps, canSkip, profile: initialProf
         toast.error(res.error)
         return
       }
+      setSubmittedNow(p => ({ ...p, [step.id]: true }))
     }
     await markOnboardingStepDone(step.id)
     setBusy(false)
@@ -243,7 +249,7 @@ export function OnboardingFlow({ spaceName, steps, canSkip, profile: initialProf
                   <p className="font-sans text-sm text-muted-foreground">
                     This form is not available right now. You can continue.
                   </p>
-                ) : step.alreadySubmitted ? (
+                ) : effectiveSubmitted ? (
                   <p className="font-sans text-sm text-muted-foreground">
                     You have already completed this. You can continue.
                   </p>
