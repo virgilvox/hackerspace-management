@@ -2,8 +2,10 @@
 
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { Ticket } from 'lucide-react'
 import { createInvite, updateInvite, deleteInvite } from '@/lib/actions'
 import { Card } from './card'
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
 import type { Invite } from './types'
 
 function inviteLink(code: string) {
@@ -42,8 +44,16 @@ export function InvitesPanel({ isAdmin, invites: initial }: { isAdmin: boolean; 
           <button type="submit" className="md:col-span-2 bg-primary text-white text-xs font-sans px-3 py-1.5 rounded hover:bg-primary/90 transition">Create invite</button>
         </form>
       )}
+      {invites.length === 0 && (
+        <Empty className="border-0 p-0 md:p-6">
+          <EmptyHeader>
+            <EmptyMedia variant="icon"><Ticket /></EmptyMedia>
+            <EmptyTitle>No invite codes yet</EmptyTitle>
+            <EmptyDescription>Create a code to let new members join, with an optional expiry or use cap.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      )}
       <ul className="divide-y divide-border">
-        {invites.length === 0 && <li className="py-6 text-center font-sans text-sm text-muted-foreground">No invites yet.</li>}
         {invites.map(inv => {
           const expired = inv.expires_at ? new Date(inv.expires_at) < new Date() : false
           const usedUp = inv.max_uses !== null && inv.uses_count >= inv.max_uses

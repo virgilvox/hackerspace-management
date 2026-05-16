@@ -1,10 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, X, Pencil } from 'lucide-react'
+import { Plus, X, Pencil, Contact as ContactIcon } from 'lucide-react'
 import { createContact, updateContact, deleteContact } from '@/lib/actions'
 import type { Tables } from '@/types/database'
 import { PageTitle } from '@/components/ui/page-title'
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyContent } from '@/components/ui/empty'
 
 type Contact = Tables<'contacts'>
 
@@ -238,12 +239,20 @@ export function ContactsClient({ contacts: initialContacts }: { contacts: Contac
             ))}
           </div>
         ) : (
-          <div className="bg-card rounded border border-dashed border-border p-16 text-center">
-            <p className="font-sans text-sm text-muted-foreground">No contacts yet</p>
-            <button onClick={() => setShowCreate(true)} className="font-mono text-xs text-primary mt-2 block mx-auto hover:underline">
-              + Add first contact
-            </button>
-          </div>
+          <Empty className="bg-card border border-dashed border-border">
+            <EmptyHeader>
+              <EmptyMedia variant="icon"><ContactIcon /></EmptyMedia>
+              <EmptyTitle>No contacts yet</EmptyTitle>
+            </EmptyHeader>
+            <EmptyContent>
+              <button
+                onClick={() => setShowCreate(true)}
+                className="font-mono text-xs text-primary hover:underline"
+              >
+                + Add first contact
+              </button>
+            </EmptyContent>
+          </Empty>
         )}
       </div>
 

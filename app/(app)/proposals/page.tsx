@@ -1,9 +1,11 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { Vote } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import type { Proposal } from '@/lib/types'
 import { ProposalStatusBadge } from './proposal-badges'
 import { PageTitle } from '@/components/ui/page-title'
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 
 export const dynamic = 'force-dynamic'
 
@@ -45,9 +47,9 @@ export default async function ProposalsPage() {
       </div>
 
       <div className="p-4 md:p-6 space-y-8 max-w-4xl">
-        <Section title="Open for voting" empty="No proposals are currently open." proposals={open} />
-        <Section title="Drafts" empty="No drafts." proposals={drafts} />
-        <Section title="Archive" empty="No decided or withdrawn proposals." proposals={decided} />
+        <Section title="Open for voting" empty="No proposals open for voting" proposals={open} />
+        <Section title="Drafts" empty="No drafts" proposals={drafts} />
+        <Section title="Archive" empty="No decided or withdrawn proposals" proposals={decided} />
       </div>
     </div>
   )
@@ -59,7 +61,12 @@ function Section({ title, empty, proposals }: { title: string; empty: string; pr
       <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-3">{title}</p>
       <div className="bg-card rounded border border-border divide-y divide-border">
         {proposals.length === 0 ? (
-          <div className="px-4 py-8 text-center text-muted-foreground font-sans text-sm">{empty}</div>
+          <Empty className="border-0 p-0 py-8">
+            <EmptyHeader>
+              <EmptyMedia variant="icon"><Vote /></EmptyMedia>
+              <EmptyTitle>{empty}</EmptyTitle>
+            </EmptyHeader>
+          </Empty>
         ) : (
           proposals.map(p => <ProposalRow key={p.id} p={p} />)
         )}

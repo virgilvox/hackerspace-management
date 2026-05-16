@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { upsertRoleLabel, createCustomRole, updateCustomRole, deleteCustomRole } from '@/lib/actions'
 import { BUILTIN_ROLES, DEFAULT_ROLE_LABELS } from '@/lib/role-labels'
+import { Tags } from 'lucide-react'
 import { Card } from './card'
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
 import type { RoleLabelRow, CustomRole } from './types'
 
 export function RolesPanel({ isAdmin, roleLabels, customRoles: initial }: { isAdmin: boolean; roleLabels: RoleLabelRow[]; customRoles: CustomRole[] }) {
@@ -110,7 +112,13 @@ export function RolesPanel({ isAdmin, roleLabels, customRoles: initial }: { isAd
           </form>
         )}
         {customRoles.length === 0 ? (
-          <p className="font-sans text-sm text-muted-foreground py-2">No custom roles yet.</p>
+          <Empty className="border-0 p-0 md:p-6">
+            <EmptyHeader>
+              <EmptyMedia variant="icon"><Tags /></EmptyMedia>
+              <EmptyTitle>No custom roles yet</EmptyTitle>
+              <EmptyDescription>Add labels for committees, mentors, or area leads. They are display-only and do not change permissions.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         ) : (
           <ul className="divide-y divide-border">
             {customRoles.map(r => (

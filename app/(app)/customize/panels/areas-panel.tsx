@@ -2,8 +2,10 @@
 
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { LayoutGrid } from 'lucide-react'
 import { createArea, updateArea, deleteArea } from '@/lib/actions'
 import { Card } from './card'
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
 import type { Area } from './types'
 
 export function AreasPanel({ isAdmin, areas: initial }: { isAdmin: boolean; areas: Area[] }) {
@@ -36,8 +38,16 @@ export function AreasPanel({ isAdmin, areas: initial }: { isAdmin: boolean; area
           <button type="submit" className="md:col-span-3 bg-primary text-white text-xs font-sans px-3 py-1.5 rounded hover:bg-primary/90 transition">Create area</button>
         </form>
       )}
+      {areas.length === 0 && (
+        <Empty className="border-0 p-0 md:p-6">
+          <EmptyHeader>
+            <EmptyMedia variant="icon"><LayoutGrid /></EmptyMedia>
+            <EmptyTitle>No areas yet</EmptyTitle>
+            <EmptyDescription>Areas tag tasks, projects, and knowledge base entries by shop space.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      )}
       <ul className="divide-y divide-border">
-        {areas.length === 0 && <li className="py-6 text-center font-sans text-sm text-muted-foreground">No areas yet.</li>}
         {[...areas].sort((a, b) => a.sort_order - b.sort_order).map(a => (
           <li key={a.id} className={`py-3 flex items-center gap-3 flex-wrap ${a.is_archived ? 'opacity-50' : ''}`}>
             <input type="number" defaultValue={a.sort_order} disabled={!isAdmin} onBlur={async e => { const n = parseInt(e.target.value, 10); if (isNaN(n) || n === a.sort_order) return; const res = await updateArea({ areaId: a.id, sort_order: n }); if (res.error) { toast.error(res.error); return } setAreas(prev => prev.map(x => x.id === a.id ? { ...x, sort_order: n } : x)) }} className="w-14 bg-background border border-border text-foreground font-mono text-xs rounded px-2 py-1 focus:outline-none focus:border-primary" />

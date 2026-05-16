@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { X, RefreshCcw } from 'lucide-react'
+import { X, RefreshCcw, Receipt } from 'lucide-react'
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
 import { toast } from 'sonner'
 import { logCashPayment, linkPaymentToMember } from '@/lib/actions'
 import type { Tables } from '@/types/database'
@@ -243,8 +244,14 @@ export function PaymentsClient({ payments: initialPayments, members, integration
                   </tr>
                 )) : (
                   <tr>
-                    <td colSpan={5} className="px-4 py-12 text-center font-sans text-sm text-muted-foreground">
-                      No payments recorded yet
+                    <td colSpan={5} className="p-0">
+                      <Empty className="border-0">
+                        <EmptyHeader>
+                          <EmptyMedia variant="icon"><Receipt /></EmptyMedia>
+                          <EmptyTitle>No payments yet</EmptyTitle>
+                          <EmptyDescription>Synced and logged transactions show up here once they exist.</EmptyDescription>
+                        </EmptyHeader>
+                      </Empty>
                     </td>
                   </tr>
                 )}

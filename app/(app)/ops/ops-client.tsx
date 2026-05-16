@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Search, Lock, Pin, Eye, EyeOff, Pencil, Trash2, X, ChevronDown, Users2 } from 'lucide-react'
+import { Plus, Search, Lock, Pin, Eye, EyeOff, Pencil, Trash2, X, ChevronDown, Users2, FileText } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { createKbEntry, updateKbEntry, deleteKbEntry } from '@/lib/actions'
@@ -12,6 +12,7 @@ import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import type { Tables, TablesInsert } from '@/types/database'
 import { PageTitle } from '@/components/ui/page-title'
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyContent } from '@/components/ui/empty'
 
 type KbEntry = Tables<'knowledge_base'>
 type AreaLead = Tables<'area_leads'>
@@ -715,19 +716,24 @@ export function OpsClient({ member, spaceId, kbEntries: initial, areaLeads: init
               </div>
             )}
             {filteredKb.length === 0 && (
-              <div className="bg-card rounded border border-dashed border-border p-12 text-center">
-                <p className="font-sans text-sm text-muted-foreground">
-                  {search ? `No results for "${search}"` : 'No knowledge base entries yet'}
-                </p>
+              <Empty className="bg-card border border-dashed border-border">
+                <EmptyHeader>
+                  <EmptyMedia variant="icon">{search ? <Search /> : <FileText />}</EmptyMedia>
+                  <EmptyTitle>
+                    {search ? `No results for "${search}"` : 'No knowledge base entries yet'}
+                  </EmptyTitle>
+                </EmptyHeader>
                 {!search && (
-                  <button
-                    onClick={() => { setEditingKb(null); setShowKbModal(true) }}
-                    className="font-mono text-xs text-primary mt-2 block mx-auto hover:underline"
-                  >
-                    + Add first entry
-                  </button>
+                  <EmptyContent>
+                    <button
+                      onClick={() => { setEditingKb(null); setShowKbModal(true) }}
+                      className="font-mono text-xs text-primary hover:underline"
+                    >
+                      + Add first entry
+                    </button>
+                  </EmptyContent>
                 )}
-              </div>
+              </Empty>
             )}
           </div>
         )}
@@ -750,19 +756,24 @@ export function OpsClient({ member, spaceId, kbEntries: initial, areaLeads: init
                 ))}
               </div>
             ) : (
-              <div className="bg-card rounded border border-dashed border-border p-12 text-center">
-                <p className="font-sans text-sm text-muted-foreground">
-                  {search ? `No results for "${search}"` : 'No process entries yet'}
-                </p>
+              <Empty className="bg-card border border-dashed border-border">
+                <EmptyHeader>
+                  <EmptyMedia variant="icon">{search ? <Search /> : <FileText />}</EmptyMedia>
+                  <EmptyTitle>
+                    {search ? `No results for "${search}"` : 'No process entries yet'}
+                  </EmptyTitle>
+                </EmptyHeader>
                 {!search && (
-                  <button
-                    onClick={() => { setEditingKb(null); setShowKbModal(true) }}
-                    className="font-mono text-xs text-primary mt-2 block mx-auto hover:underline"
-                  >
-                    + Add first process
-                  </button>
+                  <EmptyContent>
+                    <button
+                      onClick={() => { setEditingKb(null); setShowKbModal(true) }}
+                      className="font-mono text-xs text-primary hover:underline"
+                    >
+                      + Add first process
+                    </button>
+                  </EmptyContent>
                 )}
-              </div>
+              </Empty>
             )}
           </div>
         )}
@@ -771,10 +782,12 @@ export function OpsClient({ member, spaceId, kbEntries: initial, areaLeads: init
         {activeTab === 'secrets' && (
           <div>
             {!canSeeSecrets ? (
-              <div className="bg-card rounded border border-dashed border-border p-12 text-center">
-                <Lock className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
-                <p className="font-sans text-sm text-muted-foreground">Admin or board access required to view secrets</p>
-              </div>
+              <Empty className="bg-card border border-dashed border-border">
+                <EmptyHeader>
+                  <EmptyMedia variant="icon"><Lock /></EmptyMedia>
+                  <EmptyTitle>Admin or board access required to view secrets</EmptyTitle>
+                </EmptyHeader>
+              </Empty>
             ) : filteredSecrets.length > 0 ? (
               <div className="bg-card rounded border border-border divide-y divide-border">
                 {filteredSecrets.map(s => (
@@ -789,17 +802,24 @@ export function OpsClient({ member, spaceId, kbEntries: initial, areaLeads: init
                 ))}
               </div>
             ) : (
-              <div className="bg-card rounded border border-dashed border-border p-12 text-center">
-                <Lock className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
-                <p className="font-sans text-sm text-muted-foreground">
-                  {search ? `No results for "${search}"` : 'No secrets stored yet'}
-                </p>
+              <Empty className="bg-card border border-dashed border-border">
+                <EmptyHeader>
+                  <EmptyMedia variant="icon"><Lock /></EmptyMedia>
+                  <EmptyTitle>
+                    {search ? `No results for "${search}"` : 'No secrets stored yet'}
+                  </EmptyTitle>
+                </EmptyHeader>
                 {!search && (
-                  <button onClick={() => setShowSecretModal(true)} className="font-mono text-xs text-primary mt-2 block mx-auto hover:underline">
-                    + Add first secret
-                  </button>
+                  <EmptyContent>
+                    <button
+                      onClick={() => setShowSecretModal(true)}
+                      className="font-mono text-xs text-primary hover:underline"
+                    >
+                      + Add first secret
+                    </button>
+                  </EmptyContent>
                 )}
-              </div>
+              </Empty>
             )}
           </div>
         )}
@@ -841,15 +861,20 @@ export function OpsClient({ member, spaceId, kbEntries: initial, areaLeads: init
                 ))}
               </div>
             ) : (
-              <div className="bg-card rounded border border-dashed border-border p-12 text-center">
-                <p className="font-sans text-sm text-muted-foreground">No area leads assigned yet</p>
-                <button
-                  onClick={() => { setEditingLead(null); setShowLeadModal(true) }}
-                  className="font-mono text-xs text-primary mt-2 block mx-auto hover:underline"
-                >
-                  + Assign first area lead
-                </button>
-              </div>
+              <Empty className="bg-card border border-dashed border-border">
+                <EmptyHeader>
+                  <EmptyMedia variant="icon"><Users2 /></EmptyMedia>
+                  <EmptyTitle>No area leads assigned yet</EmptyTitle>
+                </EmptyHeader>
+                <EmptyContent>
+                  <button
+                    onClick={() => { setEditingLead(null); setShowLeadModal(true) }}
+                    className="font-mono text-xs text-primary hover:underline"
+                  >
+                    + Assign first area lead
+                  </button>
+                </EmptyContent>
+              </Empty>
             )}
           </div>
         )}

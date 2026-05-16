@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, X, ChevronDown } from 'lucide-react'
+import { Plus, X, ChevronDown, Users } from 'lucide-react'
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
 import { addMember, updateMember, approveMember, removeMember, assignAreaLead } from '@/lib/actions'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
@@ -362,8 +363,14 @@ export function MembersClient({ members: initialMembers, currentRole, areaLeadRo
                 )
               }) : (
                 <tr>
-                  <td colSpan={isAdmin(currentRole) ? 6 : 5} className="px-4 py-12 text-center font-sans text-sm text-muted-foreground">
-                    No members match this filter
+                  <td colSpan={isAdmin(currentRole) ? 6 : 5} className="p-0">
+                    <Empty className="border-0">
+                      <EmptyHeader>
+                        <EmptyMedia variant="icon"><Users /></EmptyMedia>
+                        <EmptyTitle>No members match this filter</EmptyTitle>
+                        <EmptyDescription>Try a different tab, clear the search, or change the tier filter.</EmptyDescription>
+                      </EmptyHeader>
+                    </Empty>
                   </td>
                 </tr>
               )}

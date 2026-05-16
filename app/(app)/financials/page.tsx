@@ -2,7 +2,9 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import type { FinancialVisibility, Payment, Space } from '@/lib/types'
+import { Receipt } from 'lucide-react'
 import { PageTitle } from '@/components/ui/page-title'
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
 
 export const dynamic = 'force-dynamic'
 
@@ -127,7 +129,13 @@ export default async function FinancialsPage() {
           By platform
         </p>
         {platformRows.length === 0 ? (
-          <p className="font-sans text-sm text-muted-foreground">No payments recorded yet.</p>
+          <Empty className="border-0 p-0 md:p-0">
+            <EmptyHeader>
+              <EmptyMedia variant="icon"><Receipt /></EmptyMedia>
+              <EmptyTitle>No payments yet</EmptyTitle>
+              <EmptyDescription>Platform totals appear here once payments are recorded.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         ) : (
           <ul className="space-y-2">
             {platformRows.map(([platform, total]) => {

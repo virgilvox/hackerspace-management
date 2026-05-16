@@ -5,6 +5,7 @@ import { Plus, X } from 'lucide-react'
 import { createProject, updateProjectStatus, deleteProject } from '@/lib/actions'
 import type { Tables } from '@/types/database'
 import { PageTitle } from '@/components/ui/page-title'
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription, EmptyContent } from '@/components/ui/empty'
 
 type Project = Tables<'projects'>
 
@@ -76,6 +77,23 @@ export function ProjectsClient({
       </div>
 
       <div className="p-4 md:p-6">
+        {projects.length === 0 ? (
+          <Empty>
+            <EmptyHeader>
+              <EmptyMedia variant="icon"><Plus /></EmptyMedia>
+              <EmptyTitle>No projects yet</EmptyTitle>
+              <EmptyDescription>Track shop builds and tasks across backlog, in progress, review, and done.</EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
+              <button
+                onClick={() => setShowCreate(true)}
+                className="flex items-center gap-1.5 bg-primary text-white text-xs font-sans px-3 py-1.5 rounded hover:bg-primary/90 transition"
+              >
+                <Plus className="w-3.5 h-3.5" /> New Project
+              </button>
+            </EmptyContent>
+          </Empty>
+        ) : (
         <div className="md:overflow-x-auto md:-mx-0">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {STATUS_COLS.map(col => {
@@ -140,6 +158,7 @@ export function ProjectsClient({
           })}
         </div>
         </div>
+        )}
       </div>
 
       {showCreate && (

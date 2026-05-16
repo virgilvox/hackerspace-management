@@ -1,8 +1,10 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { ShieldCheck } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import type { Incident, IncidentStatus } from '@/lib/types'
 import { PageTitle } from '@/components/ui/page-title'
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 
 export const dynamic = 'force-dynamic'
 
@@ -61,9 +63,9 @@ export default async function IncidentsPage() {
           </p>
         )}
 
-        <Section title="Open" empty="No open incidents." rows={open} />
-        <Section title="Decided / under appeal" empty="None." rows={decided} />
-        <Section title="Closed" empty="None." rows={closed} />
+        <Section title="Open" empty="No open incidents" rows={open} />
+        <Section title="Decided / under appeal" empty="Nothing decided or under appeal" rows={decided} />
+        <Section title="Closed" empty="No closed incidents" rows={closed} />
       </div>
     </div>
   )
@@ -75,7 +77,12 @@ function Section({ title, empty, rows }: { title: string; empty: string; rows: I
       <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-3">{title}</p>
       <div className="bg-card rounded border border-border divide-y divide-border">
         {rows.length === 0 ? (
-          <div className="px-4 py-8 text-center text-muted-foreground font-sans text-sm">{empty}</div>
+          <Empty className="border-0 p-0 py-8">
+            <EmptyHeader>
+              <EmptyMedia variant="icon"><ShieldCheck /></EmptyMedia>
+              <EmptyTitle>{empty}</EmptyTitle>
+            </EmptyHeader>
+          </Empty>
         ) : (
           rows.map(i => (
             <Link key={i.id} href={`/incidents/${i.id}`} className="block px-4 py-3 hover:bg-muted transition">

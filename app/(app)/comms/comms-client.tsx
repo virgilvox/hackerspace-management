@@ -8,6 +8,7 @@ import { Hash, Users2, Send, ChevronLeft, Plus } from 'lucide-react'
 import { createChannel } from '@/lib/actions'
 import type { Tables } from '@/types/database'
 import { PageTitle } from '@/components/ui/page-title'
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
 
 type Channel = Tables<'comms_channels'>
 type Message = Tables<'comms_messages'>
@@ -269,6 +270,9 @@ export default function CommsClient({ member, space, channels }: Props) {
 
             {/* New channel inline form */}
             <div className="mt-4 border-t border-border pt-3">
+              {channels.length === 0 && (
+                <p className="font-sans text-xs text-muted-foreground px-2 mb-2">No channels yet. Create the first one.</p>
+              )}
               {!showNewChannel ? (
                 <button
                   onClick={() => setShowNewChannel(true)}
@@ -351,7 +355,13 @@ export default function CommsClient({ member, space, channels }: Props) {
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {messages.length === 0 && (
                 <div className="flex items-center justify-center h-full">
-                  <p className="font-sans text-sm text-muted-foreground">No messages yet. Say hello!</p>
+                  <Empty className="border-0">
+                    <EmptyHeader>
+                      <EmptyMedia variant="icon"><Hash /></EmptyMedia>
+                      <EmptyTitle>No messages yet</EmptyTitle>
+                      <EmptyDescription>Be the first to post in #{selectedChannel.name}.</EmptyDescription>
+                    </EmptyHeader>
+                  </Empty>
                 </div>
               )}
               {messages.map(msg => {
@@ -418,7 +428,17 @@ export default function CommsClient({ member, space, channels }: Props) {
           </div>
         ) : (
           <div className="flex-1 flex items-center justify-center">
-            <p className="font-sans text-sm text-muted-foreground">Select a channel to start messaging</p>
+            <Empty className="border-0">
+              <EmptyHeader>
+                <EmptyMedia variant="icon"><Hash /></EmptyMedia>
+                <EmptyTitle>{channels.length === 0 ? 'No channels yet' : 'No channel selected'}</EmptyTitle>
+                <EmptyDescription>
+                  {channels.length === 0
+                    ? 'Create a channel from the sidebar to start messaging.'
+                    : 'Pick a channel from the sidebar to start messaging.'}
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
           </div>
         )}
       </div>

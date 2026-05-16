@@ -1,7 +1,9 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { PageTitle } from '@/components/ui/page-title'
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
 
 export const dynamic = 'force-dynamic'
 
@@ -68,12 +70,15 @@ export default async function RecruitmentPage() {
         </p>
 
         {members.length === 0 ? (
-          <div className="bg-card rounded border border-border p-8 text-center">
-            <p className="font-sans text-sm text-foreground mb-1">No members have declared willingness or skills yet.</p>
-            <p className="font-mono text-[10px] text-muted-foreground">
-              Members opt in from their <Link href="/profile" className="text-primary hover:underline">profile</Link> page.
-            </p>
-          </div>
+          <Empty className="bg-card border border-border">
+            <EmptyHeader>
+              <EmptyMedia variant="icon"><Users /></EmptyMedia>
+              <EmptyTitle>No members have declared willingness or skills yet</EmptyTitle>
+              <EmptyDescription>
+                Members opt in from their <Link href="/profile">profile</Link> page.
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         ) : (
           <>
             {roleGroups.length > 0 && (

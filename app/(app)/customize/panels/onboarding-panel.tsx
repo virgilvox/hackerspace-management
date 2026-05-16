@@ -2,8 +2,10 @@
 
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { ListChecks } from 'lucide-react'
 import { createOnboardingStep, updateOnboardingStep, deleteOnboardingStep } from '@/lib/actions'
 import { Card } from './card'
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
 import type { Step } from './types'
 
 export function OnboardingPanel({ isAdmin, steps: initial }: { isAdmin: boolean; steps: Step[] }) {
@@ -28,6 +30,15 @@ export function OnboardingPanel({ isAdmin, steps: initial }: { isAdmin: boolean;
         </button>
       ) : undefined}
     >
+      {steps.length === 0 && (
+        <Empty className="border-0 p-0 md:p-6">
+          <EmptyHeader>
+            <EmptyMedia variant="icon"><ListChecks /></EmptyMedia>
+            <EmptyTitle>No steps yet</EmptyTitle>
+            <EmptyDescription>Add steps that run, in order, the first time a new member opens the app.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      )}
       <ul className="space-y-3">
         {[...steps].sort((a, b) => a.sort_order - b.sort_order).map(s => (
           <li key={s.id} className="border border-border rounded p-4">

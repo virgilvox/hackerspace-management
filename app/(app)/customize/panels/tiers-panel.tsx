@@ -2,8 +2,10 @@
 
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { CreditCard } from 'lucide-react'
 import { createTier, updateTier, deleteTier } from '@/lib/actions'
 import { Card } from './card'
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
 import type { Tier } from './types'
 
 export function TiersPanel({ isAdmin, tiers: initial }: { isAdmin: boolean; tiers: Tier[] }) {
@@ -40,8 +42,16 @@ export function TiersPanel({ isAdmin, tiers: initial }: { isAdmin: boolean; tier
           <button type="submit" className="md:col-span-2 bg-primary text-white text-xs font-sans px-3 py-1.5 rounded hover:bg-primary/90 transition">Create tier</button>
         </form>
       )}
+      {tiers.length === 0 && (
+        <Empty className="border-0 p-0 md:p-6">
+          <EmptyHeader>
+            <EmptyMedia variant="icon"><CreditCard /></EmptyMedia>
+            <EmptyTitle>No tiers yet</EmptyTitle>
+            <EmptyDescription>Membership tiers set the plans members can be placed on, with prices and billing cadence.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      )}
       <ul className="divide-y divide-border">
-        {tiers.length === 0 && <li className="py-6 text-center font-sans text-sm text-muted-foreground">No tiers yet.</li>}
         {tiers.map(t => (
           <li key={t.id} className="py-3 flex items-center gap-3 flex-wrap">
             <div className="flex-1 min-w-0">

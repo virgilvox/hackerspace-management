@@ -7,6 +7,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { addComment, deleteComment } from '@/lib/actions'
 import { Trash2, MessageCircle } from 'lucide-react'
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 
 export type CommentEntityType = 'forum_thread' | 'proposal' | 'incident' | 'policy'
 
@@ -62,7 +63,12 @@ export function CommentThread({ entityType, entityId, comments, currentMemberId,
       </div>
 
       {comments.length === 0 && (
-        <p className="font-sans text-sm text-muted-foreground mb-4">No comments yet.</p>
+        <Empty className="border-0 p-0 py-6 mb-4">
+          <EmptyHeader>
+            <EmptyMedia variant="icon"><MessageCircle /></EmptyMedia>
+            <EmptyTitle>No comments yet</EmptyTitle>
+          </EmptyHeader>
+        </Empty>
       )}
 
       {comments.length > 0 && (

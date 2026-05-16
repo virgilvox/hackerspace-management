@@ -5,6 +5,7 @@ import { Plus, X, CheckCircle2 } from 'lucide-react'
 import { createTask, claimTask, completeTask, deleteTask } from '@/lib/actions'
 import type { Tables } from '@/types/database'
 import { PageTitle } from '@/components/ui/page-title'
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyContent } from '@/components/ui/empty'
 
 type Task = Tables<'tasks'>
 
@@ -224,15 +225,22 @@ export function TasksClient({ tasks: initialTasks, members, currentUserId, space
               </button>
             </div>
           )) : (
-            <div className="px-4 py-10 text-center">
-              <p className="font-sans text-sm text-muted-foreground">No {activeTab === 'done' ? 'completed' : activeTab === 'chores' ? 'open' : activeTab} tasks in this view</p>
-              <button
-                onClick={() => setShowCreate(true)}
-                className="font-mono text-xs text-primary mt-2 hover:underline"
-              >
-                + Add first task
-              </button>
-            </div>
+            <Empty className="border-0 p-0 py-10">
+              <EmptyHeader>
+                <EmptyMedia variant="icon"><CheckCircle2 /></EmptyMedia>
+                <EmptyTitle>
+                  No {activeTab === 'done' ? 'completed' : activeTab === 'chores' ? 'open' : activeTab} tasks in this view
+                </EmptyTitle>
+              </EmptyHeader>
+              <EmptyContent>
+                <button
+                  onClick={() => setShowCreate(true)}
+                  className="font-mono text-xs text-primary hover:underline"
+                >
+                  + Add first task
+                </button>
+              </EmptyContent>
+            </Empty>
           )}
         </div>
       </div>

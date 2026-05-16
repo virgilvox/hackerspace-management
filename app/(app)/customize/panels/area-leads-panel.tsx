@@ -3,8 +3,10 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
+import { UserCog } from 'lucide-react'
 import { createAreaLeadRole, assignAreaLead, unassignAreaLead, deleteAreaLeadRole } from '@/lib/actions'
 import { Card } from './card'
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
 
 interface AreaLead {
   id: string
@@ -64,7 +66,13 @@ export function AreaLeadsPanel({ isAdmin, areaLeads: initial, members }: Props) 
       )}
 
       {rows.length === 0 ? (
-        <p className="font-sans text-sm text-muted-foreground py-2">No area-lead roles yet.</p>
+        <Empty className="border-0 p-0 md:p-6">
+          <EmptyHeader>
+            <EmptyMedia variant="icon"><UserCog /></EmptyMedia>
+            <EmptyTitle>No area-lead roles yet</EmptyTitle>
+            <EmptyDescription>Create a role per shop area, then assign a member to it. Roles without a member show as Vacant.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       ) : (
         <ul className="divide-y divide-border">
           {rows.map(r => (
