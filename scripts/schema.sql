@@ -1884,7 +1884,8 @@ CREATE TRIGGER trg_prevent_member_self_role_change
 --     existing one.
 --
 --     RLS is additive and default-deny:
---       * forms SELECT = any member of the space. The public unauthenticated
+--       * forms SELECT = forms.manage holders see all forms in the space;
+--         ordinary members see only published ones. The public unauthenticated
 --         /f/[slug] page is served by a service-client server action, so the
 --         anon role gets no grant on this table.
 --       * forms write = user_has_permission(..., 'forms.manage').
@@ -1916,8 +1917,8 @@ CREATE TABLE IF NOT EXISTS public.forms (
   created_at  timestamptz NOT NULL DEFAULT now(),
   updated_at  timestamptz NOT NULL DEFAULT now()
 );
+-- slug already has a UNIQUE btree index from the column constraint.
 CREATE INDEX IF NOT EXISTS idx_forms_space  ON public.forms (space_id, status);
-CREATE INDEX IF NOT EXISTS idx_forms_slug   ON public.forms (slug);
 
 CREATE TABLE IF NOT EXISTS public.form_submissions (
   id                 uuid        PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -1935,8 +1936,8 @@ CREATE TABLE IF NOT EXISTS public.form_submissions (
 );
 CREATE INDEX IF NOT EXISTS idx_form_submissions_form  ON public.form_submissions (form_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_form_submissions_space ON public.form_submissions (space_id);
-CREATE INDEX IF NOT EXISTS idx_form_submissions_email ON public.form_submissions (submitter_email);
-CREATE INDEX IF NOT EXISTS idx_form_submissions_member ON public.form_submissions (member_id);
+CREATE INDEX IF NOT EXISTS idx_form_submissions_email ON public.form_submissions (submitter_email) WHERE submitter_email IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_form_submissions_member ON public.form_submissions (member_id) WHERE member_id IS NOT NULL;
 
 ALTER TABLE public.forms            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.form_submissions ENABLE ROW LEVEL SECURITY;
@@ -1946,7 +1947,13 @@ DROP POLICY IF EXISTS forms_insert ON public.forms;
 DROP POLICY IF EXISTS forms_update ON public.forms;
 DROP POLICY IF EXISTS forms_delete ON public.forms;
 CREATE POLICY forms_select ON public.forms FOR SELECT
-  USING (space_id IN (SELECT public.get_user_space_ids(auth.uid())));
+  USING (
+    public.user_has_permission(auth.uid(), space_id, 'forms.manage')
+    OR (
+      space_id IN (SELECT public.get_user_space_ids(auth.uid()))
+      AND status = 'published'
+    )
+  );
 CREATE POLICY forms_insert ON public.forms FOR INSERT
   WITH CHECK (public.user_has_permission(auth.uid(), space_id, 'forms.manage'));
 CREATE POLICY forms_update ON public.forms FOR UPDATE

@@ -14,10 +14,11 @@
 -- RLS posture (this is the security-sensitive part, kept additive and
 -- default-deny):
 --
---   * forms SELECT: any member of the space (powers the admin directory and
---     the in-app fill page). The public unauthenticated /f/[slug] page does
---     NOT read this table directly; it is served by a server action using the
---     service client, so the anon Postgres role gets no grant here.
+--   * forms SELECT: forms.manage holders see every form in the space; ordinary
+--     members see only published ones (drafts/closed are not exposed to
+--     non-managers). The public unauthenticated /f/[slug] page does NOT read
+--     this table directly; it is served by a server action using the service
+--     client, so the anon Postgres role gets no grant here.
 --   * forms INSERT/UPDATE/DELETE: user_has_permission(..., 'forms.manage').
 --     Additive — with no space_role_permissions rows, only admin (implicit-all)
 --     can manage, which is the pre-feature behavior.
@@ -61,8 +62,9 @@ CREATE TABLE IF NOT EXISTS public.forms (
   created_at  timestamptz NOT NULL DEFAULT now(),
   updated_at  timestamptz NOT NULL DEFAULT now()
 );
+-- slug already has a UNIQUE btree index from the column constraint; no extra
+-- index on slug is needed.
 CREATE INDEX IF NOT EXISTS idx_forms_space  ON public.forms (space_id, status);
-CREATE INDEX IF NOT EXISTS idx_forms_slug   ON public.forms (slug);
 
 CREATE TABLE IF NOT EXISTS public.form_submissions (
   id                 uuid        PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -80,8 +82,8 @@ CREATE TABLE IF NOT EXISTS public.form_submissions (
 );
 CREATE INDEX IF NOT EXISTS idx_form_submissions_form  ON public.form_submissions (form_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_form_submissions_space ON public.form_submissions (space_id);
-CREATE INDEX IF NOT EXISTS idx_form_submissions_email ON public.form_submissions (submitter_email);
-CREATE INDEX IF NOT EXISTS idx_form_submissions_member ON public.form_submissions (member_id);
+CREATE INDEX IF NOT EXISTS idx_form_submissions_email ON public.form_submissions (submitter_email) WHERE submitter_email IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_form_submissions_member ON public.form_submissions (member_id) WHERE member_id IS NOT NULL;
 
 ALTER TABLE public.forms            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.form_submissions ENABLE ROW LEVEL SECURITY;
@@ -90,8 +92,17 @@ DROP POLICY IF EXISTS forms_select ON public.forms;
 DROP POLICY IF EXISTS forms_insert ON public.forms;
 DROP POLICY IF EXISTS forms_update ON public.forms;
 DROP POLICY IF EXISTS forms_delete ON public.forms;
+-- Managers (forms.manage) see every form in the space; ordinary members see
+-- only published ones. Drafts/closed forms are not exposed to non-managers via
+-- raw PostgREST. anon (auth.uid() NULL) matches neither branch.
 CREATE POLICY forms_select ON public.forms FOR SELECT
-  USING (space_id IN (SELECT public.get_user_space_ids(auth.uid())));
+  USING (
+    public.user_has_permission(auth.uid(), space_id, 'forms.manage')
+    OR (
+      space_id IN (SELECT public.get_user_space_ids(auth.uid()))
+      AND status = 'published'
+    )
+  );
 CREATE POLICY forms_insert ON public.forms FOR INSERT
   WITH CHECK (public.user_has_permission(auth.uid(), space_id, 'forms.manage'));
 CREATE POLICY forms_update ON public.forms FOR UPDATE
