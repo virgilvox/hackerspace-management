@@ -422,11 +422,14 @@ forms + waivers).
 
 ### Forms & waivers (migration 026 — Phase 1: schema + RLS)
 
-`forms` and `form_submissions` back a custom form/waiver builder. Phases 1-4
-are done (schema + RLS; server actions in `lib/actions/forms.ts`; the builder
-UI under `/forms` + the public `/f/[slug]` page; onboarding `form` step type
-with required-waiver enforcement + auto-satisfy, migration 027). Automatic
-retro-linking on email verification is Phase 5. Security shape:
+`forms` and `form_submissions` back a custom form/waiver builder. The feature
+is complete (Phases 1-5): schema + RLS; server actions in
+`lib/actions/forms.ts`; the builder UI under `/forms` + the public `/f/[slug]`
+page; onboarding `form` step type with required-waiver enforcement +
+auto-satisfy (migration 027); and verified-email retro-link of anonymous
+submissions (`claimMyAnonymousSubmissions`, hooked from `joinSpace` and
+`finishOnboarding`; admin manual-link for unverified/admin-added members).
+Security shape:
 all submissions (anonymous, public-authenticated, or members) are written by a
 single validated server action using the service client AFTER server-side
 schema validation and snapshotting (same pattern as `finishOnboarding`); the

@@ -149,7 +149,7 @@ export async function joinSpace(formData: {
 
   if (lookupErr || !space) return { error: 'Invalid invite code' }
 
-  const { error: memberErr } = await admin
+  const { data: newMember, error: memberErr } = await admin
     .from('space_members')
     .insert({
       space_id: space.id,
@@ -161,8 +161,22 @@ export async function joinSpace(formData: {
       status: space.require_approval ? 'unverified' : 'current',
       approved: true,
     })
+    .select('id')
+    .single()
 
   if (memberErr) return { error: memberErr.message }
+
+  // Retro-link prior anonymous form/waiver submissions in this space to the
+  // new member, but only for a verified email (locked decision). Best-effort:
+  // a linking hiccup must never fail the join.
+  if (newMember && user.email && user.email_confirmed_at) {
+    await admin
+      .from('form_submissions')
+      .update({ member_id: newMember.id })
+      .eq('space_id', space.id)
+      .is('member_id', null)
+      .eq('submitter_email', user.email.toLowerCase())
+  }
 
   // Increment invite usage counter for the multi-code path.
   if (invite) {

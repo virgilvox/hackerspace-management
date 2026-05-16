@@ -418,6 +418,41 @@ export async function getPublicForm(input: unknown) {
 }
 
 /**
+ * Self-service retro-link (Phase 5). Links the caller's prior ANONYMOUS
+ * submissions to their own member row, but only when their email is verified
+ * (the locked decision: retro-link to an account only on a verified email).
+ *
+ * Safe to expose: it takes no trusted parameters. It resolves the member and
+ * email strictly from the caller's authenticated session, so a client can
+ * only ever link submissions to their own account, and only their own
+ * verified email. Idempotent (already-linked rows have a non-null member_id
+ * and are excluded). This is the concrete "email-verification" hook; it is
+ * also invoked best-effort from joinSpace and finishOnboarding.
+ */
+export async function claimMyAnonymousSubmissions() {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+  if (!user.email || !user.email_confirmed_at) return { data: { linked: 0 } }
+
+  const member = await getAuthMember(supabase)
+  if (!member) return { data: { linked: 0 } }
+
+  const admin = createAdminClient()
+  const { data: linked } = await admin
+    .from('form_submissions')
+    .update({ member_id: member.id })
+    .eq('space_id', member.space_id)
+    .is('member_id', null)
+    .eq('submitter_email', user.email.toLowerCase())
+    .select('id')
+
+  return { data: { linked: linked?.length ?? 0 } }
+}
+
+/**
  * Retro-link prior anonymous submissions to a member by matching email.
  *
  * Phase 2 exposes this as the forms.manage "admin manual-link" tool. The

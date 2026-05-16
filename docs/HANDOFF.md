@@ -4,7 +4,7 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
-## 2026-05-16 (pass 18) — Forms + waivers Phases 1-4 (schema/RLS + actions + builder UI + onboarding step), LOCAL, awaiting deploy approval
+## 2026-05-16 (pass 18) — Forms + waivers Phases 1-5 COMPLETE (schema/RLS + actions + builder UI + onboarding step + retro-link), LOCAL, awaiting deploy approval
 
 Branch: `main`. Migration: `026` (not yet deployed). `pnpm build` + `pnpm exec vitest run` gate pending in this entry's session.
 
@@ -56,12 +56,19 @@ Audited the migration before continuing. Three fixes applied: dropped redundant 
 - Tests: `__tests__/forms.test.ts` +2 (onboarding form-step contract). Gate: `pnpm exec vitest run` 287/287; `pnpm build` exit 0; onboarding + customize compiled. NOT unit-tested: `finishOnboarding` enforcement/auto-satisfy is DB-bound (no mocked test); covered by reasoning + manual.
 - NOT browser-verified: admin adds a form step + picks a form; member onboarding renders/sumbits the form/waiver; required-form blocks finish until submitted; auto-satisfy when a prior submission exists; fail-open on unpublished form.
 
+### Phase 4 self-audit + Phase 5 (this session) — LOCAL
+
+- Phase 4 audit: verified migration `022` uses an inline unnamed column CHECK, so the auto name `space_onboarding_steps_step_type_check` is correct and `027`'s DROP targets it (no fix needed). Fixed a real bug: `onboarding-flow` could double-insert a form/waiver submission on Back-then-Forward — added session-local `submittedNow` tracking so a step is not re-submitted (commit is the small `harden(forms)` one).
+- Phase 5 (retro-link): `claimMyAnonymousSubmissions()` in `forms.ts` — exported but safe (no trusted params; resolves member + email from the caller's session; gated on `email_confirmed_at`; idempotent). Hooked best-effort from `joinSpace` (member insert now returns id; links prior anon submissions for the verified email) and `finishOnboarding`. `addMember`/`importMembers` are deliberately NOT auto-linked (admin-asserted emails are unverified — the locked decision forbids auto-link there); the forms.manage `linkSubmissionsForMember` remains the admin manual-link. **Interpretation flagged for the user:** the brief listed addMember/import as hook points, but the locked verified-email rule wins; auto-linking unverified emails would risk mis-attributing a waiver.
+- Gate: `pnpm exec vitest run` 287/287; `pnpm build` exit 0. Retro-link logic is DB-bound — not unit-tested (no mocked test); covered by reasoning + manual.
+
 ### Open / next
 
-- **Awaiting user approval to deploy** (push to `main` = prod). Phases 1-4 are all LOCAL; do NOT push without explicit go. Migrations `026` + `027` ship with the first push.
-- Phase 5 not started: automatic retro-link on email verification + join/signup/addMember/import hooks — `linkSubmissionsForMember` primitive already exists (currently exposed as the forms.manage manual-link).
-- Phases 3-4 are code-complete but NOT browser-verified (see the smoke-test lists in each subsection). No live browser this session.
-- After an approved push: watch the Actions run; smoke-test that `026`+`027` applied (`_migrations_applied`), a space's board has `forms.manage`, and the builder/public page/onboarding form step work end to end.
+- **Forms + waivers feature is code-complete (Phases 1-5).** All work is LOCAL; do NOT push without explicit go. Migrations `026` + `027` ship with the first push.
+- NOT browser-verified (no live browser this session): the full builder/public-page/onboarding-form-step/retro-link paths. Smoke-test lists are in each phase subsection above.
+- Retro-link not browser-verified: sign an anon public waiver, then join the space (or finish onboarding) with that verified email → the submission should attribute to the member; addMember with the same email should NOT auto-link (admin uses linkSubmissionsForMember).
+- After an approved push: watch the Actions run; confirm `026`+`027` applied (`_migrations_applied`), a space's board has `forms.manage`, and exercise builder → publish → public submit → onboarding form step → retro-link end to end.
+- Unrelated, still open: the production incident-filing RLS bug — not retried since `025`; do not touch the permissions/RLS surface without a prod retry + diagnosis.
 
 ---
 

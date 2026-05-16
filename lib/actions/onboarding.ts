@@ -9,6 +9,7 @@ import {
   updateOnboardingStepSchema,
   uuidSchema,
 } from '@/lib/validations'
+import { claimMyAnonymousSubmissions } from './forms'
 
 const ONBOARDING_ADMIN_ROLES = ['admin', 'board'] as const
 
@@ -207,8 +208,7 @@ export async function finishOnboarding() {
   // onboarding_completed_at is blocked by the self-change trigger (migration
   // 024) so a member cannot skip required steps via a raw PostgREST call.
   // Set it via the service client AFTER the required-steps check above, scoped
-  // to this member's own id.
-  const admin = createAdminClient()
+  // to this member's own id. Reuses the `admin` client created above.
   const { error } = await admin
     .from('space_members')
     .update({ onboarding_completed_at: new Date().toISOString() })
@@ -216,6 +216,16 @@ export async function finishOnboarding() {
     .eq('space_id', member.space_id)
 
   if (error) return { error: error.message }
+
+  // Best-effort: pull in any prior anonymous submissions for this now-verified
+  // member (e.g., a waiver signed before they had an account). Never blocks
+  // finishing.
+  try {
+    await claimMyAnonymousSubmissions()
+  } catch {
+    /* advisory */
+  }
+
   revalidatePath('/dashboard')
   return { success: true as const }
 }
