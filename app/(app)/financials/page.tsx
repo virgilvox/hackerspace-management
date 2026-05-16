@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import type { FinancialVisibility, Payment, Space } from '@/lib/types'
+import { PageTitle } from '@/components/ui/page-title'
 
 export const dynamic = 'force-dynamic'
 
@@ -176,7 +177,7 @@ function PageShell({ title, children }: { title: string; children: React.ReactNo
   return (
     <div className="min-h-screen bg-background">
       <div className="bg-sidebar px-4 md:px-6 py-3">
-        <h1 className="text-white font-sans text-lg font-semibold">{title}</h1>
+        <PageTitle>{title}</PageTitle>
       </div>
       <div className="p-4 md:p-6 space-y-6 max-w-4xl">{children}</div>
     </div>

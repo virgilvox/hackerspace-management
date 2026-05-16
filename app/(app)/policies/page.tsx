@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import type { Policy, PolicyStatus } from '@/lib/types'
+import { PageTitle } from '@/components/ui/page-title'
 
 export const dynamic = 'force-dynamic'
 
@@ -49,7 +50,7 @@ export default async function PoliciesPage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="bg-sidebar px-4 md:px-6 py-3 flex items-center justify-between">
-        <h1 className="text-white font-sans text-lg font-semibold">Policies</h1>
+        <PageTitle>Policies</PageTitle>
         {isAdminOrBoard && (
           <Link
             href="/policies/new"

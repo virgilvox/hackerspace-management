@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import type { Proposal } from '@/lib/types'
 import { ProposalStatusBadge } from './proposal-badges'
+import { PageTitle } from '@/components/ui/page-title'
 
 export const dynamic = 'force-dynamic'
 
@@ -34,7 +35,7 @@ export default async function ProposalsPage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="bg-sidebar px-4 md:px-6 py-3 flex items-center justify-between">
-        <h1 className="text-white font-sans text-lg font-semibold">Proposals</h1>
+        <PageTitle>Proposals</PageTitle>
         <Link
           href="/proposals/new"
           className="bg-primary text-white text-xs font-sans px-3 py-1.5 rounded hover:bg-primary/90 transition"

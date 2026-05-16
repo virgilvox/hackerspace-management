@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Hash, Users2, Send, ChevronLeft, Plus } from 'lucide-react'
 import { createChannel } from '@/lib/actions'
 import type { Tables } from '@/types/database'
+import { PageTitle } from '@/components/ui/page-title'
 
 type Channel = Tables<'comms_channels'>
 type Message = Tables<'comms_messages'>
@@ -184,9 +185,9 @@ export default function CommsClient({ member, space, channels }: Props) {
               <ChevronLeft className="w-5 h-5" />
             </button>
           )}
-          <h1 className="text-white font-sans text-lg font-semibold">
+          <PageTitle>
             {!showChannelList && selectedChannel ? `#${selectedChannel.name}` : 'Comms'}
-          </h1>
+          </PageTitle>
         </div>
         <div className="flex items-center gap-2">
           <button className="text-sidebar-foreground/70 hover:text-sidebar-foreground text-sm">

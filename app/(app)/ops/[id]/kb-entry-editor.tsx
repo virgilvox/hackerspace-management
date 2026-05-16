@@ -7,6 +7,7 @@ import { ArrowLeft, Pin, Lock } from 'lucide-react'
 import { createKbEntry, updateKbEntry } from '@/lib/actions'
 import { toast } from 'sonner'
 import type { Tables } from '@/types/database'
+import { PageTitle } from '@/components/ui/page-title'
 
 interface Props {
   entry?: Tables<'knowledge_base'>
@@ -50,7 +51,7 @@ export default function KbEntryEditor({ entry, member }: Props) {
         <Link href="/ops" className="text-sidebar-foreground/70 hover:text-sidebar-foreground transition">
           <ArrowLeft className="w-4 h-4" />
         </Link>
-        <h1 className="text-white font-sans text-lg font-semibold">{isEdit ? 'Edit Entry' : 'New KB Entry'}</h1>
+        <PageTitle>{isEdit ? 'Edit Entry' : 'New KB Entry'}</PageTitle>
       </div>
 
       <div className="p-6 max-w-3xl">

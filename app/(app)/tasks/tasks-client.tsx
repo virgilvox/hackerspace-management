@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { Plus, X, CheckCircle2 } from 'lucide-react'
 import { createTask, claimTask, completeTask, deleteTask } from '@/lib/actions'
 import type { Tables } from '@/types/database'
+import { PageTitle } from '@/components/ui/page-title'
 
 type Task = Tables<'tasks'>
 
@@ -113,7 +114,7 @@ export function TasksClient({ tasks: initialTasks, members, currentUserId, space
     <div className="min-h-screen bg-background">
       <div className="bg-sidebar px-4 md:px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h1 className="text-white font-sans text-lg font-semibold">Tasks & Chores</h1>
+          <PageTitle>Tasks & Chores</PageTitle>
             <span className="font-mono text-xs text-white/50">{tasks.filter(t => !isDone(t)).length} open</span>
         </div>
         <div className="flex items-center gap-2">

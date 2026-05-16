@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import ImportClient from './import-client'
+import { PageTitle } from '@/components/ui/page-title'
 
 export default async function ImportPage() {
   const supabase = await createClient()
@@ -22,7 +23,7 @@ export default async function ImportPage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="bg-sidebar px-6 py-3 flex items-center justify-between">
-        <h1 className="text-white font-sans text-lg font-semibold">Import & Sync</h1>
+        <PageTitle>Import & Sync</PageTitle>
         <p className="font-mono text-xs text-sidebar-foreground/50">CSV import · member & payment data</p>
       </div>
       <ImportClient spaceId={member!.space_id} role={member!.role} />

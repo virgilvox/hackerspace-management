@@ -11,6 +11,7 @@ import { OpsAclEditor } from '@/components/ops/ops-acl-editor'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import type { Tables, TablesInsert } from '@/types/database'
+import { PageTitle } from '@/components/ui/page-title'
 
 type KbEntry = Tables<'knowledge_base'>
 type AreaLead = Tables<'area_leads'>
@@ -614,7 +615,7 @@ export function OpsClient({ member, spaceId, kbEntries: initial, areaLeads: init
     <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="bg-sidebar px-4 md:px-6 py-3 flex items-center justify-between">
-        <h1 className="text-white font-sans text-lg font-semibold">Ops & Facilities</h1>
+        <PageTitle>Ops & Facilities</PageTitle>
         <div className="flex items-center gap-2">
           {(activeTab === 'kb' || activeTab === 'processes') && (
             <button

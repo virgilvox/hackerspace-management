@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Plus, X } from 'lucide-react'
 import { createProject, updateProjectStatus, deleteProject } from '@/lib/actions'
 import type { Tables } from '@/types/database'
+import { PageTitle } from '@/components/ui/page-title'
 
 type Project = Tables<'projects'>
 
@@ -65,7 +66,7 @@ export function ProjectsClient({
   return (
     <div className="min-h-screen bg-background">
       <div className="bg-sidebar px-4 md:px-6 py-3 flex items-center justify-between">
-        <h1 className="text-white font-sans text-lg font-semibold">Projects</h1>
+        <PageTitle>Projects</PageTitle>
         <button
           onClick={() => setShowCreate(true)}
           className="flex items-center gap-1.5 bg-primary text-white text-xs font-sans px-3 py-1.5 rounded hover:bg-primary/90 transition"

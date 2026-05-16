@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { PageHeader, PageTitle } from '@/components/ui/page-title'
 import { MembersClient } from './members-client'
 
 // member_directory_visibility values come from space settings:
@@ -38,14 +39,18 @@ export default async function MembersPage() {
 
   if (!allowed) {
     return (
-      <div className="p-8 max-w-2xl">
-        <h1 className="font-mono text-sm tracking-widest uppercase text-muted-foreground mb-3">Members</h1>
-        <div className="bg-card border border-border rounded p-6">
-          <p className="font-sans text-sm text-foreground mb-2">The member directory is restricted in this space.</p>
-          <p className="font-sans text-sm text-muted-foreground">
-            A space admin has set member directory visibility to <code className="font-mono text-xs px-1 py-0.5 bg-muted rounded">{visibility}</code>.
-            Contact an admin if you need access.
-          </p>
+      <div>
+        <PageHeader>
+          <PageTitle>Members</PageTitle>
+        </PageHeader>
+        <div className="p-8 max-w-2xl">
+          <div className="bg-card border border-border rounded p-6">
+            <p className="font-sans text-sm text-foreground mb-2">The member directory is restricted in this space.</p>
+            <p className="font-sans text-sm text-muted-foreground">
+              A space admin has set member directory visibility to <code className="font-mono text-xs px-1 py-0.5 bg-muted rounded">{visibility}</code>.
+              Contact an admin if you need access.
+            </p>
+          </div>
         </div>
       </div>
     )

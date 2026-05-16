@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import type { Incident, IncidentStatus } from '@/lib/types'
+import { PageTitle } from '@/components/ui/page-title'
 
 export const dynamic = 'force-dynamic'
 
@@ -44,7 +45,7 @@ export default async function IncidentsPage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="bg-sidebar px-4 md:px-6 py-3 flex items-center justify-between">
-        <h1 className="text-white font-sans text-lg font-semibold">Incidents</h1>
+        <PageTitle>Incidents</PageTitle>
         <Link
           href="/incidents/new"
           className="bg-primary text-white text-xs font-sans px-3 py-1.5 rounded hover:bg-primary/90 transition"

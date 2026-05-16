@@ -6,6 +6,7 @@ import { addMember, updateMember, approveMember, removeMember, assignAreaLead } 
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import type { Tables } from '@/types/database'
+import { PageTitle } from '@/components/ui/page-title'
 
 type Member = Tables<'space_members'>
 type AreaLeadRole = { id: string; area_name: string; lead_id: string | null }
@@ -194,7 +195,7 @@ export function MembersClient({ members: initialMembers, currentRole, areaLeadRo
     <div className="min-h-screen bg-background">
       <div className="bg-sidebar px-4 md:px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h1 className="text-white font-sans text-lg font-semibold">Members</h1>
+          <PageTitle>Members</PageTitle>
           <span className="font-mono text-xs text-white/50">{total} total</span>
         </div>
         {isAdmin(currentRole) && (

@@ -5,6 +5,7 @@ import { X, RefreshCcw } from 'lucide-react'
 import { toast } from 'sonner'
 import { logCashPayment, linkPaymentToMember } from '@/lib/actions'
 import type { Tables } from '@/types/database'
+import { PageTitle } from '@/components/ui/page-title'
 
 type Payment = Tables<'payments'> & {
   space_members?: { display_name: string } | null
@@ -116,7 +117,7 @@ export function PaymentsClient({ payments: initialPayments, members, integration
     <div className="min-h-screen bg-background">
       <div className="bg-sidebar px-4 md:px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h1 className="text-white font-sans text-lg font-semibold">Payments</h1>
+          <PageTitle>Payments</PageTitle>
           {unlinkedCount > 0 && (
             <span className="font-mono text-xs text-orange-400">{unlinkedCount} unlinked</span>
           )}

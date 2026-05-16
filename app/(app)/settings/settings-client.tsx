@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { financialVisibilities, directoryVisibilities } from '@/lib/validations'
 
 import type { Tables } from '@/types/database'
+import { PageTitle } from '@/components/ui/page-title'
 
 type Space = Tables<'spaces'>
 type Integration = Tables<'integrations'>
@@ -213,7 +214,7 @@ export default function SettingsClient({ space, isAdmin, integrations, currentRo
     <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="bg-sidebar px-4 md:px-6 py-3 flex items-center">
-        <h1 className="text-white font-sans text-lg font-semibold">Settings & Admin</h1>
+        <PageTitle>Settings & Admin</PageTitle>
       </div>
 
       <div className="flex">

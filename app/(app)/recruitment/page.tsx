@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { PageTitle } from '@/components/ui/page-title'
 
 export const dynamic = 'force-dynamic'
 
@@ -58,7 +59,7 @@ export default async function RecruitmentPage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="bg-sidebar px-4 md:px-6 py-3">
-        <h1 className="text-white font-sans text-lg font-semibold">Recruitment</h1>
+        <PageTitle>Recruitment</PageTitle>
       </div>
 
       <div className="p-4 md:p-6 max-w-4xl space-y-6">
