@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { requireMember, requireMemberWithRole, parseInput } from '@/lib/auth-helpers'
 import {
   createOnboardingStepSchema,
@@ -173,10 +174,16 @@ export async function finishOnboarding() {
     return { error: 'Please complete the required steps before finishing.' }
   }
 
-  const { error } = await supabase
+  // onboarding_completed_at is blocked by the self-change trigger (migration
+  // 024) so a member cannot skip required steps via a raw PostgREST call.
+  // Set it via the service client AFTER the required-steps check above, scoped
+  // to this member's own id.
+  const admin = createAdminClient()
+  const { error } = await admin
     .from('space_members')
     .update({ onboarding_completed_at: new Date().toISOString() })
     .eq('id', member.id)
+    .eq('space_id', member.space_id)
 
   if (error) return { error: error.message }
   revalidatePath('/dashboard')
@@ -201,10 +208,12 @@ export async function skipOnboarding() {
     return { error: 'This space requires you to complete onboarding.' }
   }
 
-  const { error } = await supabase
+  const admin = createAdminClient()
+  const { error } = await admin
     .from('space_members')
     .update({ onboarding_completed_at: new Date().toISOString() })
     .eq('id', member.id)
+    .eq('space_id', member.space_id)
 
   if (error) return { error: error.message }
   revalidatePath('/dashboard')

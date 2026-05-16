@@ -1836,3 +1836,41 @@ DROP TRIGGER IF EXISTS trg_seed_default_role_permissions ON public.spaces;
 CREATE TRIGGER trg_seed_default_role_permissions
   AFTER INSERT ON public.spaces
   FOR EACH ROW EXECUTE FUNCTION public.seed_default_role_permissions();
+
+
+-- =============================================================================
+-- 16. Self-change hardening (equivalent to scripts/024_self_change_hardening.sql).
+--     Adds tier_id and onboarding_completed_at to the columns a non-privileged
+--     member cannot change on their own space_members row.
+-- =============================================================================
+
+CREATE OR REPLACE FUNCTION public.prevent_member_self_role_change()
+  RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+DECLARE
+  v_is_privileged boolean;
+BEGIN
+  IF auth.uid() IS NULL THEN RETURN NEW; END IF;
+  IF NEW.user_id IS DISTINCT FROM auth.uid() THEN RETURN NEW; END IF;
+  SELECT public.user_has_role_in_space(auth.uid(), NEW.space_id, ARRAY['admin','board','treasurer'])
+    INTO v_is_privileged;
+  IF v_is_privileged THEN RETURN NEW; END IF;
+  IF NEW.role                    IS DISTINCT FROM OLD.role
+  OR NEW.tier                    IS DISTINCT FROM OLD.tier
+  OR NEW.tier_id                 IS DISTINCT FROM OLD.tier_id
+  OR NEW.status                  IS DISTINCT FROM OLD.status
+  OR NEW.approved                IS DISTINCT FROM OLD.approved
+  OR NEW.has_card_access         IS DISTINCT FROM OLD.has_card_access
+  OR NEW.onboarding_completed_at IS DISTINCT FROM OLD.onboarding_completed_at
+  OR NEW.space_id                IS DISTINCT FROM OLD.space_id THEN
+    RAISE EXCEPTION 'Members cannot change their own role, tier, status, approval, card access, onboarding completion, or space.'
+      USING ERRCODE = '42501';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_prevent_member_self_role_change ON public.space_members;
+CREATE TRIGGER trg_prevent_member_self_role_change
+  BEFORE UPDATE ON public.space_members
+  FOR EACH ROW EXECUTE FUNCTION public.prevent_member_self_role_change();

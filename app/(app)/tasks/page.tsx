@@ -17,7 +17,7 @@ export default async function TasksPage() {
   if (!spaceId) return null
 
   const [{ data: tasks }, { data: members }, { data: areasRaw }] = await Promise.all([
-    supabase.from('tasks').select('*').eq('space_id', spaceId).order('created_at', { ascending: false }),
+    supabase.from('tasks').select('*').eq('space_id', spaceId).order('created_at', { ascending: false }).limit(2000),
     supabase.from('space_members').select('id, display_name, user_id').eq('space_id', spaceId).in('status', ['current', 'late']),
     supabase
       .from('space_areas')

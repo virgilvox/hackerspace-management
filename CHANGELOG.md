@@ -11,6 +11,13 @@ All notable changes to this project are documented here. Format follows [Keep a 
   - Customize -> Area leads: create area-lead roles, see Vacant until assigned, assign/unassign a member from a picker. The assigned member effectively holds that role, so any Ops item whose access list includes it opens to them.
   - SECURITY DEFINER helpers `user_effective_roles` and `user_has_permission`.
 
+### Security
+- Closed two member self-escalation paths: a non-privileged member can no longer change their own `tier_id` or `onboarding_completed_at` on the `space_members` row (migration 024 extends the self-change trigger). Onboarding completion now goes through the service client after server-side validation.
+- Added in-code space scoping to forum/comment/channel mutations (defence-in-depth on top of RLS).
+- Invite codes are now cryptographically random and wider.
+- `SafeMarkdown` no longer allows `iframe` or arbitrary `style` (no unsandboxed embeds or UI-redress).
+- `/settings` is gated server-side to admins before any space/integration data is fetched.
+
 ### Fixed
 - `revealSecret` no longer silently returns the stale plaintext column when a row is marked encrypted but has no ciphertext; it surfaces the corruption instead.
 - `upsertAreaLead` rejects a null/empty area code (Postgres treats NULLs as distinct in unique constraints, which had allowed duplicate area-lead rows).

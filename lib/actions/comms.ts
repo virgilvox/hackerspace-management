@@ -55,12 +55,14 @@ export async function deleteChannel(channelId: string) {
   const supabase = await createClient()
   const auth = await requireMember(supabase)
   if (!auth.ok) return { error: auth.error }
+  const { member } = auth
 
   // Default channels are protected at the RLS layer too.
   const { error, count } = await supabase
     .from('comms_channels')
     .delete({ count: 'exact' })
     .eq('id', v.data)
+    .eq('space_id', member.space_id)
 
   if (error) return { error: error.message }
   if (count === 0) return { error: 'Cannot delete this channel' }
@@ -77,11 +79,13 @@ export async function renameChannel(channelId: string, name: string, description
   const supabase = await createClient()
   const auth = await requireMember(supabase)
   if (!auth.ok) return { error: auth.error }
+  const { member } = auth
 
   const { error } = await supabase
     .from('comms_channels')
     .update({ name: v.data.name, description: v.data.description ?? null })
     .eq('id', idCheck.data)
+    .eq('space_id', member.space_id)
 
   if (error) return { error: error.message }
   revalidatePath('/comms')

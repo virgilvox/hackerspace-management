@@ -56,6 +56,7 @@ export async function updateForumThread(threadId: string, updates: {
   const supabase = await createClient()
   const auth = await requireMember(supabase)
   if (!auth.ok) return { error: auth.error }
+  const { member } = auth
 
   // Pinning/locking is moderator-only (admin/board). The RLS UPDATE policy
   // additionally requires the actor to be the author or admin/board, so a
@@ -73,7 +74,7 @@ export async function updateForumThread(threadId: string, updates: {
   if (v.data.pinned   !== undefined) patch.pinned = v.data.pinned
   if (v.data.locked   !== undefined) patch.locked = v.data.locked
 
-  const { error } = await supabase.from('forum_threads').update(patch).eq('id', idCheck.data)
+  const { error } = await supabase.from('forum_threads').update(patch).eq('id', idCheck.data).eq('space_id', member.space_id)
   if (error) return { error: error.message }
   revalidatePath('/forum')
   revalidatePath(`/forum/${idCheck.data}`)
@@ -87,6 +88,7 @@ export async function deleteForumThread(threadId: string) {
   const supabase = await createClient()
   const auth = await requireMember(supabase)
   if (!auth.ok) return { error: auth.error }
+  const { member } = auth
 
   // RLS DELETE allows the author or admin; non-authors get a row-not-found
   // error which we translate to a clearer message.
@@ -94,6 +96,7 @@ export async function deleteForumThread(threadId: string) {
     .from('forum_threads')
     .delete({ count: 'exact' })
     .eq('id', v.data)
+    .eq('space_id', member.space_id)
 
   if (error) return { error: error.message }
   if (count === 0) return { error: 'Not allowed to delete this thread' }
@@ -159,11 +162,13 @@ export async function editComment(commentId: string, body: string) {
   const supabase = await createClient()
   const auth = await requireMember(supabase)
   if (!auth.ok) return { error: auth.error }
+  const { member } = auth
 
   const { data, error } = await supabase
     .from('comments')
     .update({ body: v.data.body, edited_at: new Date().toISOString() })
     .eq('id', idCheck.data)
+    .eq('space_id', member.space_id)
     .select('entity_type, entity_id')
     .single()
 
@@ -179,11 +184,13 @@ export async function deleteComment(commentId: string) {
   const supabase = await createClient()
   const auth = await requireMember(supabase)
   if (!auth.ok) return { error: auth.error }
+  const { member } = auth
 
   const { data, error } = await supabase
     .from('comments')
     .delete()
     .eq('id', v.data)
+    .eq('space_id', member.space_id)
     .select('entity_type, entity_id')
     .single()
 

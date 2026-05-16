@@ -3,6 +3,10 @@ import { redirect } from 'next/navigation'
 import { AppSidebar } from '@/components/app-sidebar'
 import { getRoleLabelMap } from '@/lib/role-labels'
 
+// This layout is the auth/onboarding gate for the whole app. It must never be
+// statically cached: every request re-checks the session and member state.
+export const dynamic = 'force-dynamic'
+
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

@@ -14,6 +14,9 @@ export async function loadComments(
     .eq('entity_type', entityType)
     .eq('entity_id', entityId)
     .order('created_at', { ascending: true })
+    // Bound the payload: a thread with thousands of comments must not be able
+    // to hang the page. Newest 500 is plenty for the current UI.
+    .limit(500)
 
   const rows = data ?? []
   const authorIds = Array.from(new Set(rows.map(r => r.author_id).filter(Boolean) as string[]))

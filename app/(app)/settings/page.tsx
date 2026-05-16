@@ -12,13 +12,17 @@ export default async function SettingsPage() {
 
   if (!member) redirect('/login')
 
+  // Settings is admin-only. Gate on the server BEFORE fetching space config
+  // and integration state so non-admins never receive it. Board/treasurer
+  // use /customize for the things they can change.
+  const isAdmin = member.role === 'admin'
+  if (!isAdmin) redirect('/dashboard')
+
   const { data: space } = await supabase
     .from('spaces').select('*').eq('id', member.space_id).single()
 
   const { data: integrations } = await supabase
     .from('integrations').select('*').eq('space_id', member.space_id)
-
-  const isAdmin = member?.role === 'admin'
 
   return (
     <SettingsClient

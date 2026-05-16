@@ -6,11 +6,15 @@ import { redirect } from 'next/navigation'
 import { checkRateLimit, sanitizeString, sanitizeSlug } from '@/lib/security'
 
 function generateInviteCode() {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+  // Cryptographically random, and wider (8 chars) so the code space is not
+  // brute-forceable under the joinSpace rate limit.
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
   const prefix = 'HSL'
   const year = new Date().getFullYear()
+  const bytes = new Uint8Array(8)
+  crypto.getRandomValues(bytes)
   let code = ''
-  for (let i = 0; i < 4; i++) code += chars.charAt(Math.floor(Math.random() * chars.length))
+  for (let i = 0; i < 8; i++) code += chars[bytes[i] % chars.length]
   return `${prefix}-${year}-${code}`
 }
 

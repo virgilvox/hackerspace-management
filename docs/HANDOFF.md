@@ -4,6 +4,37 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-15 (pass 16) — Full-app audit + security hardening
+
+Branch: `main`. Migration: 024 (plus 023 from pass 15 not yet deployed).
+
+### Audit
+
+Five parallel read-only audits (security/RLS, server actions/validation, routes/data, schema/types/migrations, plus a security-smell sweep). Verified before acting — two agent "blockers" were false alarms (ops_acl/space_role_permissions/member_custom_roles DELETE policies DO exist in schema.sql §15; m2m needs no UPDATE).
+
+### Fixed this pass (security)
+
+- **Self-escalation closed (BLOCKER).** Migration 024 + schema.sql §16: `prevent_member_self_role_change` now also blocks a non-privileged member changing their own `tier_id` (self tier upgrade) and `onboarding_completed_at` (skip required code-of-conduct). `finishOnboarding`/`skipOnboarding` now set `onboarding_completed_at` via the service client AFTER their server-side required-steps check, so the legitimate path still works.
+- **Cross-tenant write scoping.** Added `.eq('space_id', member.space_id)` to `updateForumThread`, `deleteForumThread`, `editComment`, `deleteComment`, `deleteChannel`, `renameChannel` (was RLS-only; now defence-in-depth).
+- **Invite codes.** `auth-actions.generateInviteCode` moved off `Math.random()` to `crypto.getRandomValues` and widened to 8 chars (was ~21 bits, enumerable under the join rate limit).
+- **SafeMarkdown hardened.** Dropped `iframe` from allowed tags (no unsandboxed embed/token-theft frame) and the global `style` attribute (no full-viewport UI-redress). Markdown + safe basic HTML still render.
+- **`/settings` server gate.** Now `redirect('/dashboard')` for non-admins BEFORE fetching space/integration config (was client-hidden only).
+- **`app/(app)/layout.tsx`** marked `export const dynamic = 'force-dynamic'` (auth/onboarding gate must never be cached).
+- **Bounded queries.** `loadComments` `.limit(500)`, tasks page `.limit(2000)`.
+
+### Tracked backlog (audit findings, not security-critical)
+
+- `importMembers` / `importPaymentsCsv`: still no Zod row schema; dates not via `flexibleDateTime()`; emails not lowercased; silent row drops. Highest-value remaining correctness item.
+- `types/database.ts` still missing 8 prior-pass tables + `comment_entity_type` enum + 3 `space_members` columns (loose casts; build green via `ignoreBuildErrors`).
+- `docs/DATABASE_SCHEMA.md`, `DB_SCHEMA_MAP.md`, `docs/API_REFERENCE.md` stale since 2026-03-10 (missing migrations 016-024).
+- Inconsistent unauthorized handling: `/ops` and `/import` `return null` instead of `redirect`.
+- Email normalization (`.toLowerCase()`) missing across auth/member schemas.
+- KB/process per-item ACL: infra complete, only the ops-client KB-modal hookup remains. Members-row "make area lead" shortcut still deferred.
+
+### Verification
+
+- `pnpm build` clean; `pnpm test` 271/271. Migrations 023 + 024 idempotent; apply via deploy.sh's tracked runner on next deploy.
+
 ## 2026-05-15 (pass 15) — Permissions, Ops ACLs, area-lead roles
 
 Branch: `main`. Migration: 023 (applies on next deploy).
