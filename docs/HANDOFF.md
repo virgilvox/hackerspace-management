@@ -20,7 +20,7 @@ Owner explicitly chose to link by email match INCLUDING raw anonymous typed-emai
 `app/(landing)/landing.css`: tightened the ≤600px breakpoint (nav padding/gap, section/cta/hero padding, card padding/min-height) and added a ≤400px block (nav gap/font, button padding, wordmark size) so the nav row fits ~320px without overflow. CSS-only inside media queries; desktop untouched. Next auto-injects the viewport meta (no override anywhere) so scaling is correct. Not device-tested here.
 
 ### Open
-- LOCAL & undeployed: pass-32 (6 commits incl migration 039). Suite 464, build clean each phase. **Awaiting deploy approval** (migration 039 = data backfill; safe/idempotent). After push: confirm 039 ran (submissions linked), exercise public form submit by a member's email → appears under member's FORMS panel; eyeball the landing page at 320/375/414px widths. Default remains ASK-before-deploy.
+- **DEPLOYED** pass-32: pushed `a364d15..61c97e3`, Actions run `25984078567` success, migration 039 applied by the deploy. Smoke: `/` `/login` 200; `/members` `/forms` `/attendance` `/dashboard` 307->login; landing serves correct `width=device-width` viewport. NOT browser/device-verified. Next live check: public form submit by a member's email → appears under that member's FORMS panel; eyeball landing at 320/375/414px. Default remains ASK-before-deploy.
 
 ---
 
