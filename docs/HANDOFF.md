@@ -4,7 +4,25 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
-## 2026-05-17 (pass 38) — Mobile card tables; LOCAL, awaiting deploy
+## 2026-05-17 (pass 39) — Bulk member actions + palette trigger/a11y (backlog complete); LOCAL, awaiting deploy
+
+Branch `main`. Pass-38 (mobile card tables) DEPLOYED (run 25986426224, smoke clean). 2 feature commits this pass, suite 469, build clean. This closes out the analysis-driven backlog the user chose.
+
+### Done
+- **`390046a`**: bulk member select + Approve. New `bulkApproveMembers` action (ADMIN_ROLES, Zod ids, one batched space-scoped update flipping only still-unverified rows, audited). Selection checkboxes on the members table + mobile cards (admin only) with header select-all; sticky count bar (Approve selected / Clear); optimistic update.
+- **`331a0c6`**: visible labeled command-palette trigger ("Jump to… ⌘K") in the sidebar dispatching a `commandpalette:open` event the palette now also listens for. a11y assessment: sonner `<Toaster>` already provides the aria-live region; sidebar icon buttons already `aria-label`'d; skip-link + drawer focus mgmt already present — so the top a11y items were already satisfied; this fixes the real gap (palette had no discoverable entry point).
+
+### Backlog status (the pass-35 analysis → user-chosen items)
+- F1, F2, ⌘K palette + trigger, sortable members, route skeletons, modal-busy, dashboard "Needs attention", cached perms, mobile card tables, bulk approve, a11y assessment — **ALL DONE** (deployed through pass-38; pass-39 pending deploy).
+- **`PageHeader` dedupe**: deliberately NOT done (mechanical ~21 files, no user-visible value, browser-unverifiable churn). Recommend leaving unless explicitly requested.
+- Deferred by user (separate future thread): product spine — Stripe recurring dues → transactional notifications → member self-serve portal. See the pass-35 report in session history; rationale grounded in Fabman/Cobot/Nexudus/Wild Apricot.
+
+### Open
+- LOCAL & undeployed: pass-39 (2 commits + this docs). **Awaiting deploy approval** (no migration). After deploy: select unverified members → Approve selected; click the sidebar "Jump to…" / ⌘K. Default ASK-before-deploy. Next session: product spine is the highest-leverage remaining work if the user wants to continue.
+
+---
+
+## 2026-05-17 (pass 38) — Mobile card tables (DEPLOYED, run 25986426224)
 
 Branch `main`. Pass-37 (dashboard attention + cached perms) DEPLOYED (run 25986340615, smoke clean). 1 feature commit this pass, suite 469, build clean.
 
