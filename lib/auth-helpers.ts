@@ -43,6 +43,11 @@ export async function getAuthMember(supabase: ServerSupabase): Promise<Member | 
   } = await supabase.auth.getUser()
   if (!user) return null
 
+  // INVARIANT: one active membership per user (single-space product model;
+  // see ARCHITECTURE "Known Limitations"). `.single()` is intentional -- if a
+  // user somehow has 2+ active memberships it fails closed (no action runs)
+  // rather than silently picking a space. Multi-space would require an
+  // explicit active-space selector before this can change.
   const { data } = await supabase
     .from('space_members')
     .select('id, space_id, user_id, role, display_name, handle')

@@ -4,6 +4,26 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-17 (pass 31) — Audit follow-ups + attendance polish; LOCAL, awaiting deploy
+
+Branch `main`. Continuation of the pass-30 audit. User: handle the deferred items where confident + properly test/doc; "stick to single space for now". 5 commits `2dc0af5..` (this entry).
+
+### Done (each gated + own commit, suite 459, build clean)
+- **`2dc0af5` PayPal sync**: `payments` has NO unique index on `external_id`, so the `onConflict:'external_id'` upsert was unreliable and fell back to an insert that stripped `external_id` -> duplicate, non-idempotent rows, not tenant-scoped. Replaced with: look up existing `external_id`s in THIS space, insert only new rows (id preserved). No migration, no schema risk.
+- **`1e1b93e` door IPv6 pin**: SSRF pin parser did `pinnedHost.split(':')[0]`, mangling any IPv6 pin (failed closed -> IPv6 controllers unusable). New pure exhaustively-tested `normalizeHost` (scheme/userinfo/port/path strip; `[ipv6]`/`[ipv6]:port`/bare-ipv6 unwrap) applied to both request host and pin. ALL prior behavior preserved (verified: IPv4, host:port, userinfo-spoof reject, trailing-dot reject, metadata always blocked, IPv4-mapped-IPv6 vs IPv4 fails closed). 29 door tests.
+- **`d5a71c9` /attendance polish** (user ask): client view with a "Here now" section + inline self check-in / check-in-as-host / check-out + note; history with name search, day picker, grouped-by-day headers, per-visit duration/status/notes, live visits/members summary. New pure tested `dayKey` (tz-stable) + `visitDurationMinutes`.
+- **docs (this commit)**: ARCHITECTURE project tree + §7 module paths corrected to `lib/actions/*` reality; explicit note that `/settings` admin secret loading is by-design (not a leak); `getAuthMember` single-space invariant documented in code.
+
+### Decisions / not done (intentional)
+- **Single space per user**: kept (user decision). `getAuthMember` `.single()` is intentional and fails closed; documented in code + ARCHITECTURE Known Limitations #7. Not changed.
+- **Settings `select('*')`**: NOT narrowed — verified the admin-only client legitimately uses `webhook_secret` + integration `config`; narrowing would be cosmetic and risk breaking the UI. Documented as intentional instead.
+- A full ARCHITECTURE §7 prose rewrite remains a nice-to-have (paths now correct; an authoritative top-of-doc note already added pass-30).
+
+### Open
+- LOCAL & undeployed: pass-31 (5 commits) + the pass-30 deploy-state docs. **Awaiting deploy approval** (no migration this pass; app + docs only). Default reverted to ASK-before-deploy (the pass-30 deploy-without-asking was one-time). After push: smoke `/attendance` (search/day filter/check-in), PayPal re-sync idempotency, door IPv6 pin if a controller is ever IPv6.
+
+---
+
 ## 2026-05-17 (pass 30) — Presence/attendance feature + full app audit pass
 
 Branch `main`. Big session: landing wording fix, a new presence module, a 4-agent read-only audit, and audit fixes. User authorized deploying this work without the per-deploy ask (one-time, for this ready work; default reverts to ASK next session unless reaffirmed). **DEPLOYED**: pushed `4b29280..c12a103`, Actions run `25982428014` success, migration 038 applied. Smoke: `/` `/login` 200; `/dashboard` `/attendance` `/doors` `/classes` `/equipment/manage` 307->login (gated, expected). NOT browser-verified.

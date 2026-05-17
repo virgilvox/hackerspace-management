@@ -90,15 +90,18 @@ Hackerspace.sh is a comprehensive member management platform designed for hacker
 │   │   ├── client.ts            # Browser client
 │   │   ├── proxy.ts             # Middleware session refresh
 │   │   └── server.ts            # Server Component client
-│   ├── actions.ts               # All server actions (CRUD)
-│   ├── auth-actions.ts          # Auth-specific actions
-│   ├── types.ts                 # TypeScript interfaces
+│   ├── actions/                 # Server actions, one module per domain
+│   │   ├── index.ts             # Barrel (re-exports every domain module)
+│   │   ├── tasks.ts projects.ts members.ts payments.ts …
+│   │   └── classes.ts equipment.ts door.ts presence.ts …
+│   ├── *-logic.ts               # Pure, unit-tested decision logic
+│   ├── *-guard.ts               # Per-feature server-component guards
+│   ├── auth-helpers.ts          # requireMember / permission gates
 │   └── utils.ts                 # Utility functions (cn)
-├── scripts/                     # SQL migrations
-│   ├── 000_reset_schema.sql    # Schema reset (dev only)
-│   ├── 001_create_schema.sql   # Initial schema
-│   ├── 002-011_*.sql           # Incremental fixes
-│   └── patch-dashboard.mjs     # Utility script
+├── scripts/                     # SQL
+│   ├── schema.sql               # Canonical, idempotent (source of truth)
+│   ├── 0NN_*.sql                # Numbered incremental migrations (→ 038)
+│   └── seed.sql                 # Optional seed data
 ├── middleware.ts                # Auth middleware
 ├── docs/                        # This documentation
 └── [config files]               # next.config, tsconfig, etc.
@@ -244,7 +247,7 @@ Admin (full access)
 | `createSpace` | spaceName, spaceSlug, spaceCity, displayName | Authenticated | Create new space |
 | `joinSpace` | inviteCode, displayName | Authenticated | Join existing space |
 
-### 7.2 Tasks (`lib/actions.ts`)
+### 7.2 Tasks (`lib/actions/tasks.ts`)
 
 | Action | Parameters | Role Required |
 |--------|------------|---------------|
@@ -253,7 +256,7 @@ Admin (full access)
 | `completeTask` | taskId | Claimant |
 | `deleteTask` | taskId | Member |
 
-### 7.3 Projects (`lib/actions.ts`)
+### 7.3 Projects (`lib/actions/projects.ts`)
 
 | Action | Parameters | Role Required |
 |--------|------------|---------------|
@@ -261,7 +264,7 @@ Admin (full access)
 | `updateProjectStatus` | projectId, status | Member |
 | `deleteProject` | projectId | Member |
 
-### 7.4 Members (`lib/actions.ts`)
+### 7.4 Members (`lib/actions/members.ts`)
 
 | Action | Parameters | Role Required |
 |--------|------------|---------------|
@@ -271,7 +274,7 @@ Admin (full access)
 | `removeMember` | memberId | Admin |
 | `importMembers` | rows[] | Admin/Board |
 
-### 7.5 Payments (`lib/actions.ts`)
+### 7.5 Payments (`lib/actions/payments.ts`)
 
 | Action | Parameters | Role Required |
 |--------|------------|---------------|
@@ -279,7 +282,7 @@ Admin (full access)
 | `linkPaymentToMember` | paymentId, memberId | Treasurer/Admin |
 | `importPaymentsCsv` | rows[] | Treasurer/Admin |
 
-### 7.6 Knowledge Base & Secrets (`lib/actions.ts`)
+### 7.6 Knowledge Base & Secrets (`lib/actions/knowledge-base.ts`, `lib/actions/secrets.ts`)
 
 | Action | Parameters | Role Required |
 |--------|------------|---------------|
@@ -290,7 +293,7 @@ Admin (full access)
 | `deleteSecret` | secretId | Admin |
 | `upsertAreaLead` | area_code, area_name, lead_id?, lead_handle?, status? | Admin/Board |
 
-### 7.7 Contacts (`lib/actions.ts`)
+### 7.7 Contacts (`lib/actions/contacts.ts`)
 
 | Action | Parameters | Role Required |
 |--------|------------|---------------|
@@ -298,7 +301,12 @@ Admin (full access)
 | `updateContact` | contactId, updates | Member |
 | `deleteContact` | contactId | Member |
 
-### 7.8 Settings (`lib/actions.ts`)
+### 7.8 Settings (`lib/actions/settings.ts`)
+
+> Note: `/settings` is admin-only and intentionally loads the space's own
+> `webhook_secret` and integration `config` so an admin can view/rotate
+> them. That is by-design same-space admin secret management, not a leak;
+> the page redirects non-admins before any of it is fetched.
 
 | Action | Parameters | Role Required |
 |--------|------------|---------------|
