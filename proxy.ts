@@ -11,6 +11,7 @@ const PUBLIC_ROUTES = [
   '/',
   '/login',
   '/signup',
+  '/join',
   '/auth',
   '/api/health',
   // Public form / waiver fill page. Only /f/[slug] lives here and must be

@@ -316,11 +316,11 @@ export async function submitForm(input: unknown) {
   const body = v.data
 
   const admin = createAdminClient()
-  let q = admin
+  const { data: form } = await admin
     .from('forms')
     .select('id, space_id, slug, kind, visibility, status, schema, legal_text, version')
-  q = body.formId ? q.eq('id', body.formId) : q.eq('slug', body.slug as string)
-  const { data: form } = await q.single()
+    .eq('id', body.formId)
+    .maybeSingle()
   if (!form) return { error: 'Form not found' }
   if (form.status !== 'published') {
     return { error: 'This form is not accepting responses' }

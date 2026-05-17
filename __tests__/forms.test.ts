@@ -23,6 +23,8 @@ import {
   slugify,
   deriveFieldKeys,
 } from '@/lib/forms-logic'
+import { INVITE_ROLES, isInviteRole, canAssignInviteRole } from '@/lib/invite-logic'
+import { createInviteSchema, updateInviteSchema } from '@/lib/validations'
 
 // ─── formSlug ────────────────────────────────────────────────────────────────
 
@@ -197,27 +199,24 @@ describe('getPublicFormSchema', () => {
 
 describe('submitFormSchema', () => {
   const ID = '11111111-1111-1111-1111-111111111111'
-  it('requires formId or slug', () => {
+  it('requires a valid formId (slug is no longer accepted post-028)', () => {
     expect(submitFormSchema.safeParse({ answers: {} }).success).toBe(false)
-    expect(submitFormSchema.safeParse({ slug: 'a', answers: {} }).success).toBe(true)
+    expect(submitFormSchema.safeParse({ slug: 'a', answers: {} }).success).toBe(false)
+    expect(submitFormSchema.safeParse({ formId: 'nope' }).success).toBe(false)
     expect(submitFormSchema.safeParse({ formId: ID }).success).toBe(true)
   })
   it('defaults answers to an empty object', () => {
-    const r = submitFormSchema.safeParse({ slug: 'a' })
+    const r = submitFormSchema.safeParse({ formId: ID })
     expect(r.success).toBe(true)
     if (r.success) expect(r.data.answers).toEqual({})
   })
-  it('rejects a bad formId or slug', () => {
-    expect(submitFormSchema.safeParse({ formId: 'nope' }).success).toBe(false)
-    expect(submitFormSchema.safeParse({ slug: 'Bad Slug' }).success).toBe(false)
-  })
   it('email is optional/nullable and normalized; consent is boolean', () => {
-    expect(submitFormSchema.safeParse({ slug: 'a', email: null }).success).toBe(true)
-    expect(submitFormSchema.safeParse({ slug: 'a', email: 'not-an-email' }).success).toBe(false)
-    const r = submitFormSchema.safeParse({ slug: 'a', email: 'Me@Example.COM', consent: true })
+    expect(submitFormSchema.safeParse({ formId: ID, email: null }).success).toBe(true)
+    expect(submitFormSchema.safeParse({ formId: ID, email: 'not-an-email' }).success).toBe(false)
+    const r = submitFormSchema.safeParse({ formId: ID, email: 'Me@Example.COM', consent: true })
     expect(r.success).toBe(true)
     if (r.success) expect(r.data.email).toBe('me@example.com')
-    expect(submitFormSchema.safeParse({ slug: 'a', consent: 'yes' }).success).toBe(false)
+    expect(submitFormSchema.safeParse({ formId: ID, consent: 'yes' }).success).toBe(false)
   })
 })
 
@@ -461,6 +460,45 @@ describe('evaluateRequiredFormStep', () => {
 })
 
 // ─── slugify / deriveFieldKeys ───────────────────────────────────────────────
+
+describe('invite role policy', () => {
+  it('INVITE_ROLES is the member_role set; isInviteRole guards it', () => {
+    expect([...INVITE_ROLES].sort()).toEqual(
+      ['admin', 'associate', 'board', 'member', 'treasurer'].sort(),
+    )
+    expect(isInviteRole('admin')).toBe(true)
+    expect(isInviteRole('superuser')).toBe(false)
+    expect(isInviteRole('')).toBe(false)
+  })
+
+  it('admin may grant any role', () => {
+    for (const r of INVITE_ROLES) expect(canAssignInviteRole('admin', r), r).toBe(true)
+  })
+
+  it('board may grant anything except admin', () => {
+    expect(canAssignInviteRole('board', 'admin')).toBe(false)
+    for (const r of ['board', 'treasurer', 'member', 'associate']) {
+      expect(canAssignInviteRole('board', r), r).toBe(true)
+    }
+  })
+
+  it('non-admin/board (or unknown) cannot grant anything, and unknown targets are rejected', () => {
+    expect(canAssignInviteRole('member', 'member')).toBe(false)
+    expect(canAssignInviteRole('treasurer', 'associate')).toBe(false)
+    expect(canAssignInviteRole('admin', 'superuser')).toBe(false)
+  })
+
+  it('createInviteSchema defaults role to member and validates the enum', () => {
+    const r = createInviteSchema.safeParse({})
+    expect(r.success).toBe(true)
+    if (r.success) expect(r.data.role).toBe('member')
+    expect(createInviteSchema.safeParse({ role: 'admin' }).success).toBe(true)
+    expect(createInviteSchema.safeParse({ role: 'superuser' }).success).toBe(false)
+    expect(updateInviteSchema.safeParse({ role: 'board' }).success).toBe(true)
+    expect(updateInviteSchema.safeParse({}).success).toBe(true)
+    expect(updateInviteSchema.safeParse({ role: 'nope' }).success).toBe(false)
+  })
+})
 
 describe('slugify / deriveFieldKeys', () => {
   it('slugifies with the requested separator and trims runs', () => {

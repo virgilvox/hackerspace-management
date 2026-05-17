@@ -1574,6 +1574,7 @@ CREATE TABLE IF NOT EXISTS public.space_invites (
   max_uses    integer CHECK (max_uses IS NULL OR max_uses > 0),
   uses_count  integer     NOT NULL DEFAULT 0 CHECK (uses_count >= 0),
   is_enabled  boolean     NOT NULL DEFAULT true,
+  role        member_role NOT NULL DEFAULT 'member',
   created_by  uuid        REFERENCES public.space_members(id) ON DELETE SET NULL,
   created_at  timestamptz NOT NULL DEFAULT now(),
   updated_at  timestamptz NOT NULL DEFAULT now()

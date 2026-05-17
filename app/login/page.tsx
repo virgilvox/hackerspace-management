@@ -13,6 +13,19 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [oauthLoading, setOauthLoading] = useState<'github' | 'google' | null>(null)
 
+  // Honor ?next= so a signed-out visitor to a public_auth form (or any gated
+  // link) returns where they were headed. Only same-origin absolute paths are
+  // allowed — never an external URL or protocol-relative // — to avoid an
+  // open-redirect.
+  function safeNext(): string {
+    if (typeof window === 'undefined') return '/dashboard'
+    const raw = new URLSearchParams(window.location.search).get('next')
+    if (raw && raw.startsWith('/') && !raw.startsWith('//') && !raw.startsWith('/\\')) {
+      return raw
+    }
+    return '/dashboard'
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
@@ -23,7 +36,7 @@ export default function LoginPage() {
       setError(error.message)
       setLoading(false)
     } else {
-      router.push('/dashboard')
+      router.push(safeNext())
       router.refresh()
     }
   }
@@ -35,7 +48,7 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(safeNext())}`,
       },
     })
     if (error) {

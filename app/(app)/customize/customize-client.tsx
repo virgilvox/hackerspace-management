@@ -33,6 +33,8 @@ interface AreaLead {
 
 interface Props {
   isAdmin: boolean
+  creatorRole: string
+  spaceSlug: string
   roleLabels: RoleLabelRow[]
   customRoles: CustomRole[]
   tiers: Tier[]
@@ -78,7 +80,7 @@ export function CustomizeClient(props: Props) {
           {section === 'tiers' && <TiersPanel isAdmin={props.isAdmin} tiers={props.tiers} />}
           {section === 'areas' && <AreasPanel isAdmin={props.isAdmin} areas={props.areas} />}
           {section === 'area-leads' && <AreaLeadsPanel isAdmin={props.isAdmin} areaLeads={props.areaLeads} members={props.members} />}
-          {section === 'invites' && <InvitesPanel isAdmin={props.isAdmin} invites={props.invites} />}
+          {section === 'invites' && <InvitesPanel isAdmin={props.isAdmin} invites={props.invites} creatorRole={props.creatorRole} spaceSlug={props.spaceSlug} />}
           {section === 'onboarding' && <OnboardingPanel isAdmin={props.isAdmin} steps={props.onboardingSteps} forms={props.forms} />}
         </div>
       </div>

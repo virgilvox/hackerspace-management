@@ -37,6 +37,7 @@ export interface Invite {
   max_uses: number | null
   uses_count: number
   is_enabled: boolean
+  role: string
   created_at: string
 }
 

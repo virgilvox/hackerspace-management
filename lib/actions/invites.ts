@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { requireMemberWithRole, parseInput } from '@/lib/auth-helpers'
 import { createInviteSchema, updateInviteSchema, uuidSchema } from '@/lib/validations'
+import { canAssignInviteRole } from '@/lib/invite-logic'
 
 const INVITE_ADMIN_ROLES = ['admin', 'board'] as const
 
@@ -22,6 +23,7 @@ export async function createInvite(input: {
   expires_at?: string | null
   max_uses?: number | null
   is_enabled?: boolean
+  role?: 'admin' | 'board' | 'treasurer' | 'member' | 'associate'
 }) {
   const v = parseInput(createInviteSchema, input)
   if (!v.ok) return { error: v.error }
@@ -30,6 +32,10 @@ export async function createInvite(input: {
   const auth = await requireMemberWithRole(supabase, INVITE_ADMIN_ROLES, 'Admin or board access required')
   if (!auth.ok) return { error: auth.error }
   const { member } = auth
+
+  if (!canAssignInviteRole(member.role, v.data.role)) {
+    return { error: `You cannot create an invite that grants the "${v.data.role}" role.` }
+  }
 
   // Generate a unique code if not provided. Try up to 5 times in case of collision.
   let code = v.data.code
@@ -52,6 +58,7 @@ export async function createInvite(input: {
       expires_at: v.data.expires_at ?? null,
       max_uses: v.data.max_uses ?? null,
       is_enabled: v.data.is_enabled ?? true,
+      role: v.data.role,
       created_by: member.id,
     })
     .select('id, code')
@@ -67,6 +74,7 @@ export async function updateInvite(inviteId: string, updates: {
   expires_at?: string | null
   max_uses?: number | null
   is_enabled?: boolean
+  role?: 'admin' | 'board' | 'treasurer' | 'member' | 'associate'
 }) {
   const idCheck = parseInput(uuidSchema, inviteId)
   if (!idCheck.ok) return { error: 'Invalid invite ID' }
@@ -78,11 +86,16 @@ export async function updateInvite(inviteId: string, updates: {
   if (!auth.ok) return { error: auth.error }
   const { member } = auth
 
+  if (v.data.role !== undefined && !canAssignInviteRole(member.role, v.data.role)) {
+    return { error: `You cannot set an invite to grant the "${v.data.role}" role.` }
+  }
+
   const patch: Record<string, unknown> = {}
   if (v.data.label      !== undefined) patch.label = v.data.label
   if (v.data.expires_at !== undefined) patch.expires_at = v.data.expires_at
   if (v.data.max_uses   !== undefined) patch.max_uses = v.data.max_uses
   if (v.data.is_enabled !== undefined) patch.is_enabled = v.data.is_enabled
+  if (v.data.role       !== undefined) patch.role = v.data.role
 
   const { error } = await supabase
     .from('space_invites')

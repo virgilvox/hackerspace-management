@@ -65,9 +65,9 @@ export type Database = {
         Relationships: []
       }
       space_invites: {
-        Row: { id: string; space_id: string; code: string; label: string | null; expires_at: string | null; max_uses: number | null; uses_count: number; is_enabled: boolean; created_by: string | null; created_at: string; updated_at: string }
-        Insert: { id?: string; space_id: string; code: string; label?: string | null; expires_at?: string | null; max_uses?: number | null; uses_count?: number; is_enabled?: boolean; created_by?: string | null; created_at?: string; updated_at?: string }
-        Update: { id?: string; space_id?: string; code?: string; label?: string | null; expires_at?: string | null; max_uses?: number | null; uses_count?: number; is_enabled?: boolean; created_by?: string | null; created_at?: string; updated_at?: string }
+        Row: { id: string; space_id: string; code: string; label: string | null; expires_at: string | null; max_uses: number | null; uses_count: number; is_enabled: boolean; role: Database["public"]["Enums"]["member_role"]; created_by: string | null; created_at: string; updated_at: string }
+        Insert: { id?: string; space_id: string; code: string; label?: string | null; expires_at?: string | null; max_uses?: number | null; uses_count?: number; is_enabled?: boolean; role?: Database["public"]["Enums"]["member_role"]; created_by?: string | null; created_at?: string; updated_at?: string }
+        Update: { id?: string; space_id?: string; code?: string; label?: string | null; expires_at?: string | null; max_uses?: number | null; uses_count?: number; is_enabled?: boolean; role?: Database["public"]["Enums"]["member_role"]; created_by?: string | null; created_at?: string; updated_at?: string }
         Relationships: []
       }
       space_onboarding_steps: {

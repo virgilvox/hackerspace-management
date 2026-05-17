@@ -117,10 +117,10 @@ export async function joinSpace(formData: {
 
   // Try the new multi-code invites table first. Falls back to the legacy
   // spaces.invite_code (a permanent default) if the code isn't found there.
-  let invite: { id: string; space_id: string; max_uses: number | null; uses_count: number; expires_at: string | null; is_enabled: boolean } | null = null
+  let invite: { id: string; space_id: string; max_uses: number | null; uses_count: number; expires_at: string | null; is_enabled: boolean; role: string } | null = null
   const { data: inviteRow } = await admin
     .from('space_invites')
-    .select('id, space_id, max_uses, uses_count, expires_at, is_enabled')
+    .select('id, space_id, max_uses, uses_count, expires_at, is_enabled, role')
     .eq('code', code)
     .maybeSingle()
   if (inviteRow) invite = inviteRow as typeof invite
@@ -149,6 +149,14 @@ export async function joinSpace(formData: {
 
   if (lookupErr || !space) return { error: 'Invalid invite code' }
 
+  // Honor the invite's granted role (default 'member' for the legacy
+  // spaces.invite_code path or any invite created before migration 029).
+  // Validated against the enum defensively even though the DB constrains it.
+  const grantedRole =
+    invite && ['admin', 'board', 'treasurer', 'member', 'associate'].includes(invite.role)
+      ? invite.role
+      : 'member'
+
   const { data: newMember, error: memberErr } = await admin
     .from('space_members')
     .insert({
@@ -156,7 +164,7 @@ export async function joinSpace(formData: {
       user_id: user.id,
       display_name: formData.displayName || user.email,
       email: user.email,
-      role: 'member',
+      role: grantedRole,
       tier: 'basic',
       status: space.require_approval ? 'unverified' : 'current',
       approved: true,

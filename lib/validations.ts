@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { INVITE_ROLES } from './invite-logic'
 
 /**
  * Accepts every date-ish string the app produces and normalizes to a
@@ -476,6 +477,7 @@ export const createInviteSchema = z.object({
   expires_at: flexibleDateTime(),
   max_uses: z.number().int().min(1).max(100000).optional().nullable(),
   is_enabled: z.boolean().optional(),
+  role: z.enum(INVITE_ROLES).optional().default('member'),
 })
 
 export const updateInviteSchema = z.object({
@@ -483,6 +485,7 @@ export const updateInviteSchema = z.object({
   expires_at: flexibleDateTime(),
   max_uses: z.number().int().min(1).max(100000).optional().nullable(),
   is_enabled: z.boolean().optional(),
+  role: z.enum(INVITE_ROLES).optional(),
 })
 
 export const createChannelSchema = z.object({
@@ -649,17 +652,14 @@ export const formIdSchema = z.object({ formId: z.string().uuid('Invalid form ID'
 
 // Envelope only. The answers object is validated dynamically against the
 // form's stored field schema inside submitForm (see lib/forms-schema.ts).
-export const submitFormSchema = z
-  .object({
-    formId: z.string().uuid('Invalid form ID').optional(),
-    slug: formSlug.optional(),
-    answers: z.record(z.unknown()).default({}),
-    email: emailField().optional().nullable(),
-    consent: z.boolean().optional(),
-  })
-  .refine(d => Boolean(d.formId) || Boolean(d.slug), {
-    message: 'formId or slug is required',
-  })
+// formId is required: form slugs are only unique per space now, so a bare
+// slug is ambiguous. Both callers (public page + onboarding) submit by id.
+export const submitFormSchema = z.object({
+  formId: z.string().uuid('Invalid form ID'),
+  answers: z.record(z.unknown()).default({}),
+  email: emailField().optional().nullable(),
+  consent: z.boolean().optional(),
+})
 
 export const linkSubmissionsSchema = z.object({
   memberId: z.string().uuid('Invalid member ID'),
