@@ -400,10 +400,11 @@ Default channels created by trigger on space INSERT: `general`, `announcements`,
 | 032 | `classes`, `class_sessions`, `class_signups` + `classes.manage` / `classes.instruct` permissions. Additive default-deny RLS; signup/cancel via validated service-client action (no INSERT/DELETE policy); one non-cancelled signup per member+session; optional cert-on-completion via the normal certifications path |
 | 033 | `equipment`, `equipment_reservations` + `equipment.manage` permission. Additive default-deny RLS; reserve/cancel via validated service-client action (no INSERT/DELETE policy) enforcing status + no-overlap + required-cert with manager override |
 | 034 | `member_cards` + `door.manage` / `door.operate` permissions. Card UID is a credential: door.manage-only RLS, no member SELECT; masked (count+last4) self-view via server action. Door epic phase 1, no controller calls |
+| 035 | `door_connections`, `door_access_log` (Door epic P2). Password via secrets vault (secret_ref), `pinned_host` SSRF pin, hardened executor. Connections CRUD = door.manage; log SELECT = door.manage/operate, service-client-only writes |
 
 ---
 
-## Tables added by migrations 016-034 (quick map)
+## Tables added by migrations 016-035 (quick map)
 
 | Table | Key columns | Purpose |
 |-------|-------------|---------|
@@ -430,6 +431,8 @@ Default channels created by trigger on space INSERT: `general`, `announcements`,
 | `equipment` | space_id, name, description, location, status (available/maintenance/retired), required_certification_id -> certifications, asset_tag, is_active | Tool/equipment registry. SELECT = `equipment.manage` (all) or member (`is_active`); writes = `equipment.manage` |
 | `equipment_reservations` | equipment_id, space_id, member_id, starts_at, ends_at, status (reserved/cancelled/completed), notes | Time-window reservation. SELECT = `equipment.manage` (all) or member (own); UPDATE = `equipment.manage`; NO INSERT/DELETE policy (reserve/cancel via validated service-client action; no-overlap + required-cert enforced there) |
 | `member_cards` | space_id, member_id, card_uid (credential), card_type rfid/nfc, label, is_active | RFID/NFC card association. SELECT/writes = `door.manage` only; member self-view is masked (server action, never raw UID) |
+| `door_connections` | space_id, name, adapter (native_heatsync/generic_http), base_url, pinned_host (SSRF pin), auth_mode, secret_ref -> secrets, verbs jsonb, allow_member_self_entry, is_enabled | Door controller integration. CRUD = `door.manage`. Password lives in the encrypted secrets vault, never here |
+| `door_access_log` | space_id, connection_id, actor_member_id, target_member_id, action, success, detail (redacted), occurred_at | Append-only door audit. SELECT = `door.manage`/`door.operate`; NO write policy (validated service-client executor only; immutable) |
 
 Column additions: `space_members.tier_id`, `onboarding_completed_at`, `onboarding_progress`; `secrets.encrypted_value`, `encryption_version`; `knowledge_base.render_markdown`, `is_meeting_minutes`, `meeting_date`. New enum `comment_entity_type`.
 

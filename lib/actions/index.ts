@@ -59,3 +59,6 @@ export * from './equipment'
 
 // Member access cards (Door epic)
 export * from './member-cards'
+
+// Door connections + executor (Door epic)
+export * from './door'

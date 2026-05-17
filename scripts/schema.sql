@@ -2374,3 +2374,82 @@ ON CONFLICT (space_id, subject, permission) DO NOTHING;
 INSERT INTO public.space_role_permissions (space_id, subject, permission)
 SELECT id, 'board', 'door.operate' FROM public.spaces
 ON CONFLICT (space_id, subject, permission) DO NOTHING;
+
+
+-- =============================================================================
+-- 22. Door connections + access log (Door epic, phase 2)
+--     (equivalent to scripts/035_door_connections.sql).
+--
+--     door_connections: per-space controller integration. The shared door
+--     password is NOT here -- secret_ref -> AES-256-GCM `secrets` vault,
+--     decrypted server-side only. pinned_host is the SSRF pin (executor only
+--     ever calls that exact host, no redirects, size/time caps). adapter
+--     native_heatsync|generic_http; allow_member_self_entry opt-in (phase 3).
+--     door_access_log: append-only, secrets redacted, service-client-only
+--     writes (no client write policy; immutable audit). RLS additive/
+--     default-deny: door_connections CRUD = door.manage; door_access_log
+--     SELECT = door.manage OR door.operate. No anonymous path. No new
+--     permission codes (door.manage/door.operate from migration 034).
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS public.door_connections (
+  id                      uuid        PRIMARY KEY DEFAULT uuid_generate_v4(),
+  space_id                uuid        NOT NULL REFERENCES public.spaces(id) ON DELETE CASCADE,
+  name                    text        NOT NULL CHECK (char_length(name) BETWEEN 1 AND 200),
+  adapter                 text        NOT NULL DEFAULT 'generic_http'
+                                      CHECK (adapter IN ('native_heatsync','generic_http')),
+  base_url                text        NOT NULL CHECK (base_url ~ '^https?://'),
+  pinned_host             text        NOT NULL CHECK (char_length(pinned_host) BETWEEN 1 AND 255),
+  auth_mode               text        NOT NULL DEFAULT 'none'
+                                      CHECK (auth_mode IN ('none','query','header','bearer')),
+  auth_param              text,
+  secret_ref              uuid        REFERENCES public.secrets(id) ON DELETE SET NULL,
+  verbs                   jsonb       NOT NULL DEFAULT '{}',
+  allow_member_self_entry boolean     NOT NULL DEFAULT false,
+  is_enabled              boolean     NOT NULL DEFAULT true,
+  created_by              uuid        REFERENCES public.space_members(id) ON DELETE SET NULL,
+  created_at              timestamptz NOT NULL DEFAULT now(),
+  updated_at              timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_door_connections_space ON public.door_connections (space_id);
+
+CREATE TABLE IF NOT EXISTS public.door_access_log (
+  id               uuid        PRIMARY KEY DEFAULT uuid_generate_v4(),
+  space_id         uuid        NOT NULL REFERENCES public.spaces(id) ON DELETE CASCADE,
+  connection_id    uuid        REFERENCES public.door_connections(id) ON DELETE SET NULL,
+  actor_member_id  uuid        REFERENCES public.space_members(id) ON DELETE SET NULL,
+  target_member_id uuid        REFERENCES public.space_members(id) ON DELETE SET NULL,
+  action           text        NOT NULL,
+  success          boolean     NOT NULL DEFAULT false,
+  detail           text,
+  occurred_at      timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_door_access_log_space ON public.door_access_log (space_id, occurred_at DESC);
+
+ALTER TABLE public.door_connections ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.door_access_log  ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS door_connections_select ON public.door_connections;
+DROP POLICY IF EXISTS door_connections_insert ON public.door_connections;
+DROP POLICY IF EXISTS door_connections_update ON public.door_connections;
+DROP POLICY IF EXISTS door_connections_delete ON public.door_connections;
+CREATE POLICY door_connections_select ON public.door_connections FOR SELECT
+  USING (public.user_has_permission(auth.uid(), space_id, 'door.manage'));
+CREATE POLICY door_connections_insert ON public.door_connections FOR INSERT
+  WITH CHECK (public.user_has_permission(auth.uid(), space_id, 'door.manage'));
+CREATE POLICY door_connections_update ON public.door_connections FOR UPDATE
+  USING (public.user_has_permission(auth.uid(), space_id, 'door.manage'));
+CREATE POLICY door_connections_delete ON public.door_connections FOR DELETE
+  USING (public.user_has_permission(auth.uid(), space_id, 'door.manage'));
+
+DROP POLICY IF EXISTS door_access_log_select ON public.door_access_log;
+CREATE POLICY door_access_log_select ON public.door_access_log FOR SELECT
+  USING (
+    public.user_has_permission(auth.uid(), space_id, 'door.manage')
+    OR public.user_has_permission(auth.uid(), space_id, 'door.operate')
+  );
+
+DROP TRIGGER IF EXISTS trg_door_connections_touch ON public.door_connections;
+CREATE TRIGGER trg_door_connections_touch
+  BEFORE UPDATE ON public.door_connections
+  FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();

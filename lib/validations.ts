@@ -903,6 +903,49 @@ export const listMemberCardsSchema = z.object({
   memberId: z.string().uuid('Invalid member ID'),
 })
 
+// ─── Door connections (Door epic P2) ─────────────────────────────────────────
+
+const httpUrl = z
+  .string()
+  .trim()
+  .max(2000)
+  .regex(/^https?:\/\/.+/i, 'Must be an http(s) URL')
+
+const doorAdapter = z.enum(['native_heatsync', 'generic_http'])
+const doorAuthMode = z.enum(['none', 'query', 'header', 'bearer'])
+
+export const createDoorConnectionSchema = z.object({
+  name: z.string().min(1, 'Name is required').max(200),
+  adapter: doorAdapter.optional().default('generic_http'),
+  base_url: httpUrl,
+  pinned_host: z.string().min(1, 'A pinned host is required').max(255),
+  auth_mode: doorAuthMode.optional().default('none'),
+  auth_param: z.string().max(120).optional().nullable(),
+  secret_ref: z.string().uuid('Invalid secret reference').optional().nullable(),
+  // generic adapter per-verb templates (validated as a flat string map)
+  verbs: z.record(z.string().max(2000)).optional().default({}),
+  allow_member_self_entry: z.boolean().optional().default(false),
+  is_enabled: z.boolean().optional().default(true),
+})
+
+export const updateDoorConnectionSchema = z.object({
+  connectionId: z.string().uuid('Invalid connection ID'),
+  name: z.string().min(1).max(200).optional(),
+  adapter: doorAdapter.optional(),
+  base_url: httpUrl.optional(),
+  pinned_host: z.string().min(1).max(255).optional(),
+  auth_mode: doorAuthMode.optional(),
+  auth_param: z.string().max(120).optional().nullable(),
+  secret_ref: z.string().uuid('Invalid secret reference').optional().nullable(),
+  verbs: z.record(z.string().max(2000)).optional(),
+  allow_member_self_entry: z.boolean().optional(),
+  is_enabled: z.boolean().optional(),
+})
+
+export const doorConnectionIdSchema = z.object({
+  connectionId: z.string().uuid('Invalid connection ID'),
+})
+
 // ─── Generic ID schemas ──────────────────────────────────────────────────────
 
 export const uuidSchema = z.string().uuid('Invalid ID format')

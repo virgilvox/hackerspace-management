@@ -421,7 +421,8 @@ customizable permissions + Ops ACLs, self-change hardening, `026`-`029` custom
 forms + waivers + onboarding form step + per-space form slug + invite roles,
 `030` certifications + Instructor capability, `031` secrets SELECT honors
 `ops.secrets.read`, `032` classes + sessions + signups, `033` equipment +
-reservations).
+reservations, `034` member access cards + door permissions, `035` door
+connections + access log).
 
 ### Forms & waivers (migrations 026-029; complete Phases 1-5)
 
@@ -509,6 +510,28 @@ service-client action that enforces the equipment status, the no-overlap
 rule, and the required-certification gate (checked against the normal
 `member_certifications` data; an `equipment.manage` holder gets the
 override and may book on a member's behalf). No anonymous path.
+
+### Door / access control (migrations 034-035; epic in progress)
+
+Phased; P1-P2 built. `member_cards` (034) associates RFID/NFC UIDs to
+members; the UID is a credential (`door.manage`-only RLS, no member SELECT;
+masked count+last4 self-view via a service-client action). `door.manage` /
+`door.operate` permissions (group Access). `door_connections` (035) is a
+per-space controller integration: the shared password is NOT stored on the
+row — `secret_ref` points at the existing AES-256-GCM `secrets` vault and is
+decrypted server-side only. `pinned_host` is the SSRF pin. Pure logic in
+`lib/door-logic.ts` (SSRF `validateDoorTarget`, always-blocked metadata/
+link-local, native HeatSync encoders with the firmware-verified fixed-width
+zero-padding, generic template substitution, secret redaction) is heavily
+unit-tested. `lib/door/executor.ts` is the single hardened egress: it
+re-validates the target against the pin, refuses redirects, caps time and
+body, and redacts secrets before any audit write. `door_access_log` is an
+append-only, secrets-redacted audit with no client write policy (validated
+service-client executor only). `/door/manage` (door.manage) configures
+connections, picks a vault secret, and runs a safe `status`-only test.
+Phase 3 adds live grant/revoke/open and the per-connection member
+self-entry (opt-in, elevated risk, off by default); phases 4-5 add inbound
+log ingest and the universal API-call UI builder. No anonymous path.
 
 ---
 

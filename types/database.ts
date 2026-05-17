@@ -154,6 +154,18 @@ export type Database = {
         Update: { id?: string; space_id?: string; member_id?: string; card_uid?: string; card_type?: string; label?: string | null; is_active?: boolean; created_by?: string | null; created_at?: string; updated_at?: string }
         Relationships: []
       }
+      door_connections: {
+        Row: { id: string; space_id: string; name: string; adapter: string; base_url: string; pinned_host: string; auth_mode: string; auth_param: string | null; secret_ref: string | null; verbs: Json; allow_member_self_entry: boolean; is_enabled: boolean; created_by: string | null; created_at: string; updated_at: string }
+        Insert: { id?: string; space_id: string; name: string; adapter?: string; base_url: string; pinned_host: string; auth_mode?: string; auth_param?: string | null; secret_ref?: string | null; verbs?: Json; allow_member_self_entry?: boolean; is_enabled?: boolean; created_by?: string | null; created_at?: string; updated_at?: string }
+        Update: { id?: string; space_id?: string; name?: string; adapter?: string; base_url?: string; pinned_host?: string; auth_mode?: string; auth_param?: string | null; secret_ref?: string | null; verbs?: Json; allow_member_self_entry?: boolean; is_enabled?: boolean; created_by?: string | null; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
+      door_access_log: {
+        Row: { id: string; space_id: string; connection_id: string | null; actor_member_id: string | null; target_member_id: string | null; action: string; success: boolean; detail: string | null; occurred_at: string }
+        Insert: { id?: string; space_id: string; connection_id?: string | null; actor_member_id?: string | null; target_member_id?: string | null; action: string; success?: boolean; detail?: string | null; occurred_at?: string }
+        Update: { id?: string; space_id?: string; connection_id?: string | null; actor_member_id?: string | null; target_member_id?: string | null; action?: string; success?: boolean; detail?: string | null; occurred_at?: string }
+        Relationships: []
+      }
       activity_log: {
         Row: {
           action: string

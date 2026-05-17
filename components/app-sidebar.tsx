@@ -15,7 +15,7 @@ import {
   MessageSquare, Users, CreditCard, BookUser, Download, LogOut,
   Vote, ShieldAlert, ScrollText, LineChart, UserCircle, UserSearch,
   MessagesSquare, SlidersHorizontal, ClipboardList, FileText, Award, BadgeCheck, GraduationCap, Hammer,
-  ChevronDown,
+  ChevronDown, DoorClosed,
 } from 'lucide-react'
 
 interface NavLinkProps {
@@ -173,6 +173,12 @@ export function AppSidebar({ member, roleName, taskBadge = 0, commsBadge = 0, pa
           <NavLink href="/policies" label="Policies" icon={ScrollText} active={isActive('/policies')} onClick={onNav} />
         </NavSection>
 
+        <NavSection id="learn" title="Learn">
+          <NavLink href="/classes" label="Classes" icon={GraduationCap} active={pathname === '/classes' || pathname.startsWith('/classes?')} onClick={onNav} />
+          <NavLink href="/equipment" label="Equipment" icon={Hammer} active={pathname === '/equipment' || pathname.startsWith('/equipment?')} onClick={onNav} />
+          <NavLink href="/my-forms" label="Forms" icon={FileText} active={isActive('/my-forms')} onClick={onNav} />
+        </NavSection>
+
         <NavSection id="people" title="People">
           <NavLink href="/members" label="Members" icon={Users} active={isActive('/members')} onClick={onNav} />
           <NavLink href="/contacts" label="Contacts" icon={BookUser} active={isActive('/contacts')} onClick={onNav} />
@@ -184,12 +190,6 @@ export function AppSidebar({ member, roleName, taskBadge = 0, commsBadge = 0, pa
         <NavSection id="finance" title="Finance">
           <NavLink href="/payments" label="Payments" icon={CreditCard} active={isActive('/payments')} badge={paymentBadge} onClick={onNav} />
           <NavLink href="/financials" label="Financials" icon={LineChart} active={isActive('/financials')} onClick={onNav} />
-        </NavSection>
-
-        <NavSection id="learn" title="Learn">
-          <NavLink href="/classes" label="Classes" icon={GraduationCap} active={pathname === '/classes' || pathname.startsWith('/classes?')} onClick={onNav} />
-          <NavLink href="/equipment" label="Equipment" icon={Hammer} active={pathname === '/equipment' || pathname.startsWith('/equipment?')} onClick={onNav} />
-          <NavLink href="/my-forms" label="Forms" icon={FileText} active={isActive('/my-forms')} onClick={onNav} />
         </NavSection>
 
         <NavSection id="account" title="Account">
@@ -204,6 +204,7 @@ export function AppSidebar({ member, roleName, taskBadge = 0, commsBadge = 0, pa
             <NavLink href="/certifications" label="Certifications" icon={Award} active={isActive('/certifications')} onClick={onNav} />
             <NavLink href="/classes/manage" label="Manage classes" icon={GraduationCap} active={isActive('/classes/manage')} onClick={onNav} />
             <NavLink href="/equipment/manage" label="Manage equipment" icon={Hammer} active={isActive('/equipment/manage')} onClick={onNav} />
+            <NavLink href="/door/manage" label="Door access" icon={DoorClosed} active={isActive('/door/manage')} onClick={onNav} />
             <NavLink href="/import" label="Import / Sync" icon={Download} active={isActive('/import')} onClick={onNav} />
             <NavLink href="/settings" label="Settings" icon={Settings2} active={isActive('/settings')} onClick={onNav} />
           </NavSection>
