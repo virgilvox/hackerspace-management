@@ -4,7 +4,7 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
-## 2026-05-17 (pass 27) — Door P3 code-complete LOCAL (slot allocator + live actions); self-entry CHECKPOINT pending
+## 2026-05-17 (pass 27) — Door P3 DEPLOYED (slot allocator + live actions); self-entry CHECKPOINT next
 
 Branch `main`. Start state was the pass-26 clean checkpoint. Reaffirmed framing: this is a generic multi-space hackerspace platform, HeatSync is one tenant/adapter (memory `platform-not-heatsync-only`). Slot-allocator design presented and APPROVED before building; user decisions locked: slot range **0-200 no reservation**, grant ordering **reserve -> call -> roll back on failure**, **checkpoint before member self-entry: YES**.
 
@@ -17,8 +17,8 @@ Phase-by-phase, each gated (vitest + `pnpm build` read in-run) + own commit:
 - **E** ARCHITECTURE + this entry.
 
 ### Open / next
-- LOCAL & undeployed: Door P3 (5 commits: `3985419`, `a5e1ed9`, `e5cedb6`, `c787766`, + this docs commit). Plus the still-unpushed pass-26 HANDOFF docs commit `7ea3dea`. **Awaiting deploy approval** (migration 036). After push: confirm 036 applied; with a reachable controller, exercise grant (slot assigned) -> revoke (slot freed) -> open/lock/unlock; verify audit rows redacted. NOT browser-verified (no live controller/browser here).
-- **CHECKPOINT (locked, do next): present the member self-entry design for review BEFORE building it.** Scope: a member self "buzz me in" action allowed only when `door_connections.allow_member_self_entry` is true AND the caller has an active authorized `member_card`; strict per-member rate limit + full audit + confirm + never anonymous; surfaced on `/me` or a member door page. This is the single highest-risk piece in the epic; build only after explicit approval.
+- **DEPLOYED** pass-27: pushed `1db9316..d047820` (5 P3 commits + carried pass-26 HANDOFF), Actions run `25981082371` success. Smoke: `/` `/login` 200; `/door/manage` `/me` 307->login (gated, expected). Migration 036 should be applied by the deploy; NOT browser-verified and NOT exercised against a live controller (none reachable here). Next on-site/with-controller check: grant (slot assigned) -> revoke (slot freed) -> open/lock/unlock; verify `door_access_log` rows are redacted. This pass-27 HANDOFF deploy-state edit is a small follow-up docs commit, LOCAL/unpushed (carry or deploy next).
+- **CHECKPOINT (next build step): member self-entry. Design reviewed pass-27; eligibility rule LOCKED by user = "any active card is enough" (NOT slot-on-connection).** Scope: `selfEntry({connectionId})` in `door.ts` allowed only when connection `is_enabled` AND `door_connections.allow_member_self_entry` AND caller is an active member AND caller owns an active `member_card` (any active card in the space; does NOT require a `door_card_slots` row). Resolve the caller's membership/cards server-side (never trust a member/card id from the client). Momentary open only (HeatSync `?o1` / generic `open` template) through the existing executor; never unlock/lock/grant/revoke; never anonymous. Strict per-member rate limit (tighter than operator control, ~5/min). One redacted `door_access_log` row `action='self_entry'`. Surface a confirm button on `/me` (and/or a `/door` member page), hidden when no eligible connection. No new table/migration. Build on next "continue".
 - Then **P4** inbound access-log ingest (poll `?z`/webhook -> resolve card_uid->member into door_access_log); **P5** universal API-call UI builder (`api_buttons`, same SSRF executor, door template).
 - Residual hardening (unchanged): SSRF pin is host-string equality; hostname pin -> theoretical DNS-rebinding (mitigated by no-redirect + typically-IP pin); consider resolve-and-check. Systemic test gap: no Supabase mock harness, so action orchestration (slot reserve/rollback, idempotency, RLS) is not unit-tested; pure slot logic is.
 
