@@ -4,6 +4,29 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-17 (pass 40) — Product spine started: Stripe dues P1a+P1b; LOCAL, awaiting deploy
+
+Branch `main`. Pass-39 backlog fully DEPLOYED. Began the product spine (Stripe recurring dues) — money-critical, so design-first with a fresh web re-verify. 3 commits this pass, suite 479, build clean.
+
+### Locked design (owner-approved forks, pass-40)
+Per-space OWN Stripe keys (NOT Connect); Subscriptions + hosted Checkout + Billing Portal; lapse = grace→`late`, NEVER auto-inactive; config in `integrations.config` + secrets in the AES-256-GCM vault. Re-verified Stripe facts saved to memory `integration-api-facts` (SDK v22.x, apiVersion `2026-04-22.dahlia`, raw `req.text()` body, 300s tolerance, `event.id` idempotency, per-space webhook PATH routing — no Connect `event.account`, `subscription_data.metadata` gotcha, Portal needs per-account Dashboard activation, status map).
+
+### Done (gated, committed)
+- **`521df69` P1a**: migration 040 — `payment_platform` += `stripe`; `member_billing` (member↔Stripe customer/sub/status; SELECT admin/board/treasurer, no client write); `stripe_webhook_events` idempotency ledger. Mirrored schema.sql §25 + CREATE TYPE list + types + DATABASE_SCHEMA/DB_SCHEMA_MAP (framing→040). Inert until used.
+- **`3d7cf87` P1b**: pure `lib/stripe-logic.ts` + 10 tests — `STRIPE_API_VERSION`, `stripeStatusIsPaid`, `duesMemberStatus` (grace→late, never inactive, unknown→no-op), `graceExceeded` (fail-safe), `priceIdForTier`, `isStripeConfigured`.
+
+### Remaining Phase-1 plan (money-critical — review/checkpoint before/within)
+- **P1c**: add `stripe` dep (pin exact, v22.x); `lib/stripe/client.ts` server factory `getStripe(secretKey,{apiVersion})`; `lib/actions/stripe.ts` config get/save (publishable/mode/prices→integrations.config; secret key + webhook secret → encrypted `secrets` rows, ids in config — reuse `lib/secrets/crypto` + the door secret_ref pattern); Zod + admin guard.
+- **P1d**: member actions — `startDuesCheckout` (resolve tier→price, ensure Stripe Customer, Checkout subscription mode w/ client_reference_id + metadata + subscription_data.metadata), `startBillingPortal`, `getMyBilling` (self service-client view), admin `listMemberBilling`.
+- **P1e**: webhook `app/api/stripe/webhook/[space]/route.ts` — raw body, per-space signing secret, `constructEvent`, idempotent via `stripe_webhook_events`, handle checkout.session.completed / customer.subscription.* / invoice.paid / invoice.payment_failed → upsert `member_billing` + record `payments` row + `duesMemberStatus`→space_members.status + last_paid_at. Exclude path from auth middleware.
+- **P1f**: Settings config UI (admin) + member "Pay dues / Manage billing" surface + dues status on /me & dashboard attention. **P1g**: docs (API_REFERENCE/ARCHITECTURE) + HANDOFF.
+- Then product spine Phase 2 (transactional notifications) and Phase 3 (broader self-serve) per the pass-35 report.
+
+### Open
+- LOCAL & undeployed: pass-40 (3 commits: P1a, P1b, this docs). Migration 040 is additive/inert (enum value + unused tables) — safe to deploy alone. **Awaiting deploy approval.** ASK before deploy; the P1d/P1e money+webhook code should be reviewed before its deploy.
+
+---
+
 ## 2026-05-17 (pass 39) — Bulk member actions + palette trigger/a11y (backlog COMPLETE, DEPLOYED run 25987172786)
 
 Branch `main`. Pass-38 (mobile card tables) DEPLOYED (run 25986426224, smoke clean). 2 feature commits this pass, suite 469, build clean. This closes out the analysis-driven backlog the user chose.
