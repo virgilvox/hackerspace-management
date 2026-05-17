@@ -493,7 +493,7 @@ export function MembersClient({ members: initialMembers, currentRole, areaLeadRo
             <MemberFormFields />
             {error && <p className="font-mono text-xs text-red-500">{error}</p>}
             <div className="flex gap-3 pt-2">
-              <button type="button" onClick={() => setShowAdd(false)} className="flex-1 border border-border text-foreground font-sans text-sm py-2 rounded hover:border-primary/50 transition">Cancel</button>
+              <button type="button" disabled={loading} onClick={() => setShowAdd(false)} className="flex-1 border border-border text-foreground font-sans text-sm py-2 rounded hover:border-primary/50 transition disabled:opacity-60">Cancel</button>
               <button type="submit" disabled={loading} className="flex-1 bg-primary text-white font-sans text-sm py-2 rounded hover:bg-primary/90 transition disabled:opacity-60">
                 {loading ? 'Adding...' : 'Add Member'}
               </button>
@@ -512,7 +512,7 @@ export function MembersClient({ members: initialMembers, currentRole, areaLeadRo
             <MemberFormFields />
             {error && <p className="font-mono text-xs text-red-500">{error}</p>}
             <div className="flex gap-3 pt-2">
-              <button type="button" onClick={() => setEditMember(null)} className="flex-1 border border-border text-foreground font-sans text-sm py-2 rounded hover:border-primary/50 transition">Cancel</button>
+              <button type="button" disabled={loading} onClick={() => setEditMember(null)} className="flex-1 border border-border text-foreground font-sans text-sm py-2 rounded hover:border-primary/50 transition disabled:opacity-60">Cancel</button>
               <button type="submit" disabled={loading} className="flex-1 bg-primary text-white font-sans text-sm py-2 rounded hover:bg-primary/90 transition disabled:opacity-60">
                 {loading ? 'Saving...' : 'Save Changes'}
               </button>
