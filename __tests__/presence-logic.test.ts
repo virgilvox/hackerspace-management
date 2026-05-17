@@ -3,6 +3,8 @@ import {
   presenceStatus,
   hostEligibility,
   summarizePresence,
+  dayKey,
+  visitDurationMinutes,
   PRESENCE_MAX_OPEN_HOURS,
 } from '@/lib/presence-logic'
 
@@ -61,5 +63,29 @@ describe('summarizePresence', () => {
   })
   it('empty list = zero', () => {
     expect(summarizePresence([], NOW)).toEqual({ present: 0, hosts: 0 })
+  })
+})
+
+describe('dayKey', () => {
+  it('returns the UTC date portion, stable regardless of runtime tz', () => {
+    expect(dayKey('2026-05-17T23:30:00Z')).toBe('2026-05-17')
+    expect(dayKey('2026-01-02T00:00:00+00:00')).toBe('2026-01-02')
+  })
+  it('returns empty for unparseable input', () => {
+    expect(dayKey('not-a-date')).toBe('')
+    expect(dayKey('')).toBe('')
+  })
+})
+
+describe('visitDurationMinutes', () => {
+  it('uses checkout when present', () => {
+    expect(visitDurationMinutes('2026-05-17T10:00:00Z', '2026-05-17T11:30:00Z')).toBe(90)
+  })
+  it('uses now when still open', () => {
+    expect(visitDurationMinutes(hoursAgo(2), null, NOW)).toBe(120)
+  })
+  it('never negative; unparseable -> 0', () => {
+    expect(visitDurationMinutes('2026-05-17T12:00:00Z', '2026-05-17T11:00:00Z')).toBe(0)
+    expect(visitDurationMinutes('nope', null, NOW)).toBe(0)
   })
 })

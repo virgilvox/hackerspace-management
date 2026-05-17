@@ -47,6 +47,29 @@ export function hostEligibility(input: {
   return { ok: true }
 }
 
+// Stable day bucket for grouping/filtering attendance. Uses the UTC date
+// portion of the ISO timestamp so it is deterministic (not affected by the
+// runtime's timezone) and testable. Returns '' for an unparseable value.
+export function dayKey(iso: string): string {
+  return /^\d{4}-\d{2}-\d{2}/.test(iso) ? iso.slice(0, 10) : ''
+}
+
+// Visit length in whole minutes (end = checkout, or `now` if still open).
+// Never negative; unparseable input -> 0.
+export function visitDurationMinutes(
+  checkedInAt: string,
+  checkedOutAt: string | null | undefined,
+  now?: Date | string,
+): number {
+  const start = new Date(checkedInAt).getTime()
+  if (Number.isNaN(start)) return 0
+  const endMs = checkedOutAt
+    ? new Date(checkedOutAt).getTime()
+    : now == null ? Date.now() : new Date(now).getTime()
+  if (Number.isNaN(endMs)) return 0
+  return Math.max(0, Math.floor((endMs - start) / 60000))
+}
+
 // Count how many visits are currently present, and how many of those are
 // hosting. Stale/checked-out rows are excluded.
 export function summarizePresence(
