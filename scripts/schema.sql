@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS public.spaces (
   invite_code             text,
   require_approval        boolean     DEFAULT true,
   public_member_directory boolean     DEFAULT false,
+  host_requires_card      boolean     NOT NULL DEFAULT true,
   webhook_secret          text,
   settings                jsonb       DEFAULT '{}',
   created_at              timestamptz NOT NULL DEFAULT now(),
@@ -2498,3 +2499,43 @@ DROP TRIGGER IF EXISTS trg_door_card_slots_touch ON public.door_card_slots;
 CREATE TRIGGER trg_door_card_slots_touch
   BEFORE UPDATE ON public.door_card_slots
   FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
+
+
+-- =============================================================================
+-- 24. Presence & attendance (check-in / check-out / hosting)
+--     (equivalent to scripts/038_presence_attendance.sql).
+--
+--     space_visits: one row per visit; open (checked_out_at IS NULL) = present.
+--     Partial UNIQUE (space_id, member_id) WHERE checked_out_at IS NULL keeps
+--     at most one open visit per member (the action auto-closes a stale one
+--     before a new check-in). SELECT = any space member (presence is social);
+--     NO client write policy (validated service-client actions only, self-
+--     resolved, immutable history). No new permission code; the org-wide
+--     attendance view is visible to any space member by product decision.
+--     spaces.host_requires_card (mirrored above) gates host check-in; enforced
+--     in the app.
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS public.space_visits (
+  id             uuid        PRIMARY KEY DEFAULT uuid_generate_v4(),
+  space_id       uuid        NOT NULL REFERENCES public.spaces(id) ON DELETE CASCADE,
+  member_id      uuid        NOT NULL REFERENCES public.space_members(id) ON DELETE CASCADE,
+  checked_in_at  timestamptz NOT NULL DEFAULT now(),
+  checked_out_at timestamptz,
+  is_host        boolean     NOT NULL DEFAULT false,
+  check_in_note  text        CHECK (check_in_note IS NULL OR char_length(check_in_note) <= 500),
+  check_out_note text        CHECK (check_out_note IS NULL OR char_length(check_out_note) <= 500),
+  created_at     timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_space_visits_open
+  ON public.space_visits (space_id, member_id) WHERE checked_out_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_space_visits_present
+  ON public.space_visits (space_id) WHERE checked_out_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_space_visits_member
+  ON public.space_visits (space_id, member_id, checked_in_at DESC);
+
+ALTER TABLE public.space_visits ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS space_visits_select ON public.space_visits;
+CREATE POLICY space_visits_select ON public.space_visits FOR SELECT
+  USING (space_id IN (SELECT public.get_user_space_ids(auth.uid())));

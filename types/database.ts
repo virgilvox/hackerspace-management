@@ -172,6 +172,12 @@ export type Database = {
         Update: { id?: string; space_id?: string; connection_id?: string; card_id?: string; slot?: number; created_by?: string | null; created_at?: string; updated_at?: string }
         Relationships: []
       }
+      space_visits: {
+        Row: { id: string; space_id: string; member_id: string; checked_in_at: string; checked_out_at: string | null; is_host: boolean; check_in_note: string | null; check_out_note: string | null; created_at: string }
+        Insert: { id?: string; space_id: string; member_id: string; checked_in_at?: string; checked_out_at?: string | null; is_host?: boolean; check_in_note?: string | null; check_out_note?: string | null; created_at?: string }
+        Update: { id?: string; space_id?: string; member_id?: string; checked_in_at?: string; checked_out_at?: string | null; is_host?: boolean; check_in_note?: string | null; check_out_note?: string | null; created_at?: string }
+        Relationships: []
+      }
       activity_log: {
         Row: {
           action: string
@@ -1421,6 +1427,7 @@ export type Database = {
           default_voting_window_hours: number
           description: string | null
           financial_visibility: Database["public"]["Enums"]["financial_visibility"]
+          host_requires_card: boolean
           id: string
           incident_sla_hours: number
           invite_code: string | null
@@ -1446,6 +1453,7 @@ export type Database = {
           default_voting_window_hours?: number
           description?: string | null
           financial_visibility?: Database["public"]["Enums"]["financial_visibility"]
+          host_requires_card?: boolean
           id?: string
           incident_sla_hours?: number
           invite_code?: string | null
@@ -1471,6 +1479,7 @@ export type Database = {
           default_voting_window_hours?: number
           description?: string | null
           financial_visibility?: Database["public"]["Enums"]["financial_visibility"]
+          host_requires_card?: boolean
           id?: string
           incident_sla_hours?: number
           invite_code?: string | null

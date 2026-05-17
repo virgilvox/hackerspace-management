@@ -403,10 +403,11 @@ Default channels created by trigger on space INSERT: `general`, `announcements`,
 | 035 | `door_connections`, `door_access_log` (Door epic P2). Password via secrets vault (secret_ref), `pinned_host` SSRF pin, hardened executor. Connections CRUD = door.manage; log SELECT = door.manage/operate, service-client-only writes |
 | 036 | `door_card_slots` (Door epic P3). Per-connection integer-slot allocation map (HeatSync keys cards by slot 0-200). UNIQUE(connection_id,slot) + UNIQUE(connection_id,card_id); lowest-free policy in pure logic. SELECT = door.manage/operate, service-client-only writes |
 | 037 | `classes.required_form_id` nullable FK -> forms(id) ON DELETE SET NULL. Optional per-class form gate (waiver-on-file): signup requires a completed form_submissions row; classes.manage override + on-behalf. App-enforced; no RLS change |
+| 038 | `space_visits` (presence/attendance) + `spaces.host_requires_card` bool default true. One open visit per member (partial unique); SELECT = any space member; service-client-only writes (self-resolved, immutable). No new permission code |
 
 ---
 
-## Tables added by migrations 016-037 (quick map)
+## Tables added by migrations 016-038 (quick map)
 
 | Table | Key columns | Purpose |
 |-------|-------------|---------|
@@ -436,7 +437,8 @@ Default channels created by trigger on space INSERT: `general`, `announcements`,
 | `door_connections` | space_id, name, adapter (native_heatsync/generic_http), base_url, pinned_host (SSRF pin), auth_mode, secret_ref -> secrets, verbs jsonb, allow_member_self_entry, is_enabled | Door controller integration. CRUD = `door.manage`. Password lives in the encrypted secrets vault, never here |
 | `door_access_log` | space_id, connection_id, actor_member_id, target_member_id, action, success, detail (redacted), occurred_at | Append-only door audit. SELECT = `door.manage`/`door.operate`; NO write policy (validated service-client executor only; immutable) |
 | `door_card_slots` | space_id, connection_id -> door_connections, card_id -> member_cards, slot int, created_by | Per-connection integer-slot allocation map. UNIQUE(connection_id,slot) + UNIQUE(connection_id,card_id). SELECT = `door.manage`/`door.operate`; NO write policy (service-client executor only, in lockstep with the controller) |
+| `space_visits` | space_id, member_id, checked_in_at, checked_out_at, is_host, check_in_note, check_out_note | Presence/attendance. Open (checked_out_at NULL) = present; partial UNIQUE one-open-per-member. SELECT = any space member; NO write policy (self-resolved service-client actions only; immutable). Org-wide attendance view = all members |
 
-Column additions: `space_members.tier_id`, `onboarding_completed_at`, `onboarding_progress`; `secrets.encrypted_value`, `encryption_version`; `knowledge_base.render_markdown`, `is_meeting_minutes`, `meeting_date`. New enum `comment_entity_type`.
+Column additions: `space_members.tier_id`, `onboarding_completed_at`, `onboarding_progress`; `secrets.encrypted_value`, `encryption_version`; `knowledge_base.render_markdown`, `is_meeting_minutes`, `meeting_date`; `classes.required_form_id`; `spaces.host_requires_card`. New enum `comment_entity_type`.
 
 Helper functions: `user_effective_roles(uid,sid)`, `user_has_permission(uid,sid,perm)` (both SECURITY DEFINER, search_path=public), plus governance quorum/tally/SLA functions.
