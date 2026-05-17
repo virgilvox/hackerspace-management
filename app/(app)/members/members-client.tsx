@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation'
 import type { Tables } from '@/types/database'
 import { PageTitle } from '@/components/ui/page-title'
 import { useConfirm } from '@/components/ui/confirm'
+import { MemberCertificationsDialog } from '@/components/certifications/member-certifications-dialog'
 
 type Member = Tables<'space_members'>
 type AreaLeadRole = { id: string; area_name: string; lead_id: string | null }
@@ -22,6 +23,10 @@ interface Props {
   // so the members page is a real place to create and share a join link
   // (the first-run "Invite or add members" step lands here).
   inviteSlot?: ReactNode
+  // True when the viewer holds certifications.grant (the Instructor
+  // capability), independent of admin/board. Adds a per-member
+  // certifications panel reachable by non-admin instructors.
+  canGrantCerts?: boolean
 }
 
 const TIER_COLORS: Record<string, string> = {
@@ -33,8 +38,9 @@ const TIER_COLORS: Record<string, string> = {
 
 const isAdmin = (role: string) => role === 'admin' || role === 'board'
 
-export function MembersClient({ members: initialMembers, currentRole, areaLeadRoles = [], inviteSlot }: Props) {
+export function MembersClient({ members: initialMembers, currentRole, areaLeadRoles = [], inviteSlot, canGrantCerts = false }: Props) {
   const router = useRouter()
+  const [certMember, setCertMember] = useState<Member | null>(null)
   const confirm = useConfirm()
   const [members, setMembers] = useState<Member[]>(initialMembers)
 
@@ -271,6 +277,9 @@ export function MembersClient({ members: initialMembers, currentRole, areaLeadRo
                 <th className="px-4 py-3 text-left font-mono text-[10px] tracking-widest text-muted-foreground hidden md:table-cell">JOINED</th>
                 <th className="px-4 py-3 text-left font-mono text-[10px] tracking-widest text-muted-foreground hidden lg:table-cell">LAST PAYMENT</th>
                 <th className="px-4 py-3 text-left font-mono text-[10px] tracking-widest text-muted-foreground">STATUS</th>
+                {canGrantCerts && (
+                  <th className="px-4 py-3 text-left font-mono text-[10px] tracking-widest text-muted-foreground">CERTS</th>
+                )}
                 {isAdmin(currentRole) && (
                   <th className="px-4 py-3 text-left font-mono text-[10px] tracking-widest text-muted-foreground">ACTIONS</th>
                 )}
@@ -325,6 +334,16 @@ export function MembersClient({ members: initialMembers, currentRole, areaLeadRo
                         <span className="font-mono text-xs text-muted-foreground">{m.status}</span>
                       )}
                     </td>
+                    {canGrantCerts && (
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={() => setCertMember(m)}
+                          className="font-mono text-[10px] border border-border px-3 py-2 min-h-[44px] rounded hover:border-primary hover:text-primary transition"
+                        >
+                          CERTS
+                        </button>
+                      </td>
+                    )}
                     {isAdmin(currentRole) && (
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
@@ -370,7 +389,7 @@ export function MembersClient({ members: initialMembers, currentRole, areaLeadRo
                 )
               }) : (
                 <tr>
-                  <td colSpan={isAdmin(currentRole) ? 6 : 5} className="p-0">
+                  <td colSpan={5 + (canGrantCerts ? 1 : 0) + (isAdmin(currentRole) ? 1 : 0)} className="p-0">
                     <Empty className="border-0">
                       <EmptyHeader>
                         <EmptyMedia variant="icon"><Users /></EmptyMedia>
@@ -424,6 +443,13 @@ export function MembersClient({ members: initialMembers, currentRole, areaLeadRo
           </form>
         </DialogContent>
       </Dialog>
+
+      {canGrantCerts && (
+        <MemberCertificationsDialog
+          member={certMember ? { id: certMember.id, display_name: certMember.display_name } : null}
+          onClose={() => setCertMember(null)}
+        />
+      )}
     </div>
   )
 }

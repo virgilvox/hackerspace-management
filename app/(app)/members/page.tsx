@@ -87,10 +87,20 @@ export default async function MembersPage() {
         .order('created_at', { ascending: false })
     : { data: [] }
 
+  // certifications.grant (the Instructor capability) is independent of
+  // admin/board, so check it explicitly to decide whether to show the
+  // per-member certifications panel.
+  const { data: canGrantCerts } = await supabase.rpc('user_has_permission', {
+    uid: user.id,
+    sid: self.space_id,
+    perm: 'certifications.grant',
+  })
+
   return (
     <MembersClient
       members={members ?? []}
       currentRole={self.role}
+      canGrantCerts={!!canGrantCerts}
       areaLeadRoles={(areaLeadRoles ?? []) as Array<{ id: string; area_name: string; lead_id: string | null }>}
       inviteSlot={
         canInvite ? (
