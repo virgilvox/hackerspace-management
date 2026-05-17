@@ -47,3 +47,6 @@ export * from './permissions'
 
 // Custom forms and waivers
 export * from './forms'
+
+// Certifications + Instructor capability
+export * from './certifications'
