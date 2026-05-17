@@ -10,6 +10,7 @@ import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/
 import { useConfirm } from '@/components/ui/confirm'
 import { createEquipment, updateEquipment, deleteEquipment } from '@/lib/actions'
 import { EQUIPMENT_STATUS_LABEL } from '@/lib/equipment-logic'
+import { EquipmentReservations } from '@/components/equipment/equipment-reservations'
 
 type Equip = {
   id: string
@@ -37,6 +38,7 @@ export function EquipmentManageClient({ initial, certs }: { initial: Equip[]; ce
   const [draft, setDraft] = useState(emptyDraft())
   const [editId, setEditId] = useState<string | null>(null)
   const [editDraft, setEditDraft] = useState(emptyDraft())
+  const [resFor, setResFor] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
   const certName = (id: string | null) => (id ? certs.find(c => c.id === id)?.name ?? null : null)
@@ -237,12 +239,16 @@ export function EquipmentManageClient({ initial, certs }: { initial: Equip[]; ce
                       </p>
                     </div>
                     <div className="flex items-center gap-1.5">
+                      <Button size="sm" variant="outline" onClick={() => setResFor(resFor === it.id ? null : it.id)}>
+                        {resFor === it.id ? 'Hide reservations' : 'Reservations'}
+                      </Button>
                       <Button size="sm" variant="outline" onClick={() => startEdit(it)}>Edit</Button>
                       <Button size="sm" variant="outline" onClick={() => onToggleActive(it)}>{it.is_active ? 'Archive' : 'Restore'}</Button>
                       <Button size="sm" variant="outline" onClick={() => onDelete(it)}>Delete</Button>
                     </div>
                   </div>
                 )}
+                {editId !== it.id && resFor === it.id && <EquipmentReservations equipmentId={it.id} />}
               </div>
             ))}
           </div>
