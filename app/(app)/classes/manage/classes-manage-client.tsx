@@ -17,6 +17,7 @@ import {
   deleteSession,
 } from '@/lib/actions'
 import { SESSION_STATUS_LABEL } from '@/lib/classes-logic'
+import { SessionAttendance } from '@/components/classes/session-attendance'
 
 type Cls = {
   id: string
@@ -77,6 +78,7 @@ export function ClassesManageClient({
   const [editDraft, setEditDraft] = useState(emptyClassDraft())
   const [sessForClass, setSessForClass] = useState<string | null>(null)
   const [sessDraft, setSessDraft] = useState(emptySessionDraft())
+  const [rosterFor, setRosterFor] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
   function certName(id: string | null) {
@@ -395,22 +397,38 @@ export function ClassesManageClient({
                     ) : (
                       <ul className="divide-y divide-border">
                         {cs.map(s => (
-                          <li key={s.id} className="py-2 flex items-center justify-between gap-3 flex-wrap">
-                            <div className="font-mono text-[11px] text-muted-foreground">
-                              {new Date(s.starts_at).toLocaleString()}
-                              {s.location ? ` · ${s.location}` : ''}
-                              {s.capacity != null ? ` · cap ${s.capacity}` : ''}
-                              {' · '}
-                              <span className={s.status === 'cancelled' ? 'text-red-500' : s.status === 'completed' ? 'text-primary' : ''}>
-                                {SESSION_STATUS_LABEL[s.status] ?? s.status}
-                              </span>
+                          <li key={s.id} className="py-2">
+                            <div className="flex items-center justify-between gap-3 flex-wrap">
+                              <div className="font-mono text-[11px] text-muted-foreground">
+                                {new Date(s.starts_at).toLocaleString()}
+                                {s.location ? ` · ${s.location}` : ''}
+                                {s.capacity != null ? ` · cap ${s.capacity}` : ''}
+                                {' · '}
+                                <span className={s.status === 'cancelled' ? 'text-red-500' : s.status === 'completed' ? 'text-primary' : ''}>
+                                  {SESSION_STATUS_LABEL[s.status] ?? s.status}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <Button size="sm" variant="outline"
+                                  onClick={() => setRosterFor(rosterFor === s.id ? null : s.id)}>
+                                  {rosterFor === s.id ? 'Hide signups' : 'Signups'}
+                                </Button>
+                                {s.status === 'scheduled' && (
+                                  <Button size="sm" variant="outline" onClick={() => onCancelSession(s)}>Cancel</Button>
+                                )}
+                                <Button size="sm" variant="outline" onClick={() => onDeleteSession(s)}>Delete</Button>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-1.5">
-                              {s.status === 'scheduled' && (
-                                <Button size="sm" variant="outline" onClick={() => onCancelSession(s)}>Cancel</Button>
-                              )}
-                              <Button size="sm" variant="outline" onClick={() => onDeleteSession(s)}>Delete</Button>
-                            </div>
+                            {rosterFor === s.id && (
+                              <SessionAttendance
+                                sessionId={s.id}
+                                sessionStatus={s.status}
+                                onCompleted={() => {
+                                  setSessions(prev => prev.map(x => (x.id === s.id ? { ...x, status: 'completed' } : x)))
+                                  setRosterFor(null)
+                                }}
+                              />
+                            )}
                           </li>
                         ))}
                       </ul>
