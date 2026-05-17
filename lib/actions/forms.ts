@@ -20,6 +20,8 @@ import {
   submitFormSchema,
   linkSubmissionsSchema,
   memberSubmissionsSchema,
+  deleteFormSchema,
+  deleteSubmissionSchema,
   getPublicFormSchema,
 } from '@/lib/validations'
 import { parseFormSchema, validateAnswers } from '@/lib/forms-schema'
@@ -199,21 +201,18 @@ export async function deleteForm(input: unknown) {
   if (!gate.ok) return { error: gate.error }
   const { supabase, member } = gate
 
-  const v = parseInput(formIdSchema, input)
+  const v = parseInput(deleteFormSchema, input)
   if (!v.ok) return { error: v.error }
 
-  // Deleting a form cascades to form_submissions. Submissions are immutable
-  // waiver/response records, so refuse to delete a form that has any. Close
-  // it instead.
+  // Permanent: deleting the form FK-cascades every form_submission for it
+  // (including signed waivers). The destructive UI confirm + the required
+  // `confirm: true` are the safeguards; record how many were destroyed.
   const admin = createAdminClient()
   const { count } = await admin
     .from('form_submissions')
     .select('id', { count: 'exact', head: true })
     .eq('form_id', v.data.formId)
     .eq('space_id', member.space_id)
-  if ((count ?? 0) > 0) {
-    return { error: 'This form has submissions and cannot be deleted. Close it instead.' }
-  }
 
   const { error } = await supabase
     .from('forms')
@@ -222,9 +221,71 @@ export async function deleteForm(input: unknown) {
     .eq('space_id', member.space_id)
   if (error) return { error: error.message }
 
-  await logActivity(supabase, member, 'deleted', 'form', v.data.formId)
+  await logActivity(
+    supabase, member, 'deleted', 'form', v.data.formId,
+    `form + ${count ?? 0} submission(s) permanently deleted`,
+  )
   revalidatePath('/forms')
   return { success: true as const }
+}
+
+// Permanently delete one submission. form_submissions has no client write
+// policy (immutable by default), so this goes through the service client
+// after the forms.manage gate, scoped by space_id.
+export async function deleteSubmission(input: unknown) {
+  const gate = await requireFormsManager()
+  if (!gate.ok) return { error: gate.error }
+  const { supabase, member } = gate
+
+  const v = parseInput(deleteSubmissionSchema, input)
+  if (!v.ok) return { error: v.error }
+
+  const admin = createAdminClient()
+  const { data: row } = await admin
+    .from('form_submissions')
+    .select('id, form_id')
+    .eq('id', v.data.submissionId)
+    .eq('space_id', member.space_id)
+    .maybeSingle()
+  if (!row) return { error: 'Submission not found' }
+
+  const { error } = await admin
+    .from('form_submissions')
+    .delete()
+    .eq('id', v.data.submissionId)
+    .eq('space_id', member.space_id)
+  if (error) return { error: error.message }
+
+  await logActivity(supabase, member, 'deleted', 'form_submission', v.data.submissionId)
+  revalidatePath(`/forms/${row.form_id}/results`)
+  return { success: true as const }
+}
+
+// Re-run email-match linking across the whole space. Members are processed
+// earliest-joined first so a shared email is claimed deterministically
+// (matches pickMemberForEmail / migration 039). Only fills NULL member_id.
+export async function relinkAllSubmissions() {
+  const gate = await requireFormsManager()
+  if (!gate.ok) return { error: gate.error }
+  const { member } = gate
+
+  const admin = createAdminClient()
+  const { data: members, error } = await admin
+    .from('space_members')
+    .select('id, email, joined_at')
+    .eq('space_id', member.space_id)
+    .not('email', 'is', null)
+    .order('joined_at', { ascending: true })
+  if (error) return { error: error.message }
+
+  let linked = 0
+  for (const m of members ?? []) {
+    linked += await linkSubmissionsByEmail(admin, member.space_id, m.id as string, m.email as string)
+  }
+
+  revalidatePath('/forms')
+  revalidatePath('/members')
+  return { data: { linked } }
 }
 
 export async function listForms() {

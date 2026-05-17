@@ -677,6 +677,18 @@ export const memberSubmissionsSchema = z.object({
   memberId: z.string().uuid('Invalid member ID'),
 })
 
+// Deleting a form permanently removes it AND every submission (FK cascade),
+// including signed waivers. `confirm` must be explicitly true so an
+// accidental/stale client call cannot destroy records.
+export const deleteFormSchema = z.object({
+  formId: z.string().uuid('Invalid form ID'),
+  confirm: z.literal(true),
+})
+
+export const deleteSubmissionSchema = z.object({
+  submissionId: z.string().uuid('Invalid submission ID'),
+})
+
 export const getPublicFormSchema = z.object({
   space: z.string().min(1).max(100),
   slug: formSlug,
