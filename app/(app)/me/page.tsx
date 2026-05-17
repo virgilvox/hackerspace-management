@@ -8,9 +8,10 @@ import {
   type CertStatus,
 } from '@/lib/certifications-logic'
 import { PERMISSIONS, PERMISSION_CODES } from '@/lib/permissions-catalog'
-import { getMyClassSignups, getMyReservations, getMyCards } from '@/lib/actions'
+import { getMyClassSignups, getMyReservations, getMyCards, getMyVisits } from '@/lib/actions'
 import { SIGNUP_STATUS_LABEL, SESSION_STATUS_LABEL } from '@/lib/classes-logic'
 import { RESERVATION_STATUS_LABEL } from '@/lib/equipment-logic'
+import { presenceStatus } from '@/lib/presence-logic'
 
 export const dynamic = 'force-dynamic'
 
@@ -107,6 +108,9 @@ export default async function MePage() {
   const cardsRes = await getMyCards()
   type MyCard = { id: string; card_type: string; label: string | null; is_active: boolean; last4: string }
   const myCards: MyCard[] = 'data' in cardsRes ? (cardsRes.data as MyCard[]) : []
+  const visitsRes = await getMyVisits()
+  type MyVisit = { id: string; checked_in_at: string; checked_out_at: string | null; is_host: boolean; check_in_note: string | null; check_out_note: string | null }
+  const myVisits: MyVisit[] = 'data' in visitsRes ? (visitsRes.data as MyVisit[]) : []
   const titleOf = (cs: ClassSignup) => {
     const sess = sessionOf(cs)
     const c = sess ? (Array.isArray(sess.classes) ? sess.classes[0] : sess.classes) : null
@@ -293,6 +297,47 @@ export default async function MePage() {
           <p className="font-sans text-xs text-muted-foreground mt-3">
             Only the last 4 digits are shown. The full card number is never displayed here.
           </p>
+        </section>
+
+        <section>
+          <h2 className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-3">
+            My recent visits
+          </h2>
+          {myVisits.length === 0 ? (
+            <p className="font-sans text-sm text-muted-foreground">
+              No visits yet. Check in from the dashboard when you are at the space.
+            </p>
+          ) : (
+            <ul className="divide-y rounded-lg border border-border">
+              {myVisits.map(v => {
+                const st = presenceStatus(v.checked_in_at, v.checked_out_at)
+                return (
+                  <li key={v.id} className="p-4 flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-sans text-sm text-foreground">
+                          {new Date(v.checked_in_at).toLocaleString()}
+                        </span>
+                        {v.is_host && <Badge variant="default">Host</Badge>}
+                        {st === 'present' && <span className="font-mono text-[10px] text-primary">here now</span>}
+                        {st === 'stale' && <span className="font-mono text-[10px] text-amber-600">no checkout</span>}
+                      </div>
+                      {(v.check_in_note || v.check_out_note) && (
+                        <p className="font-mono text-[10px] text-muted-foreground mt-0.5">
+                          {v.check_in_note ? `in: ${v.check_in_note}` : ''}
+                          {v.check_in_note && v.check_out_note ? ' · ' : ''}
+                          {v.check_out_note ? `out: ${v.check_out_note}` : ''}
+                        </p>
+                      )}
+                    </div>
+                    <span className="font-mono text-[10px] text-muted-foreground/80 shrink-0">
+                      {v.checked_out_at ? `out ${new Date(v.checked_out_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'open'}
+                    </span>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
         </section>
       </div>
     </>

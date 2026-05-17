@@ -15,7 +15,7 @@ import {
   MessageSquare, Users, CreditCard, BookUser, Download, LogOut,
   Vote, ShieldAlert, ScrollText, LineChart, UserCircle, UserSearch,
   MessagesSquare, SlidersHorizontal, ClipboardList, FileText, Award, BadgeCheck, GraduationCap, Hammer,
-  ChevronDown, DoorClosed,
+  ChevronDown, DoorClosed, CalendarCheck,
 } from 'lucide-react'
 
 interface NavLinkProps {
@@ -182,6 +182,7 @@ export function AppSidebar({ member, roleName, taskBadge = 0, commsBadge = 0, pa
 
         <NavSection id="people" title="People">
           <NavLink href="/members" label="Members" icon={Users} active={isActive('/members')} onClick={onNav} />
+          <NavLink href="/attendance" label="Attendance" icon={CalendarCheck} active={isActive('/attendance')} onClick={onNav} />
           <NavLink href="/contacts" label="Contacts" icon={BookUser} active={isActive('/contacts')} onClick={onNav} />
           {isAdmin && (
             <NavLink href="/recruitment" label="Recruitment" icon={UserSearch} active={isActive('/recruitment')} onClick={onNav} />
