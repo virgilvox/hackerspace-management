@@ -7,18 +7,24 @@ import { ResourceShowcase } from '@/components/landing/resource-showcase'
 import { HeroPreviewCluster } from '@/components/landing/mini-previews'
 
 const MODULES = [
-  { num: '01', title: 'Members', desc: 'Tiers, dues status, contact info, custom roles. Know who is current and who is not, at a glance.' },
+  { num: '01', title: 'Members', desc: 'Tiers, dues status, contact info, custom roles, and a per-space permissions matrix. Know who is current and who is not, at a glance.' },
   { num: '02', title: 'Tasks and chores', desc: 'One-off and recurring work with assignments, due dates, and area tags. Claim and complete from anywhere.' },
   { num: '03', title: 'Projects', desc: 'A board for what the space is building. Progress, areas, and who is on it, visible to everyone.' },
   { num: '04', title: 'Payments', desc: 'Import from PayPal, Venmo, or Zeffy. Reconcile transactions to members by hand or by email match.' },
-  { num: '05', title: 'Ops and knowledge', desc: 'Procedures, area leads, and an encrypted secrets vault. Role-gated, revealed on demand.' },
-  { num: '06', title: 'Governance', desc: 'Proposals with quorum and voting, incident reports, a versioned policy library, and a member forum.' },
+  { num: '05', title: 'Ops and knowledge', desc: 'Markdown procedures and knowledge base, area leads, and an encrypted secrets vault. Role-gated, revealed on demand.' },
+  { num: '06', title: 'Governance', desc: 'Proposals with quorum and voting, incident reports with anonymous tracking, a versioned policy library, and a member forum.' },
+  { num: '07', title: 'Forms and waivers', desc: 'An easy builder for any form or signable waiver. Public or members-only, with immutable per-submission snapshots.' },
+  { num: '08', title: 'Certifications', desc: 'Define certifications and let instructors award or revoke them. Expiry tracking and a member-facing record.' },
+  { num: '09', title: 'Classes', desc: 'Schedule sessions, take signups with waitlists, mark attendance, and optionally grant a certification on completion.' },
+  { num: '10', title: 'Equipment', desc: 'A tool registry with reservations. Optionally gate a tool behind a required certification.' },
+  { num: '11', title: 'Access control', desc: 'Associate member cards, connect a door controller (native HeatSync or generic HTTP), and keep an immutable access log.' },
+  { num: '12', title: 'Onboarding and invites', desc: 'A configurable onboarding flow and role-granting invite links with usage caps. New members land where you want them.' },
 ]
 
 const STEPS = [
-  { num: '01', title: 'Import your members', desc: 'Paste from a spreadsheet or add them one by one. Set tiers, statuses, and contact info.' },
+  { num: '01', title: 'Import your members', desc: 'Paste from a spreadsheet or add them one by one. Set tiers, statuses, and contact info, or share a role-granting invite link.' },
   { num: '02', title: 'Connect payments', desc: 'Link PayPal or Zeffy, import transactions, and match them to members.' },
-  { num: '03', title: 'Seed your ops docs', desc: 'Drop in SOPs, credentials, and area leads. The whole board has one place to look things up.' },
+  { num: '03', title: 'Set up the rest', desc: 'Build your onboarding flow and waivers, seed ops docs and area leads, define certifications, classes, and equipment.' },
 ]
 
 export default async function LandingPage() {

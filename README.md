@@ -11,11 +11,17 @@ A multi-tenant operating system for hackerspaces, makerspaces, and member-run sh
 
 ## Features
 
-- **Members and tiers.** Roster, tiers (Plus, Basic, Associate), roles (admin, board, treasurer, member, associate), state (current, late, inactive, unverified), per-member skills, certifications, and badges.
+- **Members and tiers.** Roster, tiers (Plus, Basic, Associate), built-in roles, custom roles, state (current, late, inactive, unverified), per-member skills. A per-space permissions matrix grants capabilities to any role additively, on top of role-based RLS.
 - **Tasks and projects.** Project boards, task assignment, status, area tagging, priority, comments.
-- **Operations.** Knowledge base, secrets vault, area leads, equipment, maintenance log.
+- **Operations.** Markdown knowledge base and processes (with working in-document anchor links), an AES-256-GCM secrets vault revealed on demand, per-item Ops ACLs, area leads.
+- **Forms and waivers.** An easy builder for arbitrary forms and signable waivers. Public (anonymous or signed-in) or members-only; per-submission snapshots of schema and legal text so a waiver stays valid against exactly what was signed; CSV export; optional onboarding step.
+- **Certifications and instructors.** Certification types with optional validity periods; an Instructor capability awards and revokes them; expiry and revocation tracked; members see their own record.
+- **Classes.** Class offerings with scheduled sessions, member signup with waitlists, attendance, and an optional certification granted on completion.
+- **Equipment.** Tool and equipment registry with time-window reservations, no-overlap enforcement, and an optional required certification per item.
+- **Access control.** Member access cards (the card UID is treated as a credential), a configurable per-space door integration (native HeatSync controller or generic HTTP) behind an SSRF-guarded executor, and an immutable, secret-redacted access log.
+- **Onboarding and invites.** A configurable member onboarding flow; multi-use, expiring, role-granting invite links.
 - **Payments and financials.** Per-member payment ledger, integration credentials per space, exports, monthly financial summary.
-- **Governance.** Proposals with vote tracking and expiry, incident reports, policy library, area-of-interest configuration.
+- **Governance.** Proposals with quorum, vote tracking and expiry; incident reports with anonymous reporter tracking by token; versioned policy library; member forum with polymorphic comments.
 - **Communications.** Multi-channel chat with realtime delivery.
 - **Recruitment.** Public-facing recruitment page per space.
 - **API.** PostgREST-generated REST for every table, gated by RLS. Optional webhooks with HMAC-signed deliveries.
