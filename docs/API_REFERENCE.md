@@ -196,7 +196,7 @@ async function joinSpace(formData: {
 
 ## 3. Task Actions
 
-**File**: `lib/actions.ts`
+**File**: `lib/actions/tasks.ts` (server actions are split per-domain under `lib/actions/*.ts`, re-exported from `lib/actions/index.ts`; there is no monolithic `lib/actions.ts`)
 
 ### `createTask(formData)`
 
@@ -945,3 +945,9 @@ No permission code; any active member. All writes are self-only — the member i
 - `getMyVisits()` — the caller's own recent visits (the `/me` history).
 - `listAttendance()` — any member (org-wide attendance history is all-members by product decision); last 250 visits with computed status. No new permission code; managers are not special here.
 Surfaced as the "Who's here" panel on the dashboard (present list + self check-in/out + host + note), the `/attendance` page (all members), and "My recent visits" on `/me`.
+
+### Previously-undocumented actions (audit addendum)
+- `updateMyProfile(input)` — `members.ts`; any member edits their own profile fields (self-scoped).
+- `discloseAffiliations(input)` — `members.ts`; the member records their own conflict-of-interest affiliations.
+- `updateSpaceVisibility(input)` — `settings.ts`; admin toggles space/member-directory visibility.
+- `listDoorCards(input)` — `door.ts`; `door.operate`, service client; active cards for a connection's grant/revoke UI, returning only the masked `last4` (raw UID never returned).

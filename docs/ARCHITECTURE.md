@@ -1,8 +1,15 @@
 # Hackerspace.sh - Architecture Documentation
 
-> **Last Updated**: 2026-03-10  
+> **Last Updated**: 2026-05-17  
 > **Version**: 1.0.0  
-> **Status**: Pre-Production Audit
+> **Status**: In production (serving live traffic)
+>
+> Note: Sections 7 and 13 and the project tree describe an earlier layout.
+> Server actions are split per-domain under `lib/actions/*.ts` (re-exported
+> from `lib/actions/index.ts`); there is no monolithic `lib/actions.ts`. The
+> per-module behavior is current; the module-feature sections later in this
+> document (Certifications, Classes, Equipment, Door, Presence, etc.) are the
+> authoritative reference.
 
 ---
 
@@ -395,7 +402,10 @@ Integration credentials stored in `integrations.config` (JSONB):
 | `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anon key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Admin operations |
-| `SUPABASE_JWT_SECRET` | Yes | JWT verification |
+| `SECRETS_ENCRYPTION_KEY` | Yes | AES-256-GCM key for the secrets vault |
+| `NEXT_PUBLIC_OAUTH_GITHUB` / `NEXT_PUBLIC_OAUTH_GOOGLE` | No | Enable social sign-in buttons |
+
+`.env.example` and `docs/DEPLOYMENT.md` are the authoritative env list. (`SUPABASE_JWT_SECRET` is not used by the app and was removed from this table.)
 
 ---
 
@@ -591,11 +601,10 @@ self-mark host. Surfaced as the dashboard "Who's here" panel, the
 
 ## 13. Known Limitations
 
-1. **No test suite** - Unit, integration, and E2E tests needed
-2. **Payment integrations** - UI only, no actual OAuth/API
-3. **Import feature** - UI only, no file processing
-4. **Database connector** - UI only, not implemented
-5. **Social auth** - GitHub/Google buttons present but not wired
-6. **Webhook endpoint** - URL shown but no actual endpoint
-7. **Email notifications** - Not implemented
-8. **Search** - Client-side only, no full-text search
+1. **Test suite** - Extensive Vitest unit coverage of pure logic (`__tests__/`, run with `pnpm test`) plus Playwright smoke e2e (`e2e/`). Gap: server-action orchestration is not unit-tested (no Supabase mock harness); e2e is mostly page-render checks, not full write/RLS flows.
+2. **Payment integrations** - Manual import/CSV reconciliation is the primary path. A PayPal sync endpoint exists (`app/api/paypal/sync/route.ts`); Stripe/other live APIs are not integrated. See `docs/` and the Payments module section.
+3. **Social auth** - GitHub/Google sign-in is wired, gated by the `NEXT_PUBLIC_OAUTH_GITHUB`/`NEXT_PUBLIC_OAUTH_GOOGLE` env flags.
+4. **Webhooks** - The HMAC signing contract and secret rotation exist; per-event delivery is not implemented (see `docs/WEBHOOKS.md`).
+5. **Email notifications** - Not implemented.
+6. **Search** - Client-side filtering only, no server-side full-text search.
+7. **Single space per user** - The auth resolver assumes one active membership per user; a user in 2+ spaces is not supported (no space switcher). Fails closed.

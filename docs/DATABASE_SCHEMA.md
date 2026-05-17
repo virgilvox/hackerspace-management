@@ -1,12 +1,13 @@
 # Hackerspace.sh - Database Schema Reference
 
-> **Last Updated**: 2026-05-15  
+> **Last Updated**: 2026-05-17  
 > **Database**: PostgreSQL via self-hosted Supabase  
-> **Tables**: ~30  
+> **Tables**: ~43  
 > **Source of Truth**: `scripts/schema.sql` (canonical, idempotent); numbered
-> migrations `scripts/0NN_*.sql` upgrade existing deployments. The 13-table
-> reference below is the original baseline; tables added by migrations
-> 014-025 are summarized in the "Migrations 014-025" section at the end.
+> migrations `scripts/0NN_*.sql` (through **038**) upgrade existing
+> deployments. The 13-table reference below is the original baseline; tables
+> added by migrations 014-038 are summarized in the migrations section at the
+> end. `DB_SCHEMA_MAP.md` has the per-table quick map.
 
 ---
 
@@ -686,7 +687,7 @@ CREATE INDEX idx_activity_space ON activity_log(space_id, created_at);
 
 ---
 
-## Migrations 014-035 (additions since the 13-table baseline)
+## Migrations 014-038 (additions since the 13-table baseline)
 
 `scripts/schema.sql` is the canonical idempotent schema; each numbered
 migration is mirrored as a section in it. Tables/columns added:

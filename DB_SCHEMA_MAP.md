@@ -62,7 +62,7 @@
 | `email` | text | nullable |
 | `handle` | text | nullable |
 | `phone` | text | nullable |
-| `status` | text | default `'active'` |
+| `status` | member_status enum (`current`,`late`,`inactive`,`unverified`) | default `'unverified'`; "active" = `current`/`unverified`/`late` |
 | `payment_status` | text | nullable |
 | `payment_note` | text | nullable |
 | `joined_at` | timestamptz | |
@@ -301,7 +301,7 @@ Default channels created by trigger on space INSERT: `general`, `announcements`,
 ### Login
 1. `/login` → `signIn(email, password)` → Supabase auth
 2. Middleware checks session cookie
-3. App layout RSC calls `getCurrentMembership()` → queries `space_members` WHERE `user_id = auth.uid()` AND `status IN ('active', 'pending')`
+3. App layout RSC resolves the member → queries `space_members` WHERE `user_id = auth.uid()` AND `status IN ('current','unverified','late')` (the `ACTIVE_STATUSES` set in `lib/permissions.ts`)
 4. If no membership found → redirect `/signup`
 
 ### Dashboard

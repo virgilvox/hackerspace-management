@@ -24,7 +24,7 @@ A multi-tenant operating system for hackerspaces, makerspaces, and member-run sh
 - **Governance.** Proposals with quorum, vote tracking and expiry; incident reports with anonymous reporter tracking by token; versioned policy library; member forum with polymorphic comments.
 - **Communications.** Multi-channel chat with realtime delivery.
 - **Recruitment.** Public-facing recruitment page per space.
-- **API.** PostgREST-generated REST for every table, gated by RLS. Optional webhooks with HMAC-signed deliveries.
+- **API.** PostgREST-generated REST for every table, gated by RLS. Webhook HMAC signing contract + secret rotation are defined; per-event delivery is a follow-up (see [docs/WEBHOOKS.md](./docs/WEBHOOKS.md)).
 
 ## Stack
 
