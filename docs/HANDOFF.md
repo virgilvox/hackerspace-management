@@ -4,7 +4,7 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
-## 2026-05-17 (pass 28) — Member self-entry BUILT (dashboard surface); LOCAL, awaiting deploy
+## 2026-05-17 (pass 28) — Member self-entry DEPLOYED (dashboard surface)
 
 Branch `main`. Pass-27 (Door P3) is deployed. User then directed: "add door access controls to dashboard if user has card access enabled" = build the locked-design member self-entry, surfaced on the dashboard. No new migration (reuses 035 `allow_member_self_entry` + `member_cards`).
 
@@ -14,7 +14,7 @@ Branch `main`. Pass-27 (Door P3) is deployed. User then directed: "add door acce
 - Docs: API_REFERENCE + ARCHITECTURE updated; this entry.
 
 ### Open / next
-- LOCAL & undeployed: self-entry (1 commit, see `git log`). Plus still-unpushed pass-27 deploy-state docs commit `14a2554`. **Awaiting deploy approval** (no migration; app-only). After push: with a self-entry-enabled connection + the member holding an active card, the dashboard "Door access" panel should appear and the confirm button should fire `selfEntry`; verify `self_entry` audit rows are redacted. NOT browser/controller-verified here.
+- **DEPLOYED** pass-28: pushed `d047820..6d1c853` (self-entry `6d1c853` + carried pass-27 deploy-state docs `14a2554`), Actions run `25981195445` success, app-only (no migration). Smoke: `/` `/login` 200; `/dashboard` `/me` `/door/manage` 307->login (gated, expected). NOT browser/controller-verified. Next live check: with a self-entry-enabled connection + the member holding an active card, the dashboard "Door access" panel should appear and the confirm button fire `selfEntry`; verify `self_entry` audit rows are redacted. This pass-28 deploy-state edit is a small follow-up docs commit, LOCAL/unpushed (carry or deploy next).
 - Gate green at build time: suite 417, `pnpm build` clean.
 - Door epic remaining: **P4** inbound access-log ingest (poll `?z`/webhook → resolve card_uid→member); **P5** universal API-call UI builder (`api_buttons`, same SSRF executor, door template).
 - Residual/test gap unchanged: SSRF pin is host-string equality (theoretical DNS-rebinding, mitigated); no Supabase mock harness so action orchestration (incl. self-entry eligibility) is not unit-tested; pure slot logic is.
