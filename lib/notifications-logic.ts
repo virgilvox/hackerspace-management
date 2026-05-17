@@ -37,12 +37,26 @@ export function notificationDedupeKey(
 // Renewal + payment-failed are keyed by the Stripe invoice (one mail per
 // invoice outcome). Lapse is keyed by member + the period it lapsed for, so a
 // member can lapse again next cycle but not be re-mailed for the same one.
+// periodEnd can be absent (canceled/deleted subscriptions carry no item
+// current_period_end); without a fallback every lapse would collapse to
+// `dues_lapsed:<member>` and suppress every future lapse notice. Fall back to
+// the subscription id (a new comeback subscription has a new id, so distinct
+// lapses stay distinct).
 export function duesDedupeKey(
   type: DuesNotificationType,
-  ref: { invoiceId?: string | null; memberId?: string | null; periodEnd?: string | null },
+  ref: {
+    invoiceId?: string | null
+    memberId?: string | null
+    periodEnd?: string | null
+    subscriptionId?: string | null
+  },
 ): string {
   if (type === 'dues_lapsed') {
-    return notificationDedupeKey(['dues_lapsed', ref.memberId, ref.periodEnd])
+    return notificationDedupeKey([
+      'dues_lapsed',
+      ref.memberId,
+      ref.periodEnd || ref.subscriptionId,
+    ])
   }
   return notificationDedupeKey([type, ref.invoiceId])
 }

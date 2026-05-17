@@ -47,6 +47,31 @@ describe('duesDedupeKey', () => {
     expect(a).toBe('dues_lapsed:m1:2026-06-01')
     expect(a).not.toBe(b)
   })
+  it('lapse falls back to subscription id when periodEnd is null', () => {
+    // canceled/deleted subs carry no item period; without the fallback every
+    // lapse would collapse to dues_lapsed:m1 and suppress future notices.
+    const k = duesDedupeKey('dues_lapsed', {
+      memberId: 'm1',
+      periodEnd: null,
+      subscriptionId: 'sub_A',
+    })
+    expect(k).toBe('dues_lapsed:m1:sub_A')
+    // A comeback subscription has a new id, so a later lapse stays distinct.
+    const k2 = duesDedupeKey('dues_lapsed', {
+      memberId: 'm1',
+      periodEnd: null,
+      subscriptionId: 'sub_B',
+    })
+    expect(k2).not.toBe(k)
+    // periodEnd still wins when present (stable per billing period).
+    expect(
+      duesDedupeKey('dues_lapsed', {
+        memberId: 'm1',
+        periodEnd: '2026-06-01',
+        subscriptionId: 'sub_A',
+      }),
+    ).toBe('dues_lapsed:m1:2026-06-01')
+  })
 })
 
 describe('formatMoney', () => {

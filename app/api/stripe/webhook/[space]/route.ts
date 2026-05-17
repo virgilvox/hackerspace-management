@@ -88,6 +88,11 @@ export async function POST(
   // inline (keeps this money path fast + retry-safe); the dispatcher cron
   // sends. ignoreDuplicates + the (space_id, dedupe_key) unique index make a
   // Stripe event replay (new event id, same invoice/period) a no-op.
+  //
+  // BEST-EFFORT: the entire body is wrapped so a notifications-table or
+  // render failure can NEVER throw into the money path. The Stripe ledger /
+  // member_billing / status writes must finalize even if email infra is
+  // down; a missed enqueue is acceptable, a wedged money path is not.
   async function enqueueDues(
     type: DuesNotificationType,
     args: {
@@ -97,45 +102,55 @@ export async function POST(
       currency?: string | null
       periodEnd?: string | null
       invoiceId?: string | null
+      subscriptionId?: string | null
     },
   ): Promise<void> {
-    if (!args.memberId) return
-    const { data: mem } = await admin
-      .from('space_members')
-      .select('email, display_name')
-      .eq('id', args.memberId)
-      .eq('space_id', spaceId)
-      .maybeSingle()
-    const recipient = ((mem?.email as string | null) || args.fallbackEmail || '').trim()
-    if (!recipient) return
-    const { subject, html, text } = renderDuesEmail({
-      type,
-      spaceName: await getSpaceName(),
-      memberName: (mem?.display_name as string | null) ?? null,
-      amount: args.amount ?? null,
-      currency: args.currency ?? null,
-      periodEnd: args.periodEnd ?? null,
-      manageUrl,
-    })
-    await admin.from('notifications').upsert(
-      {
-        space_id: spaceId,
-        member_id: args.memberId,
+    try {
+      if (!args.memberId) return
+      const { data: mem } = await admin
+        .from('space_members')
+        .select('email, display_name')
+        .eq('id', args.memberId)
+        .eq('space_id', spaceId)
+        .maybeSingle()
+      const recipient = ((mem?.email as string | null) || args.fallbackEmail || '').trim()
+      if (!recipient) return
+      const { subject, html, text } = renderDuesEmail({
         type,
-        channel: 'email',
-        recipient,
-        subject,
-        body_html: html,
-        body_text: text,
-        status: 'pending',
-        dedupe_key: duesDedupeKey(type, {
-          invoiceId: args.invoiceId,
-          memberId: args.memberId,
-          periodEnd: args.periodEnd,
-        }),
-      },
-      { onConflict: 'space_id,dedupe_key', ignoreDuplicates: true },
-    )
+        spaceName: await getSpaceName(),
+        memberName: (mem?.display_name as string | null) ?? null,
+        amount: args.amount ?? null,
+        currency: args.currency ?? null,
+        periodEnd: args.periodEnd ?? null,
+        manageUrl,
+      })
+      const { error: enqErr } = await admin.from('notifications').upsert(
+        {
+          space_id: spaceId,
+          member_id: args.memberId,
+          type,
+          channel: 'email',
+          recipient,
+          subject,
+          body_html: html,
+          body_text: text,
+          status: 'pending',
+          dedupe_key: duesDedupeKey(type, {
+            invoiceId: args.invoiceId,
+            memberId: args.memberId,
+            periodEnd: args.periodEnd,
+            subscriptionId: args.subscriptionId,
+          }),
+        },
+        { onConflict: 'space_id,dedupe_key', ignoreDuplicates: true },
+      )
+      if (enqErr) console.error(`[stripe webhook] enqueue ${type} failed:`, enqErr.message)
+    } catch (e) {
+      console.error(
+        `[stripe webhook] enqueue ${type} threw:`,
+        e instanceof Error ? e.message : e,
+      )
+    }
   }
 
   // Resolve our member: prefer metadata (set on the subscription + session),
@@ -211,7 +226,7 @@ export async function POST(
     // Dues lapsed past grace -> one "marked late" email per lapsed period
     // (dedupe is member + periodEnd, so next cycle can lapse again).
     if (desired === 'late') {
-      await enqueueDues('dues_lapsed', { memberId, periodEnd })
+      await enqueueDues('dues_lapsed', { memberId, periodEnd, subscriptionId: sub.id })
     }
   }
 

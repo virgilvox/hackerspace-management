@@ -4,6 +4,23 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-17 (pass 46) — Phase 2 EXTREME AUDIT: NOT-SAFE verdict, P1s fixed (LOCAL, still awaiting deploy)
+
+Branch `main`. Owner asked for an extreme audit before deploy. Ran an independent code audit + self-audit + web re-verify of Resend idempotency semantics. Verdict was **NOT SAFE as-is**; all findings fixed. Suite 499, build clean.
+
+### Findings -> fixes (commit pending in this pass)
+- **P1 (P0 blast radius) dispatcher idempotency**: row id alone as Resend Idempotency-Key; Resend's docs do not guarantee a failed response is excluded from the 24h key cache, so a cached transient failure could permanently suppress every retry (email silently lost). Fixed: key is now per-attempt `${row.id}:${attempts}` (concurrent same-attempt runs still dedupe; next-minute retry is a fresh send). `app/api/cron/notifications/route.ts`.
+- **P1 enqueue not isolated from money path**: a persistent notifications-table/render failure could 500 the Stripe webhook on every retry and stall ledger finalization. Fixed: `enqueueDues` is fully wrapped (try/catch + non-throwing error log) so email infra can never wedge the money path. `app/api/stripe/webhook/[space]/route.ts`.
+- **P1 `dues_lapsed` null-periodEnd collapse**: canceled/deleted subs carry no item period; key collapsed to `dues_lapsed:<member>` and suppressed every future lapse notice. Fixed: fall back to subscription id (`duesDedupeKey`), threaded `subscriptionId` through `enqueueDues`. New test (499 total).
+- **P2 dispatcher concurrency**: no row-level lock; documented the once/min + ~5s-drain assumption and why per-attempt key makes it safe.
+- Audit PASS (no change needed): Phase-1 webhook guarantees intact, multi-tenant isolation, RLS + member self-view, HTML escaping, CRON_SECRET constant-time, migration idempotent + mirror exact, fresh-clone fails safe.
+
+### State
+- **Still not deployed.** All P1s fixed and gated; awaiting the deploy decision. Local commits ahead of origin: pass-44 docs (dc76a86), the 5 Phase 2 commits, and this audit-fix + pass-46.
+- Post-deploy provisioning (owner, Droplet): set `RESEND_API_KEY`, `EMAIL_FROM` (verified domain + SPF/DKIM), `CRON_SECRET`; add the once-a-minute crontab line (docs/DEPLOYMENT.md). Inert until then.
+
+---
+
 ## 2026-05-17 (pass 45) — Product spine Phase 2: transactional notifications (LOCAL, awaiting one reviewed deploy)
 
 Branch `main`. Built Phase 2 dues-lifecycle email end to end, gated + committed per sub-phase. NOT deployed (ASK pending). Suite 498, build clean.

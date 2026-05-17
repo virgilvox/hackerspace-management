@@ -4,10 +4,14 @@
 // (cron has none) so proxy.ts whitelists /api/cron; trust is the CRON_SECRET
 // shared-secret header, compared in constant time.
 //
-// Re-entrancy: a row is updated immediately after its own send, and sendEmail
-// passes the row id as Resend's Idempotency-Key, so an overlapping run cannot
-// double-send. Transient failures (retryable) stay pending for the next
-// minute until the attempt budget is exhausted; permanent ones go to 'failed'.
+// Re-entrancy: there is no row-level claim/lock, so two overlapping runs can
+// scan the same pending rows. This is safe because (a) the crontab fires once
+// a minute and a run drains <=20 rows in ~5s, so overlap is rare, and (b)
+// sendEmail passes a per-attempt Idempotency-Key (`${id}:${attempts}`):
+// concurrent runs of the SAME attempt dedupe at Resend, while the next
+// minute's retry of a transiently-failed row is a deliberately fresh send.
+// Transient failures stay pending until the attempt budget is exhausted;
+// permanent ones go to 'failed'.
 import { NextRequest, NextResponse } from 'next/server'
 import { timingSafeEqual } from 'node:crypto'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -63,7 +67,13 @@ export async function POST(req: NextRequest) {
       subject: row.subject as string,
       html: row.body_html as string,
       text: row.body_text as string,
-      idempotencyKey: row.id as string,
+      // Per-attempt, NOT row.id alone: Resend dedupes 24h on key+payload and
+      // its docs do not guarantee a failed response is excluded from that
+      // cache. A stable key would let a cached transient failure permanently
+      // suppress every later retry (email silently lost). Tying the key to
+      // the attempt number means concurrent runs of the SAME attempt still
+      // dedupe, but the next minute's real retry is a fresh send.
+      idempotencyKey: `${row.id}:${(row.attempts as number) ?? 0}`,
     })
 
     if (res.ok) {
