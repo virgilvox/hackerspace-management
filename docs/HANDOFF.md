@@ -4,7 +4,23 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
-## 2026-05-17 (pass 32) — Forms↔member email association + landing mobile; LOCAL, awaiting deploy
+## 2026-05-17 (pass 33) — Form/submission deletion + space-wide re-link; LOCAL, awaiting deploy
+
+Branch `main`. 4 commits `c4ae5d2..` (this entry). No migration, no browser verification here.
+
+- **DF1 `c4ae5d2`** actions: `deleteForm` now PERMANENTLY deletes the form + FK-cascades all submissions (the old "refuse if submissions" guard removed); requires explicit `confirm:true` (`deleteFormSchema`) and audits the destroyed count. `deleteSubmission({submissionId})` — forms.manage, service client (form_submissions has no client write policy), space-scoped, audited. `relinkAllSubmissions()` — forms.manage, re-runs email→member linking space-wide (members earliest-joined first; reuses `linkSubmissionsByEmail`; NULL-only).
+- **DF2 `1e6e5d5`** UI: forms list per-form Delete (destructive confirm spelling out permanent loss incl. signed waivers) + header "Re-link submissions"; results page per-response Delete (confirm) + "Delete form" header action. Optimistic updates.
+- **DF3 (this)**: API_REFERENCE + ARCHITECTURE updated (deleteForm now cascades; immutability caveat); HANDOFF. Suite 464, build clean each phase.
+
+### Decision note
+User explicitly wanted forms + results + individual entries deletable with a confirmation; this overrides the prior "submissions are immutable, close instead" stance. Hard delete (no archive); CSV export remains available and the confirm copy points to it. Documented so an audit doesn't revert it.
+
+### Open
+- LOCAL & undeployed: pass-33 (4 commits). **Awaiting deploy approval** (no migration; app + docs only). After push: smoke /forms (delete a draft form, delete a response, Re-link button), confirm cascade removed submissions. Default remains ASK-before-deploy.
+
+---
+
+## 2026-05-17 (pass 32) — Forms↔member email association + landing mobile (DEPLOYED, run 25984078567)
 
 Branch `main`. 6 commits `ea521de..` (this entry). No browser verification here.
 

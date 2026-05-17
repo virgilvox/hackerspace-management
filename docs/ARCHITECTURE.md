@@ -459,10 +459,15 @@ all submissions (anonymous, public-authenticated, or members) are written by a
 single validated server action using the service client AFTER server-side
 schema validation and snapshotting (same pattern as `finishOnboarding`); the
 `form_submissions` table has no INSERT/UPDATE/DELETE policy, so RLS hard-denies
-every non-service client and submissions are immutable. The public fill page is
-served by a service-client server action, so the `anon` Postgres role gets no
-grant on `forms`. Form management is gated by the new additive `forms.manage`
-permission via `user_has_permission`.
+every non-service client; submissions are immutable to clients but a
+`forms.manage` holder can permanently delete an individual submission
+(`deleteSubmission`) or a whole form (`deleteForm`, which FK-cascades all its
+submissions including signed waivers) through validated service-client actions
+behind destructive UI confirms (`deleteForm` also requires an explicit
+`confirm:true`). The public fill page is served by a service-client server
+action, so the `anon` Postgres role gets no grant on `forms`. Form management
+is gated by the new additive `forms.manage` permission via
+`user_has_permission`.
 
 Email-match association (migration 039 + app, owner-chosen 2026-05): a
 submission is linked to a member whenever `submitter_email` matches a member
