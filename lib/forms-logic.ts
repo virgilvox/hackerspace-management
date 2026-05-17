@@ -91,3 +91,24 @@ export function deriveFieldKeys<T extends { label: string }>(
     return { ...f, key }
   })
 }
+
+// Escape a literal so it can be used as a PostgREST/SQL ILIKE *value* and
+// match exactly (case-insensitively) rather than as a pattern. Email local
+// parts legitimately contain `_`, which is a single-char ILIKE wildcard --
+// without escaping, `a_b@x.com` would also match `aXb@x.com`. Order matters:
+// escape the escape char first.
+export function escapeLike(s: string): string {
+  return s.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_')
+}
+
+// When an email matches more than one member row in a space (e.g. a manually
+// added duplicate), associate deterministically with the earliest-joined one
+// so the result is stable and reproducible.
+export function pickMemberForEmail(
+  rows: Array<{ id: string; joined_at: string | null }>,
+): string | null {
+  if (rows.length === 0) return null
+  return [...rows].sort((a, b) =>
+    (a.joined_at ?? '').localeCompare(b.joined_at ?? ''),
+  )[0].id
+}

@@ -22,6 +22,8 @@ import {
   evaluateRequiredFormStep,
   slugify,
   deriveFieldKeys,
+  escapeLike,
+  pickMemberForEmail,
 } from '@/lib/forms-logic'
 import { INVITE_ROLES, isInviteRole, canAssignInviteRole } from '@/lib/invite-logic'
 import { createInviteSchema, updateInviteSchema } from '@/lib/validations'
@@ -527,5 +529,35 @@ describe('slugify / deriveFieldKeys', () => {
   it('preserves the other field properties', () => {
     const out = deriveFieldKeys([{ label: 'Q', type: 'short_text', required: true }])
     expect(out[0]).toMatchObject({ label: 'Q', type: 'short_text', required: true, key: 'q' })
+  })
+})
+
+describe('escapeLike', () => {
+  it('escapes ILIKE wildcards so an email matches exactly', () => {
+    expect(escapeLike('a_b@x.com')).toBe('a\\_b@x.com')
+    expect(escapeLike('100%@x.com')).toBe('100\\%@x.com')
+    expect(escapeLike('plain@x.com')).toBe('plain@x.com')
+  })
+  it('escapes the backslash first (no double-unescape)', () => {
+    expect(escapeLike('a\\_b')).toBe('a\\\\\\_b')
+  })
+})
+
+describe('pickMemberForEmail', () => {
+  it('returns null when no member matches', () => {
+    expect(pickMemberForEmail([])).toBeNull()
+  })
+  it('picks the earliest-joined member deterministically', () => {
+    expect(pickMemberForEmail([
+      { id: 'b', joined_at: '2026-02-01T00:00:00Z' },
+      { id: 'a', joined_at: '2026-01-01T00:00:00Z' },
+      { id: 'c', joined_at: '2026-03-01T00:00:00Z' },
+    ])).toBe('a')
+  })
+  it('treats a null joined_at as earliest (stable)', () => {
+    expect(pickMemberForEmail([
+      { id: 'x', joined_at: '2026-01-01T00:00:00Z' },
+      { id: 'y', joined_at: null },
+    ])).toBe('y')
   })
 })

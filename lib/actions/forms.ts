@@ -26,7 +26,32 @@ import {
   csvCell,
   parseClientIp,
   shouldBumpFormVersion,
+  escapeLike,
+  pickMemberForEmail,
 } from '@/lib/forms-logic'
+
+// Associate prior unlinked submissions in a space with a member by email
+// (case-insensitive, ILIKE-escaped so `_`/`%` in an address are literal).
+// Only fills NULL member_id (never re-points an existing link). Shared by
+// member create/email-change and submit-time linking. The caller is trusted
+// to have established the email belongs to the member; see the note on the
+// anon submit path in submitForm.
+export async function linkSubmissionsByEmail(
+  admin: ReturnType<typeof createAdminClient>,
+  spaceId: string,
+  memberId: string,
+  email: string | null | undefined,
+): Promise<number> {
+  if (!email) return 0
+  const { data } = await admin
+    .from('form_submissions')
+    .update({ member_id: memberId })
+    .eq('space_id', spaceId)
+    .is('member_id', null)
+    .ilike('submitter_email', escapeLike(email.toLowerCase()))
+    .select('id')
+  return data?.length ?? 0
+}
 
 const SUBMISSIONS_CAP = 5000
 
@@ -349,6 +374,22 @@ export async function submitForm(input: unknown) {
   }
   // public_anon: no auth required; submitter_email is whatever was provided.
 
+  // Email-match association. PRODUCT DECISION (2026-05, owner-chosen): link a
+  // submission to a member whenever the submitter_email matches a member in
+  // the space, INCLUDING raw anonymous public submissions where the email was
+  // simply typed. Tradeoff understood and accepted: someone could get a
+  // submission attributed to another member by typing that member's email
+  // (attribution only -- it grants no access). Do NOT "harden" this back to
+  // verified-only without an explicit decision; it is intentional, not a bug.
+  if (!linkedMemberId && submitterEmail) {
+    const { data: matches } = await admin
+      .from('space_members')
+      .select('id, joined_at')
+      .eq('space_id', form.space_id)
+      .ilike('email', escapeLike(submitterEmail))
+    linkedMemberId = pickMemberForEmail((matches ?? []) as Array<{ id: string; joined_at: string | null }>)
+  }
+
   if (form.kind === 'waiver' && body.consent !== true) {
     return { error: 'You must agree to the waiver to continue' }
   }
@@ -455,10 +496,10 @@ export async function claimMyAnonymousSubmissions() {
 /**
  * Retro-link prior anonymous submissions to a member by matching email.
  *
- * Phase 2 exposes this as the forms.manage "admin manual-link" tool. The
- * automatic path (link on email verification) is Phase 5 and must only run
- * with a verified email; this function trusts its caller to have established
- * that the email belongs to the member.
+ * The forms.manage "admin manual-link" tool. Automatic email-match linking
+ * also runs at submit time and on member create/email-change/backfill (see
+ * linkSubmissionsByEmail and the submitForm note) per the 2026-05 product
+ * decision; this manual tool remains for explicit re-linking.
  */
 export async function linkSubmissionsForMember(input: unknown) {
   const gate = await requireFormsManager()
