@@ -511,9 +511,9 @@ rule, and the required-certification gate (checked against the normal
 `member_certifications` data; an `equipment.manage` holder gets the
 override and may book on a member's behalf). No anonymous path.
 
-### Door / access control (migrations 034-035; epic in progress)
+### Door / access control (migrations 034-036; epic in progress)
 
-Phased; P1-P2 built. `member_cards` (034) associates RFID/NFC UIDs to
+Phased; P1-P3 built (member self-entry deferred to a separately reviewed step). `member_cards` (034) associates RFID/NFC UIDs to
 members; the UID is a credential (`door.manage`-only RLS, no member SELECT;
 masked count+last4 self-view via a service-client action). `door.manage` /
 `door.operate` permissions (group Access). `door_connections` (035) is a
@@ -529,9 +529,23 @@ body, and redacts secrets before any audit write. `door_access_log` is an
 append-only, secrets-redacted audit with no client write policy (validated
 service-client executor only). `/door/manage` (door.manage) configures
 connections, picks a vault secret, and runs a safe `status`-only test.
-Phase 3 adds live grant/revoke/open and the per-connection member
-self-entry (opt-in, elevated risk, off by default); phases 4-5 add inbound
-log ingest and the universal API-call UI builder. No anonymous path.
+Phase 3 (036) adds the live actions, all `door.operate`, rate-limited, each
+writing one redacted `door_access_log` row, reading through the service
+client after the permission check (operators have no RLS read on
+`door_connections`/`member_cards`). `door_card_slots` is the per-connection
+integer-slot allocation map for controllers that key cards by slot
+(HeatSync 0-200); the lowest-free policy is pure unit-tested logic
+(`lib/door-slots-logic.ts`), `UNIQUE (connection_id, slot)` lets the DB
+arbitrate concurrent grants, `UNIQUE (connection_id, card_id)` makes
+re-grant idempotent. `grantCard` reserves the slot in the DB first, calls
+the controller, and rolls the reservation back if the call fails;
+`revokeCard` is idempotent and frees the slot only on confirmed controller
+success so the app map never diverges from the device; `doorControl`
+(open/unlock/lock) touches no slot. `/door/manage` surfaces these to
+`door.operate` holders. The per-connection member self-entry (opt-in,
+elevated risk, off by default) is the next, separately reviewed step;
+phases 4-5 add inbound log ingest and the universal API-call UI builder.
+No anonymous path.
 
 ---
 

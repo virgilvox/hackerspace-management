@@ -4,6 +4,26 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-17 (pass 27) — Door P3 code-complete LOCAL (slot allocator + live actions); self-entry CHECKPOINT pending
+
+Branch `main`. Start state was the pass-26 clean checkpoint. Reaffirmed framing: this is a generic multi-space hackerspace platform, HeatSync is one tenant/adapter (memory `platform-not-heatsync-only`). Slot-allocator design presented and APPROVED before building; user decisions locked: slot range **0-200 no reservation**, grant ordering **reserve -> call -> roll back on failure**, **checkpoint before member self-entry: YES**.
+
+### Door P3 — CODE-COMPLETE, LOCAL, 5 commits, NOT deployed
+Phase-by-phase, each gated (vitest + `pnpm build` read in-run) + own commit:
+- **A** `036_door_card_slots.sql` + schema.sql Section 23 + types + DATABASE_SCHEMA/DB_SCHEMA_MAP. Per-connection integer-slot map. `UNIQUE(connection_id,slot)` (DB arbitrates concurrent grants) + `UNIQUE(connection_id,card_id)` (idempotent re-grant). RLS additive/default-deny: SELECT = door.manage/operate; NO client write policy (service-client executor only).
+- **B** pure `lib/door-slots-logic.ts` (`pickLowestFreeSlot` lowest-free, range a param so adapter-generic; `slotCapacity`) + 8 tests. Suite 409 -> **417**.
+- **C** `lib/actions/door.ts`: `grantCard`/`revokeCard`/`doorControl` (door.operate, rate-limited via `checkRateLimit`, each writes one redacted `door_access_log` row; reads via service client after the perm check since operators lack RLS read on door_connections/member_cards). Grant: reserve slot in DB first, call controller, roll back reservation on failure; idempotent; `slot_exhausted` message. Revoke: idempotent (no slot = already revoked); frees slot only on confirmed controller success. Control open/unlock/lock via the existing hardened `lib/door/executor.ts`. Zod schemas + API_REFERENCE.
+- **D** `listDoorCards` (door.operate, service client, masked last4 only) + `/door/manage` passes `canOperate` (door.operate rpc) and renders per-connection Open/Unlock/Lock + expandable card list Grant/Revoke, every action behind a confirm.
+- **E** ARCHITECTURE + this entry.
+
+### Open / next
+- LOCAL & undeployed: Door P3 (5 commits: `3985419`, `a5e1ed9`, `e5cedb6`, `c787766`, + this docs commit). Plus the still-unpushed pass-26 HANDOFF docs commit `7ea3dea`. **Awaiting deploy approval** (migration 036). After push: confirm 036 applied; with a reachable controller, exercise grant (slot assigned) -> revoke (slot freed) -> open/lock/unlock; verify audit rows redacted. NOT browser-verified (no live controller/browser here).
+- **CHECKPOINT (locked, do next): present the member self-entry design for review BEFORE building it.** Scope: a member self "buzz me in" action allowed only when `door_connections.allow_member_self_entry` is true AND the caller has an active authorized `member_card`; strict per-member rate limit + full audit + confirm + never anonymous; surfaced on `/me` or a member door page. This is the single highest-risk piece in the epic; build only after explicit approval.
+- Then **P4** inbound access-log ingest (poll `?z`/webhook -> resolve card_uid->member into door_access_log); **P5** universal API-call UI builder (`api_buttons`, same SSRF executor, door template).
+- Residual hardening (unchanged): SSRF pin is host-string equality; hostname pin -> theoretical DNS-rebinding (mitigated by no-redirect + typically-IP pin); consider resolve-and-check. Systemic test gap: no Supabase mock harness, so action orchestration (slot reserve/rollback, idempotency, RLS) is not unit-tested; pure slot logic is.
+
+---
+
 ## 2026-05-17 (pass 26) — CLEAN CHECKPOINT: modules 1-3 + Door P1/P2 all DEPLOYED
 
 Clean state: `origin/main == main`, tree clean, latest deploy (`feat(door): flexible transport…`, run 25980463354) green. Migrations applied through **035**. 409 unit tests, `pnpm build` clean. Nothing local/undeployed except this HANDOFF commit (docs-only, unpushed; deploy or carry forward next pass).
