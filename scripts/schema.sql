@@ -2115,6 +2115,7 @@ CREATE TABLE IF NOT EXISTS public.classes (
   capacity                integer     CHECK (capacity IS NULL OR capacity > 0),
   is_active               boolean     NOT NULL DEFAULT true,
   grants_certification_id uuid        REFERENCES public.certifications(id) ON DELETE SET NULL,
+  required_form_id        uuid        REFERENCES public.forms(id) ON DELETE SET NULL,
   created_by              uuid        REFERENCES public.space_members(id) ON DELETE SET NULL,
   created_at              timestamptz NOT NULL DEFAULT now(),
   updated_at              timestamptz NOT NULL DEFAULT now()

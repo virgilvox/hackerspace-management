@@ -119,9 +119,9 @@ export type Database = {
         Relationships: []
       }
       classes: {
-        Row: { id: string; space_id: string; title: string; description: string | null; payment_link: string | null; capacity: number | null; is_active: boolean; grants_certification_id: string | null; created_by: string | null; created_at: string; updated_at: string }
-        Insert: { id?: string; space_id: string; title: string; description?: string | null; payment_link?: string | null; capacity?: number | null; is_active?: boolean; grants_certification_id?: string | null; created_by?: string | null; created_at?: string; updated_at?: string }
-        Update: { id?: string; space_id?: string; title?: string; description?: string | null; payment_link?: string | null; capacity?: number | null; is_active?: boolean; grants_certification_id?: string | null; created_by?: string | null; created_at?: string; updated_at?: string }
+        Row: { id: string; space_id: string; title: string; description: string | null; payment_link: string | null; capacity: number | null; is_active: boolean; grants_certification_id: string | null; required_form_id: string | null; created_by: string | null; created_at: string; updated_at: string }
+        Insert: { id?: string; space_id: string; title: string; description?: string | null; payment_link?: string | null; capacity?: number | null; is_active?: boolean; grants_certification_id?: string | null; required_form_id?: string | null; created_by?: string | null; created_at?: string; updated_at?: string }
+        Update: { id?: string; space_id?: string; title?: string; description?: string | null; payment_link?: string | null; capacity?: number | null; is_active?: boolean; grants_certification_id?: string | null; required_form_id?: string | null; created_by?: string | null; created_at?: string; updated_at?: string }
         Relationships: []
       }
       class_sessions: {

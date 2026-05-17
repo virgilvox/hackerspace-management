@@ -402,10 +402,11 @@ Default channels created by trigger on space INSERT: `general`, `announcements`,
 | 034 | `member_cards` + `door.manage` / `door.operate` permissions. Card UID is a credential: door.manage-only RLS, no member SELECT; masked (count+last4) self-view via server action. Door epic phase 1, no controller calls |
 | 035 | `door_connections`, `door_access_log` (Door epic P2). Password via secrets vault (secret_ref), `pinned_host` SSRF pin, hardened executor. Connections CRUD = door.manage; log SELECT = door.manage/operate, service-client-only writes |
 | 036 | `door_card_slots` (Door epic P3). Per-connection integer-slot allocation map (HeatSync keys cards by slot 0-200). UNIQUE(connection_id,slot) + UNIQUE(connection_id,card_id); lowest-free policy in pure logic. SELECT = door.manage/operate, service-client-only writes |
+| 037 | `classes.required_form_id` nullable FK -> forms(id) ON DELETE SET NULL. Optional per-class form gate (waiver-on-file): signup requires a completed form_submissions row; classes.manage override + on-behalf. App-enforced; no RLS change |
 
 ---
 
-## Tables added by migrations 016-036 (quick map)
+## Tables added by migrations 016-037 (quick map)
 
 | Table | Key columns | Purpose |
 |-------|-------------|---------|
@@ -426,7 +427,7 @@ Default channels created by trigger on space INSERT: `general`, `announcements`,
 | `form_submissions` | form_id, space_id, member_id, submitter_email, answers jsonb, form_snapshot jsonb, legal_text_snapshot, form_version, ip, user_agent | Append-only submissions. Per-row snapshot = immutable waiver record. SELECT = `forms.manage`; NO write policy (service-client only; immutable) |
 | `certifications` | space_id, name (UNIQUE per space, case-insensitive), description, validity_months (null = never expires), is_active | Per-space certification types. SELECT = any space member; write-gated by `certifications.manage` |
 | `member_certifications` | space_id, member_id, certification_id, granted_by, granted_at, expires_at (snapshotted at grant), revoked_at, revoked_by, revoked_reason, note | Per-member grants. Partial UNIQUE = one active grant per member+cert. SELECT = `certifications.manage`/`certifications.grant` (all) or member (own); INSERT/UPDATE = `certifications.grant`; NO DELETE policy (immutable history) |
-| `classes` | space_id, title, description, payment_link (http(s) only), capacity, is_active, grants_certification_id -> certifications | Class offering. SELECT = `classes.manage` (all) or member (`is_active`); writes = `classes.manage` |
+| `classes` | space_id, title, description, payment_link (http(s) only), capacity, is_active, grants_certification_id -> certifications, required_form_id -> forms | Class offering. SELECT = `classes.manage` (all) or member (`is_active`); writes = `classes.manage`. Optional `required_form_id` hard-gates signup (waiver-on-file, app-enforced) |
 | `class_sessions` | class_id, space_id, starts_at, ends_at, location, capacity, status (scheduled/cancelled/completed), notes | Scheduled occurrence. SELECT = any space member; writes = `classes.manage` |
 | `class_signups` | session_id, space_id, member_id, status (registered/waitlisted/cancelled), attended, signed_up_at | Member signup. Partial UNIQUE = one non-cancelled signup per member+session. SELECT = manage/instruct (all) or member (own); UPDATE = `classes.instruct`; NO INSERT/DELETE policy (signup/cancel via validated service-client action) |
 | `equipment` | space_id, name, description, location, status (available/maintenance/retired), required_certification_id -> certifications, asset_tag, is_active | Tool/equipment registry. SELECT = `equipment.manage` (all) or member (`is_active`); writes = `equipment.manage` |
