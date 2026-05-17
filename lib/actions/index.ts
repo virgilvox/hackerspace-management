@@ -65,3 +65,6 @@ export * from './door'
 
 // Presence & attendance (check-in / check-out / hosting)
 export * from './presence'
+
+// Stripe recurring dues (product spine Phase 1)
+export * from './stripe'
