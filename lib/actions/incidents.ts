@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import {
   requireMember,
   requireMemberWithRole,
@@ -14,7 +15,9 @@ import {
   updateIncidentStatusSchema,
   addIncidentUpdateSchema,
   appealIncidentSchema,
+  trackIncidentSchema,
 } from '@/lib/validations'
+import { publicIncidentView } from '@/lib/incident-logic'
 
 /**
  * Generate a short opaque tracking token for anonymous reports.
@@ -253,4 +256,39 @@ export async function appealIncident(formData: {
   revalidatePath(`/incidents/${v.data.incidentId}`)
   revalidatePath(`/proposals/${proposal.id}`)
   return { data: proposal }
+}
+
+/**
+ * Public, unauthenticated lookup of an anonymously-filed incident by its
+ * opaque reporter token. No session: the token IS the bearer credential, so
+ * this uses the service client (anon has no RLS path to incidents) AFTER
+ * validating the token, exactly like the forms public read. The returned
+ * projection is redacted by `publicIncidentView` — board-only updates,
+ * subjects, decision-maker ids and an undecided disposition never leave the
+ * server. The token is 192 bits of randomness on a UNIQUE column, so a
+ * generic not-found response is safe against enumeration.
+ */
+export async function trackIncident(input: unknown) {
+  const v = parseInput(trackIncidentSchema, input)
+  if (!v.ok) return { error: v.error }
+
+  const admin = createAdminClient()
+  const { data: incident } = await admin
+    .from('incidents')
+    .select(
+      'id, title, body, category, severity, status, disposition, created_at, acknowledged_at, decided_at, closed_at',
+    )
+    .eq('reporter_token', v.data.token)
+    .maybeSingle()
+
+  if (!incident) return { error: 'No report matches that tracking code.' }
+
+  const { data: updates } = await admin
+    .from('incident_updates')
+    .select('body, author_name, visibility, created_at')
+    .eq('incident_id', incident.id)
+    .neq('visibility', 'board_only')
+    .order('created_at', { ascending: true })
+
+  return { data: publicIncidentView(incident, updates ?? []) }
 }

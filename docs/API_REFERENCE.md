@@ -864,6 +864,8 @@ validate input with Zod via `parseInput`, authorize via `requireMember` /
 ### Governance — `proposals.ts`, `incidents.ts`, `policies.ts`
 `createProposal`, `openProposal`, `castVote`, `decideProposal`, `withdrawProposal`, `deleteProposal`; `fileIncident`, `updateIncidentStatus`, `addIncidentUpdate`, `appealIncident`; `createPolicy`, `supersedePolicy`, `updatePolicyStatus`.
 
+`trackIncident({ token })` — public, unauthenticated. An anonymous reporter's `fileIncident` returns a 192-bit `reporter_token` (UNIQUE column); this looks the case up by that token using the service client (anon has no RLS path) and returns a redacted projection via `lib/incident-logic.ts` `publicIncidentView` (board-only updates, subjects, decision-maker ids dropped; disposition only after decided/closed). Public page `/track` (in middleware PUBLIC_ROUTES); the filing UI deep-links `/track?token=`.
+
 ### Areas — `areas.ts`
 `createArea`, `updateArea`, `deleteArea` (admin/board; delete admin).
 

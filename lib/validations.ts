@@ -289,6 +289,13 @@ export const appealIncidentSchema = z.object({
   body: z.string().max(20000).default(''),
 })
 
+// Anonymous reporters look their case up with the opaque token they were
+// given at filing time (48 hex chars today; bound loosely so the format can
+// evolve without breaking old tokens).
+export const trackIncidentSchema = z.object({
+  token: z.string().trim().min(16).max(128),
+})
+
 // ─── Governance: policies ────────────────────────────────────────────────────
 
 export const policyStatuses = ['draft','active','deprecated','superseded'] as const

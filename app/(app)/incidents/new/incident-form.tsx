@@ -66,6 +66,13 @@ export function IncidentForm({ members }: { members: Member[] }) {
           or display it elsewhere.
         </p>
         <pre className="bg-background border border-border rounded p-3 font-mono text-sm break-all">{token}</pre>
+        <p className="font-sans text-sm text-muted-foreground">
+          Check the status any time at{' '}
+          <Link href={`/track?token=${encodeURIComponent(token)}`} className="text-primary underline">
+            /track
+          </Link>{' '}
+          with this code. Bookmark it now.
+        </p>
         <Link
           href="/incidents"
           className="inline-block bg-primary text-white font-sans text-sm font-medium px-4 py-2 rounded hover:bg-primary/90 transition"

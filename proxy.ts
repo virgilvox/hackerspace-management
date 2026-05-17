@@ -12,6 +12,8 @@ const PUBLIC_ROUTES = [
   '/login',
   '/signup',
   '/join',
+  // Public anonymous-incident status lookup by reporter token.
+  '/track',
   '/auth',
   '/api/health',
   // Public form / waiver fill page. Only /f/[slug] lives here and must be

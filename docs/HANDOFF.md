@@ -4,6 +4,34 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-17 (pass 20) — Forms epic deployed; research; incident tracking; forward roadmap
+
+### Deployed & verified
+- Pushed P6/P7/P8 + docs (commits up to `73eef72`); deploy run succeeded; migrations `028` (forms slug unique per space) + `029` (`space_invites.role`) applied. Smoke-verified on prod: `/f/<space>/<slug>` returns the anonymous 200 page (NOT a login redirect — the long-unverified public-forms route is finally confirmed), `/join/<space>` public, `/forms` + `/my-forms` correctly auth-gated. Forms+invites (migrations 026-029) fully shipped.
+- Local commits awaiting deploy at pass close: `2559166` (forms public link + Copy button on member & admin lists) and the incident-tracking work in this entry.
+
+### Integration research (web-verified; saved to memory `integration-api-facts`)
+- Payments are manual/CSV only today (no live API; known limitation). For real integration: **Stripe** is the one with a maintained official SDK + signature-verified webhooks (raw body, integer minor units). PayPal v2 works but official Node SDK has gaps (Subscriptions/webhook-verify need raw REST). Zeffy = read-only pull API + manual link. **Venmo has no usable API** (manual link / via PayPal-Braintree only). Canonical platform-agnostic payment record shape recorded in memory.
+- HeatSync door = Arduino HTTP query-string API (`?m<slot>&p&t&e=<shared_pw>` add card, `?r` revoke, `?o1`/`?u` open), no TLS, LAN/VPN only. Generic adapter pattern (configurable URL + auth + verbs grant/revoke/open + inbound log) recorded.
+
+### Anonymous incident tracking (this entry, LOCAL)
+- Gap found: `fileIncident` mints a `reporter_token` and the filing UI shows it ("the only way to look it up later") but there was NO lookup UI. Built it: pure `lib/incident-logic.ts` `publicIncidentView` (redacts board-only updates, subjects, decision makers; disposition only after decided/closed; double-filtered at DB + logic); `trackIncident` service-client action (token = bearer credential, 192-bit UNIQUE, generic not-found = enumeration-safe); public `/track` page (+ middleware allowlist); filing UI deep-links `/track?token=`; `__tests__/incident-tracking.test.ts`.
+
+### Forward roadmap (decisions LOCKED with user — see memory `heatsync-members-site`, `integration-api-facts`, `architecture-standards`)
+Build order, each as its own well-separated module (migration + pure `*-logic.ts` tested + `lib/actions/*` + pages + docs; permissions via the additive catalog; the guarded RLS rule applies):
+1. **Certifications + Instructor** (NEXT): `certifications` + `member_certifications` tables/RLS; `certifications.manage` + `certifications.grant` permissions (grant = the Instructor capability, assignable to roles/area-leads); admin pages + member-facing "My certifications & permissions" view.
+2. **Classes**: `classes`/`class_sessions`/`class_signups`; `classes.manage`/`classes.instruct`; `payment_link` field at minimum; calendar; a class may grant a cert.
+3. **Equipment**: registry + availability + reservations; gated perms.
+4. **Door epic ("all of it")**: `member_cards` (RFID/NFC) ↔ member; configurable per-space door integration (URL+auth+verbs+inbound log); native HeatSync adapter; universal API-call UI builder with a door template. Largest/riskiest; own design pass; build last; LAN-only transport caveat.
+- Instructor/Host/Champion = PERMISSIONS, not new built-in roles. Payments: add a `payment_link` field generally; a real Stripe integration is a separate, later, explicitly-scoped effort using the verified facts in memory.
+
+### Open / not done
+- **Production incident-INSERT RLS bug still OPEN** (separate from the tracking UI just built): never retried/diagnosed since `025`. Needs a prod retry; do not touch the permissions/RLS surface without diagnosis + approval.
+- Not browser-verified (no live browser this session): the forms-link Copy buttons, the `/track` flow end-to-end, and the broader forms/onboarding/retro-link chain. Smoke-test lists in pass-18/19.
+- Systemic test gap remains: `__tests__/actions.test.ts` largely asserts its own mock; no Supabase mock harness, so action *orchestration* is not unit-tested (pure logic is well covered). Recommended discrete follow-up.
+
+---
+
 ## 2026-05-17 (pass 19) — Forms URL restructure + role invites + member surface + audit, LOCAL
 
 User redirected after Phases 1-5 shipped. Decisions (memory `forms-feature` updated): per-space form slug + `/f/[space]/[slug]` (reverses the original global-slug lock), space-scoped invites incl. role-granting + usage caps, member-facing forms surface, starter templates, obvious publish flow.
