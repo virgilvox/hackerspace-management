@@ -396,6 +396,7 @@ Default channels created by trigger on space INSERT: `general`, `announcements`,
 | 028 | Form slug unique PER SPACE (`UNIQUE(space_id, slug)`, drops global `UNIQUE(slug)`); public URL `/f/[space]/[slug]` |
 | 029 | `space_invites.role` (member_role enum, default `member`); invites can grant a role; admin-granting invites are admin-only (app-enforced) |
 | 030 | `certifications`, `member_certifications` + `certifications.manage` / `certifications.grant` permissions (the latter = Instructor). Additive default-deny RLS; grants soft-revoked + immutable (no DELETE policy); expiry snapshotted at grant; no anonymous path |
+| 031 | `secrets_select` additively also honors `ops.secrets.read` (previously admin/board OR per-secret `ops_acl` only). Reveal/list gates let RLS decide; writes unchanged. Access-neutral unless the permission is granted |
 
 ---
 

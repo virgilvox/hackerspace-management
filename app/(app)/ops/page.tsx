@@ -11,21 +11,27 @@ export default async function OpsPage() {
     .from('space_members').select('space_id, role, display_name, user_id').eq('user_id', user.id).in('status', ['current', 'unverified', 'late']).single()
   if (!member) return null
 
-  const canSeeSecrets = member.role === 'admin' || member.role === 'board'
-  const canManageAcl = member.role === 'admin' || member.role === 'board'
+  const isAdminBoard = member.role === 'admin' || member.role === 'board'
+  // Writing/managing secrets and the ACL stays admin/board only.
+  const canManageAcl = isAdminBoard
 
-  const [{ data: kbEntries }, { data: areaLeads }, secretsResult, { data: customRoles }, { data: acl }] = await Promise.all([
+  // The secrets list is always queried; secrets_select RLS filters it to the
+  // rows this member may see (admin/board, OR the ops.secrets.read role
+  // permission, OR a per-secret ops_acl entry). Only metadata is selected
+  // here; plaintext is fetched on demand via revealSecret().
+  const [{ data: kbEntries }, { data: areaLeads }, secretsResult, { data: customRoles }, { data: acl }, { data: canReadSecretsPerm }] = await Promise.all([
     supabase.from('knowledge_base').select('*').eq('space_id', member.space_id).order('is_pinned', { ascending: false }).order('created_at', { ascending: false }),
     supabase.from('area_leads').select('*').eq('space_id', member.space_id).order('area_name'),
-    canSeeSecrets
-      // CRITICAL: never select `value` or `encrypted_value` here. The list
-      // endpoint only returns metadata; the plaintext is fetched on demand
-      // through the revealSecret() server action.
-      ? supabase.from('secrets').select('id, title, area, created_at, label, description, icon, space_id, created_by, updated_at, category, notes, encryption_version').eq('space_id', member.space_id)
-      : Promise.resolve({ data: [] as Tables<'secrets'>[] }),
+    supabase.from('secrets').select('id, title, area, created_at, label, description, icon, space_id, created_by, updated_at, category, notes, encryption_version').eq('space_id', member.space_id),
     supabase.from('space_custom_roles').select('slug, name').eq('space_id', member.space_id),
     supabase.from('ops_acl').select('entity_type, entity_id, role').eq('space_id', member.space_id),
+    supabase.rpc('user_has_permission', { uid: user.id, sid: member.space_id, perm: 'ops.secrets.read' }),
   ])
+
+  // Show the Secrets section to admin/board, to a holder of the
+  // ops.secrets.read permission, or to anyone RLS returned at least one
+  // (ACL-granted) secret for.
+  const canSeeSecrets = isAdminBoard || !!canReadSecretsPerm || (secretsResult.data?.length ?? 0) > 0
 
   // Selectable ACL roles: built-in roles, custom-role slugs, and area-lead
   // sentinels labelled by area name.

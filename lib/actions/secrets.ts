@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { requireMemberWithRole, parseInput } from '@/lib/auth-helpers'
+import { requireMember, requireMemberWithRole, parseInput } from '@/lib/auth-helpers'
 import { ADMIN_ROLES } from '@/lib/permissions'
 import { createSecretSchema, updateSecretSchema, uuidSchema } from '@/lib/validations'
 import { encryptSecret, decryptSecret, encryptionAvailable } from '@/lib/secrets/crypto'
@@ -110,7 +110,11 @@ export async function revealSecret(secretId: string) {
   if (!idCheck.ok) return { error: 'Invalid secret ID' }
 
   const supabase = await createClient()
-  const auth = await requireMemberWithRole(supabase, SECRETS_RW_ROLES, 'Board or admin access required')
+  // RLS (secrets_select) is the authority: admin/board, OR the
+  // ops.secrets.read role permission, OR a per-secret ops_acl entry. We no
+  // longer pre-block on built-in role here, because that ignored both the
+  // permission and the ACL path. A denied row simply does not come back.
+  const auth = await requireMember(supabase)
   if (!auth.ok) return { error: auth.error }
   const { member } = auth
   const { data: { user } } = await supabase.auth.getUser()
@@ -120,9 +124,10 @@ export async function revealSecret(secretId: string) {
     .select('id, encryption_version, encrypted_value, value, title')
     .eq('id', idCheck.data)
     .eq('space_id', member.space_id)
-    .single()
+    .maybeSingle()
 
-  if (error || !data) return { error: error?.message ?? 'Not found' }
+  if (error) return { error: error.message }
+  if (!data) return { error: 'You do not have access to this secret.' }
 
   // A row marked encrypted (version > 0) MUST have ciphertext. If it does
   // not, the row is corrupt: do not silently fall back to the (empty/stale)

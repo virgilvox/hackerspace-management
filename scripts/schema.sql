@@ -1782,9 +1782,13 @@ CREATE POLICY ops_acl_delete ON public.ops_acl FOR DELETE
   USING (public.user_has_role_in_space(auth.uid(), space_id, ARRAY['admin','board']));
 
 DROP POLICY IF EXISTS secrets_select ON public.secrets;
+-- secrets_select also honors the ops.secrets.read role permission
+-- (equivalent to scripts/031_secrets_permission_select.sql). Additive: the
+-- admin/board and per-secret ops_acl branches are unchanged.
 CREATE POLICY secrets_select ON public.secrets FOR SELECT
   USING (
     public.user_has_role_in_space(auth.uid(), space_id, ARRAY['admin','board'])
+    OR public.user_has_permission(auth.uid(), space_id, 'ops.secrets.read')
     OR EXISTS (
       SELECT 1 FROM public.ops_acl a
       WHERE a.space_id = secrets.space_id AND a.entity_type = 'secret'

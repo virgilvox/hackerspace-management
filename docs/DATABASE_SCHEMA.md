@@ -686,7 +686,7 @@ CREATE INDEX idx_activity_space ON activity_log(space_id, created_at);
 
 ---
 
-## Migrations 014-030 (additions since the 13-table baseline)
+## Migrations 014-031 (additions since the 13-table baseline)
 
 `scripts/schema.sql` is the canonical idempotent schema; each numbered
 migration is mirrored as a section in it. Tables/columns added:
@@ -710,6 +710,7 @@ migration is mirrored as a section in it. Tables/columns added:
 | 028 | Form slug is unique PER SPACE: drops the global `UNIQUE(forms.slug)`, adds `UNIQUE(space_id, slug)`. Public form URL is `/f/[space]/[slug]` |
 | 029 | `space_invites.role` (member_role enum, default `member`) so an invite can grant a chosen role; legacy invites and the spaces.invite_code path keep granting `member`. Who may create an admin-granting invite is enforced in-app (only an admin) |
 | 030 | `certifications` (per-space cert types; optional `validity_months`; `is_active` archive) + `member_certifications` (per-member grants; `expires_at` snapshotted at grant time; soft `revoked_at`/`revoked_by`; partial unique on one active grant per member+cert). RLS additive + default-deny: certifications SELECT = any space member, write = `certifications.manage`; member_certifications SELECT = `certifications.manage`/`certifications.grant` (all) or member (own), INSERT/UPDATE = `certifications.grant`, NO DELETE policy (history immutable). New `certifications.manage` + `certifications.grant` permissions (the latter = the Instructor capability) seeded to board + backfilled. No anonymous path |
+| 031 | `secrets_select` additively also honors the `ops.secrets.read` role permission (was admin/board OR per-secret `ops_acl` only; the permission was never consulted). Access-neutral unless an admin has granted the permission. Reveal/list server-side gates updated to let RLS be the boundary; write paths unchanged |
 
 New enum: `comment_entity_type` = `forum_thread | proposal | incident | policy`.
 
