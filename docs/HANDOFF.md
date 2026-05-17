@@ -4,6 +4,21 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-17 (pass 25) — Door P1 DEPLOYED; Door P2 code-complete LOCAL
+
+Door P1 + nav reorg DEPLOYED (push `1cbea13`, run 25980105959 success; migration `034` applied; smoke ok, not browser-verified). Nav further tweaked: collapsible categories; order Workspace, Governance, **Learn**, People, Finance, Account, Admin (user moved Learn before People).
+
+### Door P2 — CODE-COMPLETE, LOCAL, 1 commit, NOT deployed
+Migration `035` (`door_connections`, `door_access_log`) mirrored schema.sql Section 22; types; Zod; docs (DATABASE_SCHEMA/DB_SCHEMA_MAP/API_REFERENCE/ARCHITECTURE). Safety core is pure + heavily unit-tested (`lib/door-logic.ts`; suite 394→409): `validateDoorTarget` (request host MUST equal pinned host; metadata/link-local always blocked; http/https only), HeatSync encoders with the re-verified fixed-width zero-pad (slot3/perm3/tag8/4-char pw), generic `applyTemplate`, `redactDoorSecrets`. `lib/door/executor.ts` = single hardened egress (re-validate pin, `redirect:'manual'`, abort timeout, body cap, redact). `lib/actions/door.ts`: connection CRUD + `listSecretTitles` + `testDoorConnection` (status verb ONLY, writes one redacted `door_access_log` row) + `listDoorAccessLog`. Password read from AES-256-GCM secrets vault, decrypted server-side only, never returned/logged. `/door/manage` admin UI + sidebar Admin link. No live door verbs exposed yet → deploying P2 is low-risk (only door.manage can configure + status-test).
+
+### Open / next
+- LOCAL & undeployed: Door P2 (1 commit). Awaiting deploy approval (migration 035). After push: confirm 035 applied; configure a connection + test (needs a reachable controller / VPN — likely only verifiable on-site).
+- Door epic remaining: **P3** live actions (grant/revoke/open/lock via `door.operate`, audited + rate-limited + confirm) + the per-connection member self-entry opt-in (ELEVATED RISK, user-chosen; safeguards: active member + authorized card + per-connection toggle + strict rate limit + audit + confirm, never anon). **P4** inbound access-log ingest (poll/webhook). **P5** universal API-call UI builder + door template.
+- Queued user requests outstanding: update landing page + README with the full new feature set (certs/classes/equipment/forms/door/invites/incident-tracking) — task open.
+- Residual: SSRF pin is host-string equality; if an admin pins a hostname (not an IP), DNS rebinding is a theoretical risk (no-redirect + LAN-only + typically-IP pin mitigate). Note for P3 hardening if needed.
+
+---
+
 ## 2026-05-17 (pass 24) — Equipment DEPLOYED; Door epic design approved; P1 + nav reorg LOCAL
 
 Branch `main`. Equipment module (pass-23) DEPLOYED this pass (push `f32743d`, Actions run 25979725237 success 1m19s; migration `033` applied; `/equipment`, `/equipment/manage`, `/me` smoke 307→login, not browser-verified). Modules 1-3 (Certifications, Classes, Equipment) all live.
