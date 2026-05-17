@@ -166,6 +166,18 @@ export function AppSidebar({ member, roleName, taskBadge = 0, commsBadge = 0, pa
         <p className="text-[var(--sidebar-foreground)]/60 text-xs mt-1.5 font-mono truncate">{space?.name || 'My Space'}</p>
       </div>
 
+      <div className="px-3 pt-3">
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new Event('commandpalette:open'))}
+          aria-label="Open command palette (Control or Command + K)"
+          className="w-full flex items-center justify-between gap-2 rounded-md border border-[var(--sidebar-border)] bg-[var(--sidebar-accent)]/40 px-3 py-2 text-xs text-[var(--sidebar-foreground)]/60 hover:text-[var(--sidebar-foreground)] hover:bg-[var(--sidebar-accent)] transition"
+        >
+          <span>Jump to…</span>
+          <kbd className="font-mono text-[10px] border border-[var(--sidebar-border)] rounded px-1.5 py-0.5">⌘K</kbd>
+        </button>
+      </div>
+
       {/* Nav */}
       <nav aria-label="Primary" className="flex-1 py-4 overflow-y-auto">
         <NavSection id="workspace" title="Workspace">

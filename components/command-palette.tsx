@@ -96,8 +96,13 @@ export function CommandPalette({
         setOpen(o => !o)
       }
     }
+    const onOpen = () => setOpen(true)
     document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
+    window.addEventListener('commandpalette:open', onOpen)
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      window.removeEventListener('commandpalette:open', onOpen)
+    }
   }, [])
 
   const allowed = useCallback(
