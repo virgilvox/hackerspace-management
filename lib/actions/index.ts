@@ -53,3 +53,6 @@ export * from './certifications'
 
 // Classes (offerings, sessions, signups)
 export * from './classes'
+
+// Equipment registry + reservations
+export * from './equipment'
