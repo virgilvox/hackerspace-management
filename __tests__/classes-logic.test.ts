@@ -90,3 +90,21 @@ describe('signupFormEligibility', () => {
     expect(signupFormEligibility({ requiresForm: true, memberHasForm: false, managerOverride: true }).ok).toBe(true)
   })
 })
+
+describe('pickPromotion — unlimited capacity + tie-break', () => {
+  it('promotes the earliest waitlisted when capacity is null (unlimited)', () => {
+    const s = [
+      { id: 'r1', status: 'registered', signed_up_at: '2026-01-01T00:00:00Z' },
+      { id: 'w2', status: 'waitlisted', signed_up_at: '2026-01-03T00:00:00Z' },
+      { id: 'w1', status: 'waitlisted', signed_up_at: '2026-01-02T00:00:00Z' },
+    ]
+    expect(pickPromotion(s, null)).toBe('w1')
+  })
+  it('is deterministic on equal signed_up_at (stable earliest by list order)', () => {
+    const s = [
+      { id: 'wA', status: 'waitlisted', signed_up_at: '2026-01-02T00:00:00Z' },
+      { id: 'wB', status: 'waitlisted', signed_up_at: '2026-01-02T00:00:00Z' },
+    ]
+    expect(pickPromotion(s, 5)).toBe('wA')
+  })
+})

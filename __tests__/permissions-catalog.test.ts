@@ -37,4 +37,28 @@ describe('permissions catalog', () => {
   it('does not grant admin defaults (admin is implicit and cannot be locked out)', () => {
     expect(DEFAULT_ROLE_PERMISSIONS.admin).toBeUndefined()
   })
+
+  // Least-privilege guard: a future catalog edit must not silently hand
+  // non-board roles a high-risk capability. (treasurer legitimately has
+  // payments.manage; member/associate should be read-only.)
+  it('keeps high-risk capabilities off non-board default roles', () => {
+    const HIGH_RISK = [
+      'door.manage', 'door.operate', 'members.manage', 'governance.manage',
+      'settings.manage', 'customize.manage', 'forms.manage',
+      'certifications.grant', 'ops.secrets.read', 'ops.secrets.write',
+      'forum.moderate',
+    ]
+    for (const role of ['treasurer', 'member', 'associate'] as const) {
+      const perms = DEFAULT_ROLE_PERMISSIONS[role] ?? []
+      expect(perms.filter(p => HIGH_RISK.includes(p))).toEqual([])
+    }
+  })
+
+  it('member and associate defaults are read-only', () => {
+    for (const role of ['member', 'associate'] as const) {
+      for (const p of DEFAULT_ROLE_PERMISSIONS[role] ?? []) {
+        expect(p.endsWith('.read')).toBe(true)
+      }
+    }
+  })
 })

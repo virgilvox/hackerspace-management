@@ -111,4 +111,24 @@ describe('redactDoorSecrets', () => {
   it('leaves unrelated text intact', () => {
     expect(redactDoorSecrets('status 200 ok', null)).toBe('status 200 ok')
   })
+  it('redacts a regex-special password literally (split/join, not regex)', () => {
+    expect(redactDoorSecrets('controller said a.*b ok', 'a.*b')).toBe('controller said <redacted> ok')
+  })
+  it('redacts an e= value with no trailing delimiter (end of string)', () => {
+    expect(redactDoorSecrets('GET /?o1&e=1234')).toBe('GET /?o1&e=<redacted>')
+  })
+})
+
+describe('validateDoorTarget — SSRF host-spoof edges', () => {
+  it('rejects a userinfo-spoofed host (real host is what after @)', () => {
+    // new URL(...).hostname is "evil.com", not the pinned LAN IP -> reject
+    const r = validateDoorTarget('http://192.168.1.50@evil.com/?o1', '192.168.1.50')
+    expect(r.ok).toBe(false)
+  })
+  it('matches the pin case-insensitively for hostnames', () => {
+    expect(validateDoorTarget('http://Door.Local/?9', 'door.local').ok).toBe(true)
+  })
+  it('a trailing-dot FQDN does not equal the bare pin (fails closed)', () => {
+    expect(validateDoorTarget('http://door.local./?9', 'door.local').ok).toBe(false)
+  })
 })
