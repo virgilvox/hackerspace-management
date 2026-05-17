@@ -4,7 +4,25 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
-## 2026-05-17 (pass 37) — UX pack part 2: dashboard attention + cached perms; LOCAL, awaiting deploy
+## 2026-05-17 (pass 38) — Mobile card tables; LOCAL, awaiting deploy
+
+Branch `main`. Pass-37 (dashboard attention + cached perms) DEPLOYED (run 25986340615, smoke clean). 1 feature commit this pass, suite 469, build clean.
+
+### Done
+- **`9d419fe`**: mobile card layouts for the members + payments tables. Table is `hidden md:block`; under `md` a stacked card list renders the same data + key actions reusing existing handlers/dialogs (members: approve/edit/certs/cards/forms/remove; payments: link member). Desktop unchanged.
+
+### Remaining from the chosen backlog
+- **Bulk member actions**: multi-select (table + cards) + a `bulkApproveMembers` server action (Zod, one batched call — avoid N round-trips) + sticky selected-count bar. Moderate; clear value for spaces with many `unverified` joiners.
+- **a11y AA sweep (targeted)**: first verify sonner already renders an aria-live region (it does by default → that item is satisfied); then add `aria-label` + ≥24px target size to prominent icon-only buttons + visible focus ring. Do as a focused pass, not a blind global edit.
+- **`PageHeader` dedupe** (~21 hand-rolled headers): DEPRIORITIZED — mechanical, high churn, no user-visible value, risky without browser test. Skip unless explicitly requested.
+- Deferred by user: product spine (Stripe dues → notifications → self-serve portal).
+
+### Open
+- LOCAL & undeployed: pass-38 (1 commit + this docs). **Awaiting deploy approval** (no migration). After deploy: open members/payments on a narrow viewport — cards, not a clipped table. Default ASK-before-deploy.
+
+---
+
+## 2026-05-17 (pass 37) — UX pack part 2: dashboard attention + cached perms (DEPLOYED, run 25986340615)
 
 Branch `main`. Continues pass-36. Pass-36 batch (F1/F2 + palette + sortable + skeletons) is DEPLOYED (run 25985954925, smoke clean). 2 new commits this pass, suite 469, build clean.
 
