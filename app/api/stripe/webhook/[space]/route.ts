@@ -2,8 +2,11 @@
 // path to know which signing secret to verify with). Raw body, signature
 // verify, idempotency on Stripe's stable event id, then map the subscription
 // lifecycle onto member_billing + member status (grace -> late, never auto-
-// inactive). Unauthenticated by design (Stripe calls it); there is no auth
-// middleware in this app, and every DB write is post-signature-verify.
+// inactive). Unauthenticated by design (Stripe calls it). proxy.ts auth-
+// gates everything by default and redirects to /login, which Stripe would
+// NOT follow — so this exact path is whitelisted in proxy.ts PUBLIC_ROUTES.
+// Trust is the per-space webhook signature; every DB write is
+// post-signature-verify.
 import { NextRequest, NextResponse } from 'next/server'
 import type Stripe from 'stripe'
 import { createAdminClient } from '@/lib/supabase/admin'

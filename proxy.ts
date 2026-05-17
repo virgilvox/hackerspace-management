@@ -16,6 +16,11 @@ const PUBLIC_ROUTES = [
   '/track',
   '/auth',
   '/api/health',
+  // Stripe calls this unauthenticated; it is verified by the per-space
+  // webhook signature, not a session. Must NOT be redirected to /login
+  // (Stripe does not follow redirects). Scoped to the webhook path only —
+  // the Stripe server actions are invoked from authenticated pages.
+  '/api/stripe/webhook',
   // Public form / waiver fill page. Only /f/[slug] lives here and must be
   // reachable anonymously (the page serves only published public forms and
   // submitForm enforces visibility). The /forms* management routes do NOT
