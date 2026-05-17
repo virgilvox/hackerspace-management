@@ -8,10 +8,11 @@ import {
   type CertStatus,
 } from '@/lib/certifications-logic'
 import { PERMISSIONS, PERMISSION_CODES } from '@/lib/permissions-catalog'
-import { getMyClassSignups, getMyReservations, getMyCards, getMyVisits } from '@/lib/actions'
+import { getMyClassSignups, getMyReservations, getMyCards, getMyVisits, getMyBilling } from '@/lib/actions'
 import { SIGNUP_STATUS_LABEL, SESSION_STATUS_LABEL } from '@/lib/classes-logic'
 import { RESERVATION_STATUS_LABEL } from '@/lib/equipment-logic'
 import { presenceStatus } from '@/lib/presence-logic'
+import { DuesCard } from '@/components/billing/dues-card'
 
 export const dynamic = 'force-dynamic'
 
@@ -111,6 +112,10 @@ export default async function MePage() {
   const visitsRes = await getMyVisits()
   type MyVisit = { id: string; checked_in_at: string; checked_out_at: string | null; is_host: boolean; check_in_note: string | null; check_out_note: string | null }
   const myVisits: MyVisit[] = 'data' in visitsRes ? (visitsRes.data as MyVisit[]) : []
+  const billingRes = await getMyBilling()
+  const billing = ('data' in billingRes ? billingRes.data : null) as
+    | { status: string | null; currentPeriodEnd: string | null; hasCustomer: boolean }
+    | null
   const titleOf = (cs: ClassSignup) => {
     const sess = sessionOf(cs)
     const c = sess ? (Array.isArray(sess.classes) ? sess.classes[0] : sess.classes) : null
@@ -124,6 +129,13 @@ export default async function MePage() {
       </PageHeader>
 
       <div className="p-4 md:p-6 space-y-8 max-w-3xl">
+        <section>
+          <h2 className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-3">
+            Dues
+          </h2>
+          <DuesCard billing={billing} />
+        </section>
+
         <section>
           <h2 className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-3">
             Certifications

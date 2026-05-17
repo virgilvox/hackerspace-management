@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import SettingsClient from './settings-client'
+import { StripeBillingPanel } from '@/components/settings/stripe-billing-panel'
 import { redirect } from 'next/navigation'
 
 export default async function SettingsPage() {
@@ -25,11 +26,14 @@ export default async function SettingsPage() {
     .from('integrations').select('*').eq('space_id', member.space_id)
 
   return (
-    <SettingsClient
-      space={space}
-      isAdmin={isAdmin}
-      integrations={integrations ?? []}
-      currentRole={member.role}
-    />
+    <>
+      <SettingsClient
+        space={space}
+        isAdmin={isAdmin}
+        integrations={integrations ?? []}
+        currentRole={member.role}
+      />
+      <StripeBillingPanel spaceId={member.space_id} />
+    </>
   )
 }
