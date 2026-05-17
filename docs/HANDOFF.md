@@ -4,6 +4,26 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-17 (pass 29) — Classes form-gate + rosters + /doors page; LOCAL, awaiting deploy
+
+Branch `main`. Pass-28 (self-entry) deployed. User: "continue, also polish, also add a doors page, also polish the classes and equipment reservation stuff, should be able to see who signed up and also should be able to require a form optionally for classes." Four design forks asked + LOCKED: roster = staff-only (members stay blind); form gate = hard gate + classes.manage override; "completed" = any submission on file (waiver model), form must be published; doors page = full at `/doors`.
+
+### Built (LOCAL, not deployed) — 6 commits, each gated + own commit
+- **P1 `92c5737`**: migration `037_class_required_form.sql` (`classes.required_form_id` nullable FK -> forms ON DELETE SET NULL) + schema.sql + types + DATABASE_SCHEMA/DB_SCHEMA_MAP. ADD COLUMN IF NOT EXISTS; no RLS change (additive nullable col on already-policied `classes`).
+- **P2 `f3b05af`**: pure `signupFormEligibility` + 4 tests (suite 417->421). `signUpForClass` now has classes.manage override + sign-up-on-behalf (`memberId`) and the hard form gate (`hasFormSubmission` via service client since a class mgr need not hold forms.manage; manager override bypasses). create/updateClass validate the form is in-space + published. `listUpcomingSessions` returns `required_form {title,url,satisfied}`. Manage UI: published-form picker; member UI: shows requirement, links the form, swaps Sign up for "Complete required form" until on file.
+- **P3 `69fa64c`**: reused `SessionAttendance` behind a per-session "Signups" toggle on `/classes/manage` (staff roster + attendance + complete). Members still see only spots-left.
+- **P4 `c93ee9b`**: new `EquipmentReservations` component behind a per-item "Reservations" toggle on `/equipment/manage` (who reserved + window + status + manager Cancel; `listEquipmentReservations` already existed).
+- **P5 `2fdc275`**: new `listMyDoorActivity` (service client after requireMember; rows where caller is actor/target; detail already redacted). New `/doors` member page = self-entry (reuses DoorSelfEntry) + masked own cards (getMyCards) + recent personal activity; empty-state. Sidebar "Doors" under Learn.
+- **P6 (this)**: API_REFERENCE + ARCHITECTURE + this entry.
+
+### Open / next
+- LOCAL & undeployed: pass-29 (6 commits) + the still-unpushed pass-28 deploy-state docs `268d78d`. **Awaiting deploy approval** (migration 037 applies on deploy). After push: confirm 037 applied; exercise create class w/ required form -> member blocked until form submitted -> manager override/on-behalf -> /classes/manage Signups roster -> /equipment/manage Reservations -> /doors page. NOT browser-verified here.
+- Gate green at build: suite 421, `pnpm build` clean.
+- Door epic remaining: **P4** inbound access-log ingest; **P5** universal API-call UI builder (`api_buttons`). (Door P-numbers are separate from this pass's P1-P6.)
+- Residual/test gap unchanged: no Supabase mock harness so action orchestration (form gate, override, on-behalf) is not unit-tested; pure logic is.
+
+---
+
 ## 2026-05-17 (pass 28) — Member self-entry DEPLOYED (dashboard surface)
 
 Branch `main`. Pass-27 (Door P3) is deployed. User then directed: "add door access controls to dashboard if user has card access enabled" = build the locked-design member self-entry, surfaced on the dashboard. No new migration (reuses 035 `allow_member_self_entry` + `member_cards`).

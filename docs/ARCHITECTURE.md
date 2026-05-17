@@ -468,12 +468,12 @@ history is immutable (revoke is a soft `revoked_at` UPDATE). Expiry is
 snapshotted at grant time so later edits to the cert type never retroactively
 change an existing grant. There is no anonymous path.
 
-### Classes (migration 032)
+### Classes (migrations 032, 037)
 
 `classes` (offering), `class_sessions` (scheduled occurrence), and
 `class_signups` (member signup) back a class scheduler. Pure logic in
 `lib/classes-logic.ts` (`effectiveCapacity`, `computeSignupStatus`,
-`canSignUp`, `pickPromotion`), unit-tested. Server actions in
+`canSignUp`, `signupFormEligibility`, `pickPromotion`), unit-tested. Server actions in
 `lib/actions/classes.ts`. Two additive permissions: `classes.manage`
 (class/session CRUD, gates `/classes/manage` via `lib/classes-guard.ts`)
 and `classes.instruct` (attendance, completion, attendee list). Member
@@ -484,8 +484,17 @@ additive and default-deny: classes readable by managers (all) or members
 (all) or the member (own) with instructor-only UPDATE and **no INSERT/DELETE
 policy** so signup/cancel funnels through one validated service-client
 action that enforces capacity/waitlist/dedupe and promotes the earliest
-waitlisted member when a seat frees. Completing a session can award the
-class's certification, but only through the normal `grantCertification`
+waitlisted member when a seat frees. A class may optionally set
+`required_form_id` (migration 037): signup is then hard-gated on the member
+having a `form_submissions` row for that form on file (waiver model),
+checked via the service client since a class manager need not hold
+`forms.manage`; a `classes.manage` holder gets the override and may also
+sign a member up on their behalf (mirrors the equipment required-cert
+gate). The member calendar shows the requirement and links to the public
+form; the per-session signup roster is reused on `/classes/manage` behind a
+toggle for staff (members never see who else signed up). Completing a
+session can award the class's certification, but only through the normal
+`grantCertification`
 path, so it still requires the acting instructor to hold
 `certifications.grant`; otherwise completion succeeds and the result
 reports the certificates were skipped (no service-role bypass of the
@@ -548,8 +557,11 @@ OPEN on a connection that is enabled and has `allow_member_self_entry` on
 (opt-in, off by default; the locked eligibility rule is "any active card",
 no `door_card_slots` row required). Membership/cards are resolved
 server-side, strict per-member rate limit, one redacted `self_entry` audit
-row; surfaced as a "Door access" panel on the dashboard, hidden entirely
-for ineligible members. Phases 4-5 add inbound log ingest and the
+row; surfaced as a "Door access" panel on the dashboard and on the
+member `/doors` page (self-entry + masked own cards via `getMyCards` +
+the member's own recent activity via `listMyDoorActivity`, a service-client
+read after `requireMember` filtered to that member), hidden entirely for
+ineligible members. Phases 4-5 add inbound log ingest and the
 universal API-call UI builder. No anonymous path.
 
 ---
