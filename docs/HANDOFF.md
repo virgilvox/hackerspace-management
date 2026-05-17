@@ -4,6 +4,27 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-17 (pass 43) — Stripe Phase 1 deep-audited + P0/P1 fixed; LOCAL, deploy-ready (pending approval)
+
+Branch `main`. Owner asked for a deep audit before deploy. Ran an independent Stripe-focused audit (verified vs Stripe Basil 2025-03-31 changelog). Verdict was "NOT safe as-is" — 3 P0 + 1 P1 found; ALL fixed. suite 479, build clean.
+
+### Audit findings → fixes (all committed)
+- **P0 webhook lost events**: dedupe row written before processing; a handler 500 + Stripe retry was suppressed as duplicate → event dropped. Fixed `ca34e53` (delete dedupe row on handler error → retry reprocesses).
+- **P0 `current_period_end` gone from top-level Subscription** (Basil; carried into 2026-04-22.dahlia) → grace never fired, period never stored. Fixed `b477c38`: read `sub.items.data[0].current_period_end`.
+- **P0 invoice `subscription_details` moved to `invoice.parent`** → metadata member-resolution always failed (mislinked dues). Fixed `b477c38`: read `inv.parent.subscription_details.metadata`.
+- **P1 duplicate ledger rows**: Stripe fires invoice.paid AND invoice.payment_succeeded. Fixed `b477c38`: handle only `invoice.paid` + pre-insert dedupe on `(space_id,platform,external_id)`.
+- **P1 migration txn note**: documented (no manual BEGIN/COMMIT; safe on Supabase PG15).
+- **P2 customer-create race**: fixed `b477c38` — `idempotencyKey` on `customers.create`.
+- Audit CONFIRMED SOUND as-built: secrets never client-exposed/logged; every query space-scoped; cross-space webhook forgery blocked (per-space signing secret + space-rechecked member resolution); RLS correct; status automation strictly current↔late.
+
+### Full Phase-1 commit set (LOCAL, undeployed; no migration to run beyond 040 which is already live)
+P1c `5ca7ee6` · P1d `f293e41` · P1e `fa76176` · P1f `1f61029` · P1g docs `ef9b0dc` · audit fixes `ca34e53`,`b477c38` (+ this docs).
+
+### Open
+- LOCAL & undeployed: pass-42 + pass-43. Phase 1 is audited and the found issues fixed. Inert until a space admin configures Stripe. **Awaiting deploy approval.** After deploy: configure Stripe in test mode on a space → member "Pay dues" → confirm webhook flips status + records a single payment row + stores period end. Then Phase 2 = transactional notifications.
+
+---
+
 ## 2026-05-17 (pass 42) — Stripe dues Phase 1 COMPLETE (P1f UI + P1g docs); LOCAL, one reviewed deploy pending
 
 Branch `main`. P1a/P1b deployed (inert foundation). P1c–P1g built locally — Phase 1 is now a complete, reviewable unit. Owner asked to review the money/webhook code before its deploy; build is clean, suite 479.
