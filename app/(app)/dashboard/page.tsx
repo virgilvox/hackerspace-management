@@ -110,7 +110,7 @@ export default async function DashboardPage() {
 
   if (isFirstRun) {
     const steps = [
-      { href: '/members', Ico: IcoUsers, title: 'Invite or add members', desc: 'Add people directly, or share an invite code from Customize.' },
+      { href: '/members', Ico: IcoUsers, title: 'Invite or add members', desc: 'Add people directly, or generate a shareable join link right there.' },
       { href: '/customize', Ico: IcoPlus, title: 'Set up onboarding', desc: 'Decide what new members see and agree to when they join.' },
       { href: '/tasks', Ico: IcoTask, title: 'Create your first task or chore', desc: 'Capture the recurring upkeep your space depends on.' },
       { href: '/settings', Ico: IcoPay, title: 'Connect payments', desc: 'Link a payment platform to track dues and reconcile income.' },

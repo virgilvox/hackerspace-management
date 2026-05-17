@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { PageHeader, PageTitle } from '@/components/ui/page-title'
 import { MembersClient } from './members-client'
+import { InvitesPanel } from '../customize/panels/invites-panel'
 
 // member_directory_visibility values come from space settings:
 //   admin_only       — only admins see the directory
@@ -15,7 +16,7 @@ export default async function MembersPage() {
 
   const { data: self } = await supabase
     .from('space_members')
-    .select('space_id, role')
+    .select('space_id, role, spaces(slug)')
     .eq('user_id', user.id)
     .in('status', ['current', 'unverified', 'late'])
     .single()
@@ -73,11 +74,34 @@ export default async function MembersPage() {
         .order('area_name')
     : { data: [] }
 
+  // Admin/board can create and share join links straight from this page (the
+  // same InvitesPanel used in Customize). This is where the first-run
+  // "Invite or add members" step sends people, so the UI has to be here.
+  const canInvite = self.role === 'admin' || self.role === 'board'
+  const spaceSlug = (self.spaces as { slug?: string } | null)?.slug ?? ''
+  const { data: invites } = canInvite
+    ? await supabase
+        .from('space_invites')
+        .select('id, code, label, expires_at, max_uses, uses_count, is_enabled, role, created_at')
+        .eq('space_id', self.space_id)
+        .order('created_at', { ascending: false })
+    : { data: [] }
+
   return (
     <MembersClient
       members={members ?? []}
       currentRole={self.role}
       areaLeadRoles={(areaLeadRoles ?? []) as Array<{ id: string; area_name: string; lead_id: string | null }>}
+      inviteSlot={
+        canInvite ? (
+          <InvitesPanel
+            isAdmin={isAdmin}
+            creatorRole={self.role}
+            spaceSlug={spaceSlug}
+            invites={(invites ?? []) as Array<{ id: string; code: string; label: string | null; expires_at: string | null; max_uses: number | null; uses_count: number; is_enabled: boolean; role: string; created_at: string }>}
+          />
+        ) : undefined
+      }
     />
   )
 }

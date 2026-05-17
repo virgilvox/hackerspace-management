@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Plus, ChevronDown, Users } from 'lucide-react'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -18,6 +18,10 @@ interface Props {
   members: Member[]
   currentRole: string
   areaLeadRoles?: AreaLeadRole[]
+  // Composed by the server page for admin/board: the existing InvitesPanel,
+  // so the members page is a real place to create and share a join link
+  // (the first-run "Invite or add members" step lands here).
+  inviteSlot?: ReactNode
 }
 
 const TIER_COLORS: Record<string, string> = {
@@ -29,7 +33,7 @@ const TIER_COLORS: Record<string, string> = {
 
 const isAdmin = (role: string) => role === 'admin' || role === 'board'
 
-export function MembersClient({ members: initialMembers, currentRole, areaLeadRoles = [] }: Props) {
+export function MembersClient({ members: initialMembers, currentRole, areaLeadRoles = [], inviteSlot }: Props) {
   const router = useRouter()
   const confirm = useConfirm()
   const [members, setMembers] = useState<Member[]>(initialMembers)
@@ -230,6 +234,7 @@ export function MembersClient({ members: initialMembers, currentRole, areaLeadRo
       </div>
 
       <div className="p-4 md:p-6">
+        {inviteSlot && <div className="mb-6">{inviteSlot}</div>}
         <div className="flex gap-3 mb-4">
           <div className="flex-1 relative">
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
