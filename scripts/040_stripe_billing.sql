@@ -18,6 +18,12 @@
 --
 -- Idempotent: ADD VALUE IF NOT EXISTS, CREATE TABLE/INDEX IF NOT EXISTS,
 -- DROP POLICY IF EXISTS then CREATE.
+--
+-- Apply this file as-is (Supabase SQL editor / psql). Do NOT wrap it in a
+-- manual BEGIN/COMMIT: `ALTER TYPE ... ADD VALUE` historically could not run
+-- inside a transaction block (fine on Supabase PG15 unwrapped). The new
+-- value is not used by any statement here, so a single implicit transaction
+-- is safe and re-runs are no-ops.
 -- =============================================================================
 
 ALTER TYPE public.payment_platform ADD VALUE IF NOT EXISTS 'stripe';

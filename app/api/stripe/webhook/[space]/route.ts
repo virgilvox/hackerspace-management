@@ -95,7 +95,13 @@ export async function POST(
       customerId,
     )
     if (!memberId) return
-    const periodEnd = isoFromUnix((sub as unknown as { current_period_end?: number }).current_period_end)
+    // API 2026-04-22.dahlia (Basil 2025-03-31): the billing period moved off
+    // the top-level Subscription onto each subscription item. Dues are a
+    // single-price subscription, so item 0 carries the period end.
+    const periodEnd = isoFromUnix(
+      (sub.items?.data?.[0] as unknown as { current_period_end?: number } | undefined)
+        ?.current_period_end,
+    )
 
     await admin.from('member_billing').upsert(
       {
@@ -142,29 +148,46 @@ export async function POST(
         await applySubscription(event.data.object as Stripe.Subscription)
         break
       }
-      case 'invoice.paid':
-      case 'invoice.payment_succeeded': {
+      // Handle ONLY invoice.paid (Stripe also fires invoice.payment_succeeded
+      // for the same invoice — handling both would double the ledger).
+      case 'invoice.paid': {
         const inv = event.data.object as Stripe.Invoice
         const customerId = typeof inv.customer === 'string' ? inv.customer : inv.customer?.id ?? null
+        // API 2026-04-22.dahlia (Basil): invoice subscription + its metadata
+        // moved under invoice.parent.subscription_details.
+        const invParent = (inv as unknown as {
+          parent?: { subscription_details?: { metadata?: Record<string, string> } }
+        }).parent
         const memberId = await resolveMemberId(
-          (inv.subscription_details?.metadata?.member_id as string | undefined) || undefined,
+          invParent?.subscription_details?.metadata?.member_id || undefined,
           customerId,
         )
-        await admin.from('payments').insert({
-          space_id: spaceId,
-          member_id: memberId,
-          platform: 'stripe',
-          amount: (inv.amount_paid ?? 0) / 100,
-          currency: (inv.currency ?? 'usd').toUpperCase(),
-          description: inv.description ?? 'Stripe membership dues',
-          status: memberId ? 'linked' : 'unlinked',
-          link_status: memberId ? 'linked' : 'unlinked',
-          external_id: inv.id,
-          payer_email: inv.customer_email ?? null,
-          from_identifier: inv.customer_email ?? null,
-          transaction_date: new Date().toISOString(),
-          raw_data: { event_id: event.id, invoice: inv.id },
-        })
+        // Ledger idempotency: invoice.paid + a retry are distinct event ids
+        // but the same invoice; never double-record one charge.
+        const { data: dupe } = await admin
+          .from('payments')
+          .select('id')
+          .eq('space_id', spaceId)
+          .eq('platform', 'stripe')
+          .eq('external_id', inv.id)
+          .maybeSingle()
+        if (!dupe) {
+          await admin.from('payments').insert({
+            space_id: spaceId,
+            member_id: memberId,
+            platform: 'stripe',
+            amount: (inv.amount_paid ?? 0) / 100,
+            currency: (inv.currency ?? 'usd').toUpperCase(),
+            description: inv.description ?? 'Stripe membership dues',
+            status: memberId ? 'linked' : 'unlinked',
+            link_status: memberId ? 'linked' : 'unlinked',
+            external_id: inv.id,
+            payer_email: inv.customer_email ?? null,
+            from_identifier: inv.customer_email ?? null,
+            transaction_date: new Date().toISOString(),
+            raw_data: { event_id: event.id, invoice: inv.id },
+          })
+        }
         if (memberId) {
           await admin
             .from('space_members')

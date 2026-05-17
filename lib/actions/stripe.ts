@@ -141,11 +141,16 @@ export async function startDuesCheckout() {
 
     let customerId = billing?.stripe_customer_id as string | undefined
     if (!customerId) {
-      const customer = await stripe.customers.create({
-        email: (m.email as string | null) ?? undefined,
-        name: (m.display_name as string | null) ?? undefined,
-        metadata: { space_id: member.space_id, member_id: member.id },
-      })
+      // Idempotency key keyed by member: concurrent checkouts won't create
+      // duplicate Stripe customers (Stripe returns the same customer).
+      const customer = await stripe.customers.create(
+        {
+          email: (m.email as string | null) ?? undefined,
+          name: (m.display_name as string | null) ?? undefined,
+          metadata: { space_id: member.space_id, member_id: member.id },
+        },
+        { idempotencyKey: `cust:${member.space_id}:${member.id}` },
+      )
       customerId = customer.id
       await admin
         .from('member_billing')
