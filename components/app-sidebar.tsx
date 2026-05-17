@@ -15,6 +15,7 @@ import {
   MessageSquare, Users, CreditCard, BookUser, Download, LogOut,
   Vote, ShieldAlert, ScrollText, LineChart, UserCircle, UserSearch,
   MessagesSquare, SlidersHorizontal, ClipboardList, FileText, Award, BadgeCheck, GraduationCap, Hammer,
+  ChevronDown,
 } from 'lucide-react'
 
 interface NavLinkProps {
@@ -49,6 +50,54 @@ function NavLink({ href, label, icon: Icon, badge, active, onClick }: NavLinkPro
         </span>
       ) : null}
     </Link>
+  )
+}
+
+// Collapsible category. Open/closed is remembered per category in
+// localStorage so it survives navigation; defaults to open so nothing is
+// hidden on first visit.
+function NavSection({
+  id,
+  title,
+  children,
+}: {
+  id: string
+  title: string
+  children: React.ReactNode
+}) {
+  const storageKey = `sidebar:section:${id}`
+  const [open, setOpen] = useState(true)
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem(storageKey) === 'closed') setOpen(false)
+    } catch {
+      /* localStorage unavailable; keep default */
+    }
+  }, [storageKey])
+  const toggle = () => {
+    setOpen(prev => {
+      const next = !prev
+      try {
+        window.localStorage.setItem(storageKey, next ? 'open' : 'closed')
+      } catch {
+        /* ignore */
+      }
+      return next
+    })
+  }
+  return (
+    <div className="mt-4 first:mt-0">
+      <button
+        type="button"
+        onClick={toggle}
+        aria-expanded={open}
+        className="w-full px-5 py-1 flex items-center justify-between text-[10px] uppercase tracking-widest text-[var(--sidebar-foreground)]/30 font-mono hover:text-[var(--sidebar-foreground)]/60 transition-colors"
+      >
+        <span>{title}</span>
+        <ChevronDown className={cn('w-3 h-3 transition-transform', open ? '' : '-rotate-90')} />
+      </button>
+      {open && <div className="mt-1">{children}</div>}
+    </div>
   )
 }
 
@@ -109,44 +158,47 @@ export function AppSidebar({ member, roleName, taskBadge = 0, commsBadge = 0, pa
 
       {/* Nav */}
       <nav aria-label="Primary" className="flex-1 py-4 overflow-y-auto">
-        <div className="px-3 mb-1">
-          <p className="text-[10px] uppercase tracking-widest text-[var(--sidebar-foreground)]/30 px-2 py-1 font-mono">Workspace</p>
-        </div>
-        <NavLink href="/dashboard" label="Dashboard" icon={LayoutDashboard} active={isActive('/dashboard')} onClick={onNav} />
-        <NavLink href="/tasks" label="Tasks & Chores" icon={ListChecks} active={isActive('/tasks')} badge={taskBadge} onClick={onNav} />
-        <NavLink href="/projects" label="Projects" icon={FolderKanban} active={isActive('/projects')} onClick={onNav} />
-        <NavLink href="/ops" label="Ops & Facilities" icon={Wrench} active={isActive('/ops')} onClick={onNav} />
-        <NavLink href="/comms" label="Comms" icon={MessageSquare} active={isActive('/comms')} badge={commsBadge} onClick={onNav} />
-        <NavLink href="/forum" label="Forum" icon={MessagesSquare} active={isActive('/forum')} onClick={onNav} />
+        <NavSection id="workspace" title="Workspace">
+          <NavLink href="/dashboard" label="Dashboard" icon={LayoutDashboard} active={isActive('/dashboard')} onClick={onNav} />
+          <NavLink href="/tasks" label="Tasks & Chores" icon={ListChecks} active={isActive('/tasks')} badge={taskBadge} onClick={onNav} />
+          <NavLink href="/projects" label="Projects" icon={FolderKanban} active={isActive('/projects')} onClick={onNav} />
+          <NavLink href="/ops" label="Ops & Facilities" icon={Wrench} active={isActive('/ops')} onClick={onNav} />
+          <NavLink href="/comms" label="Comms" icon={MessageSquare} active={isActive('/comms')} badge={commsBadge} onClick={onNav} />
+          <NavLink href="/forum" label="Forum" icon={MessagesSquare} active={isActive('/forum')} onClick={onNav} />
+        </NavSection>
 
-        <div className="px-3 mt-4 mb-1">
-          <p className="text-[10px] uppercase tracking-widest text-[var(--sidebar-foreground)]/30 px-2 py-1 font-mono">Governance</p>
-        </div>
-        <NavLink href="/proposals" label="Proposals" icon={Vote} active={isActive('/proposals')} onClick={onNav} />
-        <NavLink href="/incidents" label="Incidents" icon={ShieldAlert} active={isActive('/incidents')} onClick={onNav} />
-        <NavLink href="/policies" label="Policies" icon={ScrollText} active={isActive('/policies')} onClick={onNav} />
+        <NavSection id="governance" title="Governance">
+          <NavLink href="/proposals" label="Proposals" icon={Vote} active={isActive('/proposals')} onClick={onNav} />
+          <NavLink href="/incidents" label="Incidents" icon={ShieldAlert} active={isActive('/incidents')} onClick={onNav} />
+          <NavLink href="/policies" label="Policies" icon={ScrollText} active={isActive('/policies')} onClick={onNav} />
+        </NavSection>
 
-        <div className="px-3 mt-4 mb-1">
-          <p className="text-[10px] uppercase tracking-widest text-[var(--sidebar-foreground)]/30 px-2 py-1 font-mono">People</p>
-        </div>
-        <NavLink href="/members" label="Members" icon={Users} active={isActive('/members')} onClick={onNav} />
-        <NavLink href="/payments" label="Payments" icon={CreditCard} active={isActive('/payments')} badge={paymentBadge} onClick={onNav} />
-        <NavLink href="/financials" label="Financials" icon={LineChart} active={isActive('/financials')} onClick={onNav} />
-        <NavLink href="/contacts" label="Contacts" icon={BookUser} active={isActive('/contacts')} onClick={onNav} />
-        <NavLink href="/my-forms" label="Forms" icon={FileText} active={isActive('/my-forms')} onClick={onNav} />
-        <NavLink href="/profile" label="My profile" icon={UserCircle} active={isActive('/profile')} onClick={onNav} />
-        <NavLink href="/classes" label="Classes" icon={GraduationCap} active={pathname === '/classes' || pathname.startsWith('/classes?')} onClick={onNav} />
-        <NavLink href="/equipment" label="Equipment" icon={Hammer} active={pathname === '/equipment' || pathname.startsWith('/equipment?')} onClick={onNav} />
-        <NavLink href="/me" label="My access" icon={BadgeCheck} active={isActive('/me')} onClick={onNav} />
+        <NavSection id="people" title="People">
+          <NavLink href="/members" label="Members" icon={Users} active={isActive('/members')} onClick={onNav} />
+          <NavLink href="/contacts" label="Contacts" icon={BookUser} active={isActive('/contacts')} onClick={onNav} />
+          {isAdmin && (
+            <NavLink href="/recruitment" label="Recruitment" icon={UserSearch} active={isActive('/recruitment')} onClick={onNav} />
+          )}
+        </NavSection>
+
+        <NavSection id="finance" title="Finance">
+          <NavLink href="/payments" label="Payments" icon={CreditCard} active={isActive('/payments')} badge={paymentBadge} onClick={onNav} />
+          <NavLink href="/financials" label="Financials" icon={LineChart} active={isActive('/financials')} onClick={onNav} />
+        </NavSection>
+
+        <NavSection id="learn" title="Learn">
+          <NavLink href="/classes" label="Classes" icon={GraduationCap} active={pathname === '/classes' || pathname.startsWith('/classes?')} onClick={onNav} />
+          <NavLink href="/equipment" label="Equipment" icon={Hammer} active={pathname === '/equipment' || pathname.startsWith('/equipment?')} onClick={onNav} />
+          <NavLink href="/my-forms" label="Forms" icon={FileText} active={isActive('/my-forms')} onClick={onNav} />
+        </NavSection>
+
+        <NavSection id="account" title="Account">
+          <NavLink href="/profile" label="My profile" icon={UserCircle} active={isActive('/profile')} onClick={onNav} />
+          <NavLink href="/me" label="My access" icon={BadgeCheck} active={isActive('/me')} onClick={onNav} />
+        </NavSection>
+
         {isAdmin && (
-          <NavLink href="/recruitment" label="Recruitment" icon={UserSearch} active={isActive('/recruitment')} onClick={onNav} />
-        )}
-
-        {isAdmin && (
-          <>
-            <div className="px-3 mt-4 mb-1">
-              <p className="text-[10px] uppercase tracking-widest text-[var(--sidebar-foreground)]/30 px-2 py-1 font-mono">Admin</p>
-            </div>
+          <NavSection id="admin" title="Admin">
             <NavLink href="/customize" label="Customize" icon={SlidersHorizontal} active={isActive('/customize')} onClick={onNav} />
             <NavLink href="/forms" label="Forms & waivers" icon={ClipboardList} active={isActive('/forms')} onClick={onNav} />
             <NavLink href="/certifications" label="Certifications" icon={Award} active={isActive('/certifications')} onClick={onNav} />
@@ -154,7 +206,7 @@ export function AppSidebar({ member, roleName, taskBadge = 0, commsBadge = 0, pa
             <NavLink href="/equipment/manage" label="Manage equipment" icon={Hammer} active={isActive('/equipment/manage')} onClick={onNav} />
             <NavLink href="/import" label="Import / Sync" icon={Download} active={isActive('/import')} onClick={onNav} />
             <NavLink href="/settings" label="Settings" icon={Settings2} active={isActive('/settings')} onClick={onNav} />
-          </>
+          </NavSection>
         )}
       </nav>
 
