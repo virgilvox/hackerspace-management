@@ -28,6 +28,19 @@ export async function upsertAreaLead(formData: {
   if (!auth.ok) return { error: auth.error }
   const { member } = auth
 
+  // If a lead member is referenced, confirm they belong to this space (the
+  // row is space-scoped and RLS scopes reads, but reject a foreign id at the
+  // boundary for consistency with the rest of the codebase).
+  if (v.data.lead_id) {
+    const { data: lead } = await supabase
+      .from('space_members')
+      .select('id')
+      .eq('id', v.data.lead_id)
+      .eq('space_id', member.space_id)
+      .maybeSingle()
+    if (!lead) return { error: 'The selected lead is not a member of this space.' }
+  }
+
   const { data, error } = await supabase
     .from('area_leads')
     .upsert(

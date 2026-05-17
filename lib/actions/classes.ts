@@ -531,6 +531,8 @@ export async function signUpForClass(input: unknown) {
     session.capacity as number | null,
     cls?.capacity ?? null,
   )
+  // session was fetched scoped by member.space_id above, so counting by
+  // session_id alone is space-safe (do not loosen the session lookup).
   const { count: registered } = await admin
     .from('class_signups')
     .select('id', { count: 'exact', head: true })
@@ -571,9 +573,13 @@ export async function cancelMySignup(input: unknown) {
   if (!v.ok) return { error: v.error }
 
   const admin = createAdminClient()
+  // All admin-client queries below are additionally scoped by member.space_id:
+  // member.id can only hold a signup in its own space, but the writes must not
+  // be reachable cross-space even if a future edit loosens the member filter.
   const { data: signup } = await admin
     .from('class_signups')
     .select('id, status')
+    .eq('space_id', member.space_id)
     .eq('session_id', v.data.sessionId)
     .eq('member_id', member.id)
     .neq('status', 'cancelled')
@@ -585,6 +591,7 @@ export async function cancelMySignup(input: unknown) {
     .from('class_signups')
     .update({ status: 'cancelled' })
     .eq('id', signup.id)
+    .eq('space_id', member.space_id)
   if (error) return { error: error.message }
 
   // If a registered seat freed up, promote the earliest waitlisted member.
@@ -593,6 +600,7 @@ export async function cancelMySignup(input: unknown) {
       .from('class_sessions')
       .select('capacity, classes(capacity)')
       .eq('id', v.data.sessionId)
+      .eq('space_id', member.space_id)
       .maybeSingle()
     const cap = effectiveCapacity(
       (session as { capacity: number | null } | null)?.capacity ?? null,
@@ -601,6 +609,7 @@ export async function cancelMySignup(input: unknown) {
     const { data: all } = await admin
       .from('class_signups')
       .select('id, status, signed_up_at')
+      .eq('space_id', member.space_id)
       .eq('session_id', v.data.sessionId)
       .neq('status', 'cancelled')
     const promoteId = pickPromotion(
@@ -608,7 +617,7 @@ export async function cancelMySignup(input: unknown) {
       cap,
     )
     if (promoteId) {
-      await admin.from('class_signups').update({ status: 'registered' }).eq('id', promoteId)
+      await admin.from('class_signups').update({ status: 'registered' }).eq('id', promoteId).eq('space_id', member.space_id)
     }
   }
 

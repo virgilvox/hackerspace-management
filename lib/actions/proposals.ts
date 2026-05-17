@@ -151,6 +151,19 @@ export async function castVote(formData: {
   if (!auth.ok) return { error: auth.error }
   const { member } = auth
 
+  // Defense in depth: the votes RLS policies already enforce same-space,
+  // open status and the voting window, but this is a sensitive mutation, so
+  // validate at the action boundary too (a future RLS regression must not
+  // silently allow cross-space vote injection).
+  const { data: proposal } = await supabase
+    .from('proposals')
+    .select('id, status')
+    .eq('id', v.data.proposalId)
+    .eq('space_id', member.space_id)
+    .maybeSingle()
+  if (!proposal) return { error: 'Proposal not found' }
+  if (proposal.status !== 'open') return { error: 'Voting is closed for this proposal.' }
+
   const { error } = await supabase
     .from('proposal_votes')
     .upsert(
