@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { AppSidebar } from '@/components/app-sidebar'
+import { CommandPalette } from '@/components/command-palette'
 import { ConfirmProvider } from '@/components/ui/confirm'
 import { getRoleLabelMap } from '@/lib/role-labels'
 
@@ -77,6 +78,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <ConfirmProvider>
+    <CommandPalette isAdmin={isAdminRole} navPerms={navPerms} />
     <div className="flex h-screen bg-background overflow-hidden">
       <a
         href="#main-content"
