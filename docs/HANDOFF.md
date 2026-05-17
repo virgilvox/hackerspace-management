@@ -4,7 +4,7 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
-## 2026-05-17 (pass 29) — Classes form-gate + rosters + /doors page; LOCAL, awaiting deploy
+## 2026-05-17 (pass 29) — Classes form-gate + rosters + /doors page DEPLOYED
 
 Branch `main`. Pass-28 (self-entry) deployed. User: "continue, also polish, also add a doors page, also polish the classes and equipment reservation stuff, should be able to see who signed up and also should be able to require a form optionally for classes." Four design forks asked + LOCKED: roster = staff-only (members stay blind); form gate = hard gate + classes.manage override; "completed" = any submission on file (waiver model), form must be published; doors page = full at `/doors`.
 
@@ -17,7 +17,7 @@ Branch `main`. Pass-28 (self-entry) deployed. User: "continue, also polish, also
 - **P6 (this)**: API_REFERENCE + ARCHITECTURE + this entry.
 
 ### Open / next
-- LOCAL & undeployed: pass-29 (6 commits) + the still-unpushed pass-28 deploy-state docs `268d78d`. **Awaiting deploy approval** (migration 037 applies on deploy). After push: confirm 037 applied; exercise create class w/ required form -> member blocked until form submitted -> manager override/on-behalf -> /classes/manage Signups roster -> /equipment/manage Reservations -> /doors page. NOT browser-verified here.
+- **DEPLOYED** pass-29: pushed `6d1c853..46b2942` (6 pass-29 commits + carried pass-28 deploy-state `268d78d`), Actions run `25981712253` success, migration 037 applies on deploy. Smoke: `/` `/login` 200; `/doors` `/classes` `/classes/manage` `/equipment/manage` `/dashboard` 307->login (gated, expected). NOT browser-verified. Next live check: confirm 037 applied; create class w/ required form -> member blocked until form submitted -> manager override/on-behalf -> /classes/manage Signups roster -> /equipment/manage Reservations -> /doors page. This pass-29 deploy-state edit is a small follow-up docs commit, LOCAL/unpushed (carry or deploy next).
 - Gate green at build: suite 421, `pnpm build` clean.
 - Door epic remaining: **P4** inbound access-log ingest; **P5** universal API-call UI builder (`api_buttons`). (Door P-numbers are separate from this pass's P1-P6.)
 - Residual/test gap unchanged: no Supabase mock harness so action orchestration (form gate, override, on-behalf) is not unit-tested; pure logic is.
