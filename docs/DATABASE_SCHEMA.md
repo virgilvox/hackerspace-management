@@ -4,9 +4,9 @@
 > **Database**: PostgreSQL via self-hosted Supabase  
 > **Tables**: ~43  
 > **Source of Truth**: `scripts/schema.sql` (canonical, idempotent); numbered
-> migrations `scripts/0NN_*.sql` (through **039**) upgrade existing
+> migrations `scripts/0NN_*.sql` (through **040**) upgrade existing
 > deployments. The 13-table reference below is the original baseline; tables
-> added by migrations 014-039 are summarized in the migrations section at the
+> added by migrations 014-040 are summarized in the migrations section at the
 > end. `DB_SCHEMA_MAP.md` has the per-table quick map.
 
 ---
@@ -146,7 +146,7 @@ CREATE TYPE area_lead_status AS ENUM ('active', 'vacant', 'handoff');
 
 ### `payment_platform`
 ```sql
-CREATE TYPE payment_platform AS ENUM ('paypal', 'zeffy', 'venmo', 'cash');
+CREATE TYPE payment_platform AS ENUM ('paypal', 'zeffy', 'venmo', 'cash', 'stripe');
 ```
 
 ### `payment_link_status`
@@ -687,7 +687,7 @@ CREATE INDEX idx_activity_space ON activity_log(space_id, created_at);
 
 ---
 
-## Migrations 014-039 (additions since the 13-table baseline)
+## Migrations 014-040 (additions since the 13-table baseline)
 
 `scripts/schema.sql` is the canonical idempotent schema; each numbered
 migration is mirrored as a section in it. Tables/columns added:
@@ -720,6 +720,7 @@ migration is mirrored as a section in it. Tables/columns added:
 | 037 | `classes.required_form_id` nullable FK -> `forms(id)` ON DELETE SET NULL. A class can optionally require a form (waiver/intake); signup is hard-gated on the member having a completed `form_submissions` row for it (waiver-on-file), with a `classes.manage` override + sign-up-on-behalf, mirroring the equipment required-cert gate. Gate enforced in the app (pure logic + service-client boolean check); no RLS change (additive nullable column on the already-policied `classes`) |
 | 038 | `space_visits` (presence/attendance: check-in/out, `is_host`, in/out notes; partial UNIQUE `(space_id,member_id) WHERE checked_out_at IS NULL` = one open visit). RLS additive/default-deny: SELECT = any space member (presence is social), NO client write policy (validated self-resolved service-client actions; immutable history). No new permission code; org-wide attendance view is all-members by product decision. Also adds `spaces.host_requires_card` (bool, default true) gating host check-in, enforced in the app |
 | 039 | DATA backfill only (no structural change): links existing `form_submissions.member_id` (where NULL) to the earliest-joined matching `space_members` by `(space_id, lower(email)=lower(submitter_email))`. Idempotent (NULL-only). Not mirrored in schema.sql (fresh DB has no submissions); ongoing linking is app-side (submitForm + linkSubmissionsByEmail) |
+| 040 | Stripe recurring dues P1. `payment_platform` += `'stripe'` (ALTER TYPE ADD VALUE; mirrored in the CREATE TYPE list). `member_billing` (member↔Stripe customer/subscription/status/period; SELECT = admin/board/treasurer, NO client write policy — webhook/service-client only). `stripe_webhook_events` (idempotency ledger, PK = Stripe event id; service-client only, no policy). Per-space OWN keys: secrets in the vault, config in integrations.config. No new permission code |
 
 New enum: `comment_entity_type` = `forum_thread | proposal | incident | policy`.
 

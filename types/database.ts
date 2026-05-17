@@ -178,6 +178,18 @@ export type Database = {
         Update: { id?: string; space_id?: string; member_id?: string; checked_in_at?: string; checked_out_at?: string | null; is_host?: boolean; check_in_note?: string | null; check_out_note?: string | null; created_at?: string }
         Relationships: []
       }
+      member_billing: {
+        Row: { id: string; space_id: string; member_id: string; stripe_customer_id: string | null; stripe_subscription_id: string | null; subscription_status: string | null; current_period_end: string | null; created_at: string; updated_at: string }
+        Insert: { id?: string; space_id: string; member_id: string; stripe_customer_id?: string | null; stripe_subscription_id?: string | null; subscription_status?: string | null; current_period_end?: string | null; created_at?: string; updated_at?: string }
+        Update: { id?: string; space_id?: string; member_id?: string; stripe_customer_id?: string | null; stripe_subscription_id?: string | null; subscription_status?: string | null; current_period_end?: string | null; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
+      stripe_webhook_events: {
+        Row: { event_id: string; space_id: string | null; type: string | null; received_at: string }
+        Insert: { event_id: string; space_id?: string | null; type?: string | null; received_at?: string }
+        Update: { event_id?: string; space_id?: string | null; type?: string | null; received_at?: string }
+        Relationships: []
+      }
       activity_log: {
         Row: {
           action: string
@@ -1684,7 +1696,7 @@ export type Database = {
       member_status: "current" | "late" | "inactive" | "unverified"
       member_tier: "plus" | "basic" | "associate"
       payment_link_status: "linked" | "unlinked"
-      payment_platform: "paypal" | "zeffy" | "venmo" | "cash"
+      payment_platform: "paypal" | "zeffy" | "venmo" | "cash" | "stripe"
       policy_status: "draft" | "active" | "deprecated" | "superseded"
       project_status: "backlog" | "in_progress" | "review" | "done" | "blocked"
       proposal_status: "draft" | "open" | "decided" | "withdrawn" | "expired"
@@ -1875,7 +1887,7 @@ export const Constants = {
       member_status: ["current", "late", "inactive", "unverified"],
       member_tier: ["plus", "basic", "associate"],
       payment_link_status: ["linked", "unlinked"],
-      payment_platform: ["paypal", "zeffy", "venmo", "cash"],
+      payment_platform: ["paypal", "zeffy", "venmo", "cash", "stripe"],
       policy_status: ["draft", "active", "deprecated", "superseded"],
       project_status: ["backlog", "in_progress", "review", "done", "blocked"],
       proposal_status: ["draft", "open", "decided", "withdrawn", "expired"],

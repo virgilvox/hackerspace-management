@@ -405,10 +405,11 @@ Default channels created by trigger on space INSERT: `general`, `announcements`,
 | 037 | `classes.required_form_id` nullable FK -> forms(id) ON DELETE SET NULL. Optional per-class form gate (waiver-on-file): signup requires a completed form_submissions row; classes.manage override + on-behalf. App-enforced; no RLS change |
 | 038 | `space_visits` (presence/attendance) + `spaces.host_requires_card` bool default true. One open visit per member (partial unique); SELECT = any space member; service-client-only writes (self-resolved, immutable). No new permission code |
 | 039 | DATA backfill only: link `form_submissions.member_id` (NULL) to earliest matching member by `(space_id, lower email = lower submitter_email)`. Idempotent; not in schema.sql |
+| 040 | Stripe dues P1: `payment_platform` += `stripe`; `member_billing` (member↔Stripe customer/sub/status; SELECT admin/board/treasurer, service-client-only writes); `stripe_webhook_events` (idempotency, PK=event id, service-only). Per-space own keys (vault + integrations.config) |
 
 ---
 
-## Tables added by migrations 016-039 (quick map)
+## Tables added by migrations 016-040 (quick map)
 
 | Table | Key columns | Purpose |
 |-------|-------------|---------|
@@ -439,6 +440,8 @@ Default channels created by trigger on space INSERT: `general`, `announcements`,
 | `door_access_log` | space_id, connection_id, actor_member_id, target_member_id, action, success, detail (redacted), occurred_at | Append-only door audit. SELECT = `door.manage`/`door.operate`; NO write policy (validated service-client executor only; immutable) |
 | `door_card_slots` | space_id, connection_id -> door_connections, card_id -> member_cards, slot int, created_by | Per-connection integer-slot allocation map. UNIQUE(connection_id,slot) + UNIQUE(connection_id,card_id). SELECT = `door.manage`/`door.operate`; NO write policy (service-client executor only, in lockstep with the controller) |
 | `space_visits` | space_id, member_id, checked_in_at, checked_out_at, is_host, check_in_note, check_out_note | Presence/attendance. Open (checked_out_at NULL) = present; partial UNIQUE one-open-per-member. SELECT = any space member; NO write policy (self-resolved service-client actions only; immutable). Org-wide attendance view = all members |
+| `member_billing` | space_id, member_id (UNIQUE per space), stripe_customer_id, stripe_subscription_id, subscription_status, current_period_end | Stripe dues link. SELECT = admin/board/treasurer; NO client write policy (webhook/service-client only). Member self-view via a validated action |
+| `stripe_webhook_events` | event_id PK, space_id, type, received_at | Webhook idempotency ledger (dedupe on Stripe's stable event id). Service-client only; no RLS policy |
 
 Column additions: `space_members.tier_id`, `onboarding_completed_at`, `onboarding_progress`; `secrets.encrypted_value`, `encryption_version`; `knowledge_base.render_markdown`, `is_meeting_minutes`, `meeting_date`; `classes.required_form_id`; `spaces.host_requires_card`. New enum `comment_entity_type`.
 

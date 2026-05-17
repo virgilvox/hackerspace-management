@@ -32,7 +32,7 @@ DO $$ BEGIN CREATE TYPE public.task_status        AS ENUM ('open','claimed','in_
 DO $$ BEGIN CREATE TYPE public.task_type          AS ENUM ('chore','task');                                                                EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE public.recurrence_type    AS ENUM ('daily','weekly','biweekly','monthly','none');                                  EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE public.project_status     AS ENUM ('backlog','in_progress','review','done','blocked');                             EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-DO $$ BEGIN CREATE TYPE public.payment_platform   AS ENUM ('paypal','zeffy','venmo','cash');                                               EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE TYPE public.payment_platform   AS ENUM ('paypal','zeffy','venmo','cash','stripe');                                        EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE public.payment_link_status AS ENUM ('linked','unlinked');                                                          EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE public.kb_visibility      AS ENUM ('all_members','board','admin_only');                                            EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE public.area_lead_status   AS ENUM ('active','vacant','handoff');                                                   EXCEPTION WHEN duplicate_object THEN NULL; END $$;
@@ -2539,3 +2539,51 @@ ALTER TABLE public.space_visits ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS space_visits_select ON public.space_visits;
 CREATE POLICY space_visits_select ON public.space_visits FOR SELECT
   USING (space_id IN (SELECT public.get_user_space_ids(auth.uid())));
+
+
+-- =============================================================================
+-- 25. Stripe recurring dues (Phase 1)
+--     (equivalent to scripts/040_stripe_billing.sql; payment_platform 'stripe'
+--     is added to the CREATE TYPE list near the top of this file).
+--
+--     Per-space OWN Stripe keys (NOT Connect): secret key + webhook signing
+--     secret in the AES-256-GCM secrets vault; publishable key, mode,
+--     tier->price map, secret refs in integrations.config. member_billing =
+--     one row per member with a Stripe customer/subscription; the webhook
+--     (service client) is the only writer, SELECT = admin/board/treasurer
+--     (mirrors payments). stripe_webhook_events = idempotency ledger keyed by
+--     Stripe's stable event id; service-client only, no client policy.
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS public.member_billing (
+  id                     uuid        PRIMARY KEY DEFAULT uuid_generate_v4(),
+  space_id               uuid        NOT NULL REFERENCES public.spaces(id) ON DELETE CASCADE,
+  member_id              uuid        NOT NULL REFERENCES public.space_members(id) ON DELETE CASCADE,
+  stripe_customer_id     text,
+  stripe_subscription_id text,
+  subscription_status    text,
+  current_period_end     timestamptz,
+  created_at             timestamptz NOT NULL DEFAULT now(),
+  updated_at             timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_member_billing_member   ON public.member_billing (space_id, member_id);
+CREATE INDEX IF NOT EXISTS        idx_member_billing_customer ON public.member_billing (stripe_customer_id);
+CREATE INDEX IF NOT EXISTS        idx_member_billing_space    ON public.member_billing (space_id);
+
+ALTER TABLE public.member_billing ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS member_billing_select ON public.member_billing;
+CREATE POLICY member_billing_select ON public.member_billing FOR SELECT
+  USING (public.user_has_role_in_space(auth.uid(), space_id, ARRAY['admin','board','treasurer']));
+
+CREATE TABLE IF NOT EXISTS public.stripe_webhook_events (
+  event_id    text        PRIMARY KEY,
+  space_id    uuid        REFERENCES public.spaces(id) ON DELETE CASCADE,
+  type        text,
+  received_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE public.stripe_webhook_events ENABLE ROW LEVEL SECURITY;
+
+DROP TRIGGER IF EXISTS trg_member_billing_touch ON public.member_billing;
+CREATE TRIGGER trg_member_billing_touch
+  BEFORE UPDATE ON public.member_billing
+  FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
