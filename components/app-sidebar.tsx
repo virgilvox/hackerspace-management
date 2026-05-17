@@ -135,6 +135,7 @@ export function AppSidebar({ member, roleName, taskBadge = 0, commsBadge = 0, pa
         <NavLink href="/contacts" label="Contacts" icon={BookUser} active={isActive('/contacts')} onClick={onNav} />
         <NavLink href="/my-forms" label="Forms" icon={FileText} active={isActive('/my-forms')} onClick={onNav} />
         <NavLink href="/profile" label="My profile" icon={UserCircle} active={isActive('/profile')} onClick={onNav} />
+        <NavLink href="/classes" label="Classes" icon={GraduationCap} active={pathname === '/classes' || pathname.startsWith('/classes?')} onClick={onNav} />
         <NavLink href="/me" label="My access" icon={BadgeCheck} active={isActive('/me')} onClick={onNav} />
         {isAdmin && (
           <NavLink href="/recruitment" label="Recruitment" icon={UserSearch} active={isActive('/recruitment')} onClick={onNav} />
