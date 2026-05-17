@@ -1001,6 +1001,11 @@ export const checkOutSchema = z.object({
 
 export const uuidSchema = z.string().uuid('Invalid ID format')
 
+export const bulkMemberIdsSchema = z
+  .array(z.string().uuid('Invalid member ID'))
+  .min(1, 'Select at least one member')
+  .max(1000)
+
 // Helper type exports
 export type CreateTaskInput = z.infer<typeof createTaskSchema>
 export type CreateProjectInput = z.infer<typeof createProjectSchema>

@@ -4,7 +4,7 @@ import { useState, type ReactNode } from 'react'
 import { Plus, ChevronDown, Users } from 'lucide-react'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { addMember, updateMember, approveMember, removeMember, assignAreaLead } from '@/lib/actions'
+import { addMember, updateMember, approveMember, bulkApproveMembers, removeMember, assignAreaLead } from '@/lib/actions'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import type { Tables } from '@/types/database'
@@ -66,6 +66,24 @@ export function MembersClient({ members: initialMembers, currentRole, areaLeadRo
   const [search, setSearch] = useState('')
   const [tierFilter, setTierFilter] = useState('')
   const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' } | null>(null)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const canBulk = isAdmin(currentRole)
+  const toggleSel = (id: string) =>
+    setSelected(prev => {
+      const n = new Set(prev)
+      n.has(id) ? n.delete(id) : n.add(id)
+      return n
+    })
+  async function bulkApprove() {
+    const ids = [...selected]
+    if (ids.length === 0) return
+    const res = await bulkApproveMembers(ids)
+    if ('error' in res && res.error) { toast.error(res.error); return }
+    const n = (res as { data: { approved: number } }).data.approved
+    setMembers(prev => prev.map(m => (selected.has(m.id) && m.status === 'unverified' ? { ...m, status: 'current', approved: true } : m)))
+    setSelected(new Set())
+    toast.success(n > 0 ? `Approved ${n} member(s)` : 'No unverified members in the selection')
+  }
   const [showAdd, setShowAdd] = useState(false)
   const [editMember, setEditMember] = useState<Member | null>(null)
   const [loading, setLoading] = useState(false)
@@ -305,11 +323,37 @@ export function MembersClient({ members: initialMembers, currentRole, areaLeadRo
           </select>
         </div>
 
+        {canBulk && selected.size > 0 && (
+          <div className="sticky top-0 z-10 flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2">
+            <span className="font-mono text-xs text-foreground">{selected.size} selected</span>
+            <span className="flex items-center gap-2">
+              <button onClick={bulkApprove} className="font-mono text-[10px] border border-primary/30 text-primary bg-primary/10 px-3 py-2 min-h-[40px] rounded hover:bg-primary/15 transition">
+                Approve selected
+              </button>
+              <button onClick={() => setSelected(new Set())} className="font-mono text-[10px] border border-border px-3 py-2 min-h-[40px] rounded hover:border-primary transition">
+                Clear
+              </button>
+            </span>
+          </div>
+        )}
+
         <div className="bg-card rounded border border-border overflow-hidden">
           <div className="overflow-x-auto hidden md:block">
           <table className="w-full">
             <thead>
               <tr className="border-b border-border">
+                {canBulk && (
+                  <th className="px-4 py-3 w-8">
+                    <input
+                      type="checkbox"
+                      aria-label="Select all shown members"
+                      checked={sortedMembers.length > 0 && sortedMembers.every(m => selected.has(m.id))}
+                      onChange={e =>
+                        setSelected(e.target.checked ? new Set(sortedMembers.map(m => m.id)) : new Set())
+                      }
+                    />
+                  </th>
+                )}
                 {([
                   ['name', 'MEMBER', ''],
                   ['tier', 'TIER', ''],
@@ -348,6 +392,16 @@ export function MembersClient({ members: initialMembers, currentRole, areaLeadRo
                 const hasIssue = m.payment_status && m.payment_status !== 'current'
                 return (
                   <tr key={m.id} className={`hover:bg-muted/30 transition ${hasIssue ? 'bg-red-50/20' : ''}`}>
+                    {canBulk && (
+                      <td className="px-4 py-3 w-8">
+                        <input
+                          type="checkbox"
+                          aria-label={`Select ${m.display_name}`}
+                          checked={selected.has(m.id)}
+                          onChange={() => toggleSel(m.id)}
+                        />
+                      </td>
+                    )}
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <div className={`w-8 h-8 rounded flex items-center justify-center text-[10px] font-mono font-bold flex-shrink-0 ${
@@ -466,7 +520,7 @@ export function MembersClient({ members: initialMembers, currentRole, areaLeadRo
                 )
               }) : (
                 <tr>
-                  <td colSpan={5 + (canGrantCerts ? 1 : 0) + (canManageCards ? 1 : 0) + (canViewForms ? 1 : 0) + (isAdmin(currentRole) ? 1 : 0)} className="p-0">
+                  <td colSpan={5 + (canBulk ? 1 : 0) + (canGrantCerts ? 1 : 0) + (canManageCards ? 1 : 0) + (canViewForms ? 1 : 0) + (isAdmin(currentRole) ? 1 : 0)} className="p-0">
                     <Empty className="border-0">
                       <EmptyHeader>
                         <EmptyMedia variant="icon"><Users /></EmptyMedia>
@@ -488,9 +542,20 @@ export function MembersClient({ members: initialMembers, currentRole, areaLeadRo
               return (
                 <div key={m.id} className={`p-4 ${hasIssue ? 'bg-red-50/20' : ''}`}>
                   <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="font-sans text-sm font-medium text-foreground truncate">{m.display_name}</p>
-                      <p className={`font-mono text-[10px] truncate ${hasIssue ? 'text-red-500' : 'text-muted-foreground'}`}>{m.email}</p>
+                    <div className="min-w-0 flex items-start gap-2">
+                      {canBulk && (
+                        <input
+                          type="checkbox"
+                          aria-label={`Select ${m.display_name}`}
+                          className="mt-1"
+                          checked={selected.has(m.id)}
+                          onChange={() => toggleSel(m.id)}
+                        />
+                      )}
+                      <div className="min-w-0">
+                        <p className="font-sans text-sm font-medium text-foreground truncate">{m.display_name}</p>
+                        <p className={`font-mono text-[10px] truncate ${hasIssue ? 'text-red-500' : 'text-muted-foreground'}`}>{m.email}</p>
+                      </div>
                     </div>
                     <span className={`font-mono text-[10px] px-2 py-0.5 rounded border shrink-0 ${TIER_COLORS[m.tier?.toLowerCase()] ?? 'text-muted-foreground bg-muted border-border'}`}>
                       {m.tier?.toUpperCase()}

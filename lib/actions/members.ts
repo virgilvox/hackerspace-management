@@ -17,6 +17,7 @@ import {
   updateMyProfileSchema,
   discloseAffiliationsSchema,
   uuidSchema,
+  bulkMemberIdsSchema,
 } from '@/lib/validations'
 
 export async function addMember(formData: {
@@ -129,6 +130,30 @@ export async function approveMember(memberId: string) {
 
   revalidatePath('/members')
   return { success: true as const }
+}
+
+export async function bulkApproveMembers(ids: unknown) {
+  const v = parseInput(bulkMemberIdsSchema, ids)
+  if (!v.ok) return { error: v.error }
+
+  const supabase = await createClient()
+  const auth = await requireMemberWithRole(supabase, ADMIN_ROLES, 'Admin access required')
+  if (!auth.ok) return { error: auth.error }
+  const { member: self } = auth
+
+  // One batched, space-scoped update; only still-unverified rows flip.
+  const { data, error } = await supabase
+    .from('space_members')
+    .update({ status: 'current', approved: true })
+    .in('id', v.data)
+    .eq('space_id', self.space_id)
+    .eq('status', 'unverified')
+    .select('id')
+  if (error) return { error: error.message }
+
+  await logActivity(supabase, self, 'approved', 'member', null, `${data?.length ?? 0} member(s) bulk-approved`)
+  revalidatePath('/members')
+  return { data: { approved: data?.length ?? 0 } }
 }
 
 /**
