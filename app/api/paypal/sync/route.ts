@@ -120,23 +120,31 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ imported: 0, message: 'No incoming payments found' })
     }
 
-    // Upsert — skip rows that already exist by external_id
-    const { data: imported, error: insertError } = await supabase
+    // Idempotent + tenant-scoped: there is no unique constraint on
+    // payments.external_id, so an `ON CONFLICT (external_id)` upsert is not
+    // reliable. Instead, look up which PayPal transaction ids already exist
+    // *in this space* and insert only the genuinely new ones (keeping
+    // external_id so a later re-sync stays idempotent).
+    const externalIds = rows.map(r => r.external_id).filter((x): x is string => !!x)
+    const { data: existing } = await supabase
       .from('payments')
-      .upsert(rows, { onConflict: 'external_id', ignoreDuplicates: true })
-      .select()
+      .select('external_id')
+      .eq('space_id', member.space_id)
+      .in('external_id', externalIds.length > 0 ? externalIds : ['__none__'])
+    const seen = new Set((existing ?? []).map(e => e.external_id as string))
+    const newRows = rows.filter(r => !r.external_id || !seen.has(r.external_id))
 
-    if (insertError) {
-      // If external_id column doesn't exist yet, fall back to plain insert
-      const { data: fallback, error: fallbackError } = await supabase
-        .from('payments')
-        .insert(rows.map(({ external_id, ...rest }) => rest))
-        .select()
-      if (fallbackError) throw new Error(fallbackError.message)
-      return NextResponse.json({ imported: fallback?.length ?? 0 })
+    if (newRows.length === 0) {
+      return NextResponse.json({ imported: 0, message: 'Already up to date' })
     }
 
-    return NextResponse.json({ imported: imported?.length ?? rows.length })
+    const { data: imported, error: insertError } = await supabase
+      .from('payments')
+      .insert(newRows)
+      .select()
+    if (insertError) throw new Error(insertError.message)
+
+    return NextResponse.json({ imported: imported?.length ?? newRows.length })
   } catch (err: any) {
     console.error('[PayPal sync error]', err)
     return NextResponse.json({ error: err.message ?? 'Sync failed' }, { status: 500 })
