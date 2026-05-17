@@ -801,3 +801,25 @@ export async function selfEntry(input: unknown) {
   revalidatePath('/dashboard')
   return result.ok ? { data: { ok: true } } : { error: result.reason }
 }
+
+// The signed-in member's OWN door activity (rows where they were the actor or
+// the target). door_access_log has no member-facing RLS SELECT, so this uses
+// the service client after requireMember and filters to this member only. The
+// detail column is already secret-redacted at write time.
+export async function listMyDoorActivity() {
+  const supabase = await createClient()
+  const auth = await requireMember(supabase)
+  if (!auth.ok) return { error: auth.error }
+  const { member } = auth
+
+  const admin = createAdminClient()
+  const { data, error } = await admin
+    .from('door_access_log')
+    .select('id, action, success, detail, occurred_at')
+    .eq('space_id', member.space_id)
+    .or(`actor_member_id.eq.${member.id},target_member_id.eq.${member.id}`)
+    .order('occurred_at', { ascending: false })
+    .limit(50)
+  if (error) return { error: error.message }
+  return { data: data ?? [] }
+}

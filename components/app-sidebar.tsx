@@ -176,6 +176,7 @@ export function AppSidebar({ member, roleName, taskBadge = 0, commsBadge = 0, pa
         <NavSection id="learn" title="Learn">
           <NavLink href="/classes" label="Classes" icon={GraduationCap} active={pathname === '/classes' || pathname.startsWith('/classes?')} onClick={onNav} />
           <NavLink href="/equipment" label="Equipment" icon={Hammer} active={pathname === '/equipment' || pathname.startsWith('/equipment?')} onClick={onNav} />
+          <NavLink href="/doors" label="Doors" icon={DoorClosed} active={isActive('/doors')} onClick={onNav} />
           <NavLink href="/my-forms" label="Forms" icon={FileText} active={isActive('/my-forms')} onClick={onNav} />
         </NavSection>
 
