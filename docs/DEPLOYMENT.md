@@ -27,6 +27,9 @@ All variables are listed in [.env.example](../.env.example). At minimum:
 Optional:
 
 - `NEXT_PUBLIC_OAUTH_GITHUB` / `NEXT_PUBLIC_OAUTH_GOOGLE` — set to `"true"` only for an OAuth provider you have actually configured in Supabase Auth. The login page hides any provider button that is not enabled, and hides the whole social-sign-in block if neither is set. These are build-time public values, so a change requires a redeploy to take effect.
+- `RESEND_API_KEY` — Resend HTTP API key for transactional email. Unset means the notification outbox still fills but nothing is sent (dispatcher records each row as failed with "transport not configured").
+- `EMAIL_FROM` — from address for all platform email, e.g. `HeatSync Labs <noreply@hackerspace.sh>`. The domain must be verified in Resend (SPF + DKIM) for production delivery.
+- `CRON_SECRET` — shared secret guarding the notification dispatcher. Generate with `openssl rand -hex 32`. Unset means the dispatcher returns 503 and never sends.
 
 ## How a deploy runs
 
@@ -50,6 +53,16 @@ See [LOCAL_DEV.md](./LOCAL_DEV.md) for the fresh-clone-to-running sequence using
 ## First-time provisioning
 
 For initial server provisioning (Docker, the Supabase stack, Caddy, firewall, SSH hardening, deploy-key registration, the systemd unit, backup cron), follow [DEPLOY_DO_SELFHOSTED.md](./DEPLOY_DO_SELFHOSTED.md) end to end.
+
+### Notification dispatcher cron
+
+Transactional email is an outbox drained by `POST /api/cron/notifications`. Add a once-a-minute root crontab entry on the Droplet (after `RESEND_API_KEY`, `EMAIL_FROM`, `CRON_SECRET` are set in the app `.env`):
+
+```
+* * * * * curl -fsS -m 30 -X POST http://127.0.0.1:3000/api/cron/notifications -H "Authorization: Bearer $CRON_SECRET" >/dev/null 2>&1
+```
+
+It hits the app locally (bypassing Caddy), self-throttles under Resend's rate limit, and is idempotent, so a missed or overlapping minute is harmless. Migration `041_notifications.sql` is applied automatically by `deploy.sh` like every other `scripts/0*.sql`; no manual database step.
 
 ## Operational checklist
 

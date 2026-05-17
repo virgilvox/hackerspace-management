@@ -4,6 +4,28 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-17 (pass 45) — Product spine Phase 2: transactional notifications (LOCAL, awaiting one reviewed deploy)
+
+Branch `main`. Built Phase 2 dues-lifecycle email end to end, gated + committed per sub-phase. NOT deployed (ASK pending). Suite 498, build clean.
+
+### What shipped (commits ddb790a, 5295dc2, 2c88278, 75097a6, + this docs/UI)
+- **P2a** migration 041 + schema.sql section 26: `notifications` outbox. Service-only writer, SELECT = admin/board/treasurer, member self-view via validated action. `(space_id, dedupe_key)` unique = idempotent enqueue. Pure `lib/notifications-logic.ts` (render + dedupe + terminal rule), 13 tests.
+- **P2b** `lib/email/send.ts`: Resend HTTP transport seam (no SDK, `fetch`), `retryable` flag, unset-key = clean no-op. 6 tests (fetch mocked). `RESEND_API_KEY`/`EMAIL_FROM` in `.env.example`.
+- **P2c** Stripe webhook enqueues: `invoice.paid`→renewed, `invoice.payment_failed`→failed, lapse→lapsed. Outbox only, never sends inline (keeps the just-hardened money path fast/retry-safe).
+- **P2d** `POST /api/cron/notifications`: constant-time `CRON_SECRET`, drains ≤20/min, row id as Resend Idempotency-Key (overlap-safe). `proxy.ts` whitelists `/api/cron` (same redirect trap as the Stripe webhook). `CRON_SECRET` in `.env.example`.
+- **P2e** `getMyNotifications` + read-only `/me` section. Docs updated same change: DATABASE_SCHEMA, DB_SCHEMA_MAP, API_REFERENCE, ARCHITECTURE, DEPLOYMENT (env + crontab line).
+
+### Decision / context
+- Transport = Resend (owner indicated an existing Resend token; none was wired in this repo). Behind a one-function seam so SMTP can replace it later without touching callers. Generic-platform constraint preserved.
+- Scope locked to dues lifecycle; bookings/forms reuse the same outbox in a later phase.
+
+### Open / needs owner
+- **Not deployed.** Awaiting one reviewed deploy (ASK). Also still local: pass-44 docs commit dc76a86.
+- After deploy, prod needs: `RESEND_API_KEY`, `EMAIL_FROM` (verified domain, SPF+DKIM), `CRON_SECRET` set on the Droplet, plus the once-a-minute crontab line (see DEPLOYMENT.md). Without them the outbox fills but nothing sends.
+- Validation (real test): Stripe test-mode dues run → confirm `dues_renewed` enqueued once, dispatcher sends, `/me` shows it; force a card failure → `dues_payment_failed`; let it lapse → `dues_lapsed`.
+
+---
+
 ## 2026-05-17 (pass 44) — Stripe Phase 1 DEPLOYED; post-deploy P0 (webhook routing) caught + fixed + redeployed
 
 Branch `main`. Phase 1 shipped (run 25988762909, HEAD 8f74307, success). Post-deploy smoke caught a P0: an unauthenticated POST to `/api/stripe/webhook/<space>` returned **307**, not 400.

@@ -406,10 +406,11 @@ Default channels created by trigger on space INSERT: `general`, `announcements`,
 | 038 | `space_visits` (presence/attendance) + `spaces.host_requires_card` bool default true. One open visit per member (partial unique); SELECT = any space member; service-client-only writes (self-resolved, immutable). No new permission code |
 | 039 | DATA backfill only: link `form_submissions.member_id` (NULL) to earliest matching member by `(space_id, lower email = lower submitter_email)`. Idempotent; not in schema.sql |
 | 040 | Stripe dues P1: `payment_platform` += `stripe`; `member_billing` (member↔Stripe customer/sub/status; SELECT admin/board/treasurer, service-client-only writes); `stripe_webhook_events` (idempotency, PK=event id, service-only). Per-space own keys (vault + integrations.config) |
+| 041 | Notifications P2: `notifications` outbox (type, recipient, subject, body_html/text, status, attempts, dedupe_key). UNIQUE(space_id,dedupe_key) = idempotent webhook enqueue; partial idx (created_at) WHERE status='pending'. SELECT admin/board/treasurer, service-client-only writes (webhook enqueue + dispatcher cron); member self-view via validated action |
 
 ---
 
-## Tables added by migrations 016-040 (quick map)
+## Tables added by migrations 016-041 (quick map)
 
 | Table | Key columns | Purpose |
 |-------|-------------|---------|
@@ -442,6 +443,7 @@ Default channels created by trigger on space INSERT: `general`, `announcements`,
 | `space_visits` | space_id, member_id, checked_in_at, checked_out_at, is_host, check_in_note, check_out_note | Presence/attendance. Open (checked_out_at NULL) = present; partial UNIQUE one-open-per-member. SELECT = any space member; NO write policy (self-resolved service-client actions only; immutable). Org-wide attendance view = all members |
 | `member_billing` | space_id, member_id (UNIQUE per space), stripe_customer_id, stripe_subscription_id, subscription_status, current_period_end | Stripe dues link. SELECT = admin/board/treasurer; NO client write policy (webhook/service-client only). Member self-view via a validated action |
 | `stripe_webhook_events` | event_id PK, space_id, type, received_at | Webhook idempotency ledger (dedupe on Stripe's stable event id). Service-client only; no RLS policy |
+| `notifications` | space_id, member_id, type, channel, recipient, subject, body_html, body_text, status, attempts, last_error, dedupe_key (UNIQUE per space), sent_at | Transactional email outbox. Webhook enqueues (idempotent via the unique key); dispatcher cron sends via Resend with row id as Idempotency-Key. SELECT = admin/board/treasurer; NO client write policy (service-client only). Member self-view via a validated action |
 
 Column additions: `space_members.tier_id`, `onboarding_completed_at`, `onboarding_progress`; `secrets.encrypted_value`, `encryption_version`; `knowledge_base.render_markdown`, `is_meeting_minutes`, `meeting_date`; `classes.required_form_id`; `spaces.host_requires_card`. New enum `comment_entity_type`.
 

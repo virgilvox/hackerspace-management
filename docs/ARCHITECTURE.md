@@ -645,6 +645,28 @@ policy** (webhook/service-client only); the member self-view is a validated
 action. No new permission code. Phases 2-3 (transactional notifications,
 broader self-serve) build on this.
 
+### Transactional notifications (migration 041; product spine Phase 2)
+
+Outbox + dispatcher, not inline send. The Stripe webhook only writes a
+`notifications` row (`invoice.paid` → `dues_renewed`, `invoice.payment_failed`
+→ `dues_payment_failed`, lapse-to-`late` → `dues_lapsed`); it never calls the
+mail provider, so the money path stays fast and retry-safe. The
+`(space_id, dedupe_key)` unique index makes a Stripe event replay a no-op
+(`ignoreDuplicates`). Pure render + dedupe logic in
+`lib/notifications-logic.ts` is unit-tested (HTML-escaped, brand-neutral
+copy). `lib/email/send.ts` is a one-function transport seam over Resend's
+HTTP API (no SDK; `fetch`) returning a `retryable` flag; a self-hosted
+deploy can swap it for SMTP without touching callers, and an unset
+`RESEND_API_KEY` is a clean non-retryable no-op. The dispatcher
+`POST /api/cron/notifications` (constant-time `CRON_SECRET` bearer, no
+session — `proxy.ts` whitelists `/api/cron`) drains ≤20 pending rows per
+run, passing each row id as Resend's `Idempotency-Key` so an overlapping
+run cannot double-send; transient failures stay `pending` until the attempt
+budget is spent, permanent ones go `failed`. `notifications` SELECT =
+admin/board/treasurer, no client write policy; the member self-view
+(`getMyNotifications`, surfaced on `/me`) is a validated action. The
+droplet's crontab POSTs once a minute. No new permission code.
+
 ---
 
 ## 13. Known Limitations
@@ -653,6 +675,6 @@ broader self-serve) build on this.
 2. **Payment integrations** - Manual import/CSV reconciliation is the primary path. A PayPal sync endpoint exists (`app/api/paypal/sync/route.ts`); Stripe/other live APIs are not integrated. See `docs/` and the Payments module section.
 3. **Social auth** - GitHub/Google sign-in is wired, gated by the `NEXT_PUBLIC_OAUTH_GITHUB`/`NEXT_PUBLIC_OAUTH_GOOGLE` env flags.
 4. **Webhooks** - The HMAC signing contract and secret rotation exist; per-event delivery is not implemented (see `docs/WEBHOOKS.md`).
-5. **Email notifications** - Not implemented.
+5. **Email notifications** - Dues-lifecycle transactional email is implemented (migration 041: notifications outbox + Resend transport + dispatcher cron). Other domains (bookings, forms) are not wired yet but reuse the same outbox.
 6. **Search** - Client-side filtering only, no server-side full-text search.
 7. **Single space per user** - The auth resolver assumes one active membership per user; a user in 2+ spaces is not supported (no space switcher). Fails closed.

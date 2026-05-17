@@ -68,3 +68,6 @@ export * from './presence'
 
 // Stripe recurring dues (product spine Phase 1)
 export * from './stripe'
+
+// Transactional notifications outbox (product spine Phase 2)
+export * from './notifications'

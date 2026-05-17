@@ -8,7 +8,7 @@ import {
   type CertStatus,
 } from '@/lib/certifications-logic'
 import { PERMISSIONS, PERMISSION_CODES } from '@/lib/permissions-catalog'
-import { getMyClassSignups, getMyReservations, getMyCards, getMyVisits, getMyBilling } from '@/lib/actions'
+import { getMyClassSignups, getMyReservations, getMyCards, getMyVisits, getMyBilling, getMyNotifications } from '@/lib/actions'
 import { SIGNUP_STATUS_LABEL, SESSION_STATUS_LABEL } from '@/lib/classes-logic'
 import { RESERVATION_STATUS_LABEL } from '@/lib/equipment-logic'
 import { presenceStatus } from '@/lib/presence-logic'
@@ -116,6 +116,9 @@ export default async function MePage() {
   const billing = ('data' in billingRes ? billingRes.data : null) as
     | { status: string | null; currentPeriodEnd: string | null; hasCustomer: boolean }
     | null
+  const notifsRes = await getMyNotifications()
+  type MyNotif = { id: string; type: string; subject: string; status: string; createdAt: string; sentAt: string | null }
+  const notifs: MyNotif[] = 'data' in notifsRes ? (notifsRes.data as MyNotif[]) : []
   const titleOf = (cs: ClassSignup) => {
     const sess = sessionOf(cs)
     const c = sess ? (Array.isArray(sess.classes) ? sess.classes[0] : sess.classes) : null
@@ -134,6 +137,34 @@ export default async function MePage() {
             Dues
           </h2>
           <DuesCard billing={billing} />
+        </section>
+
+        <section>
+          <h2 className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-3">
+            Notifications
+          </h2>
+          {notifs.length === 0 ? (
+            <p className="font-sans text-sm text-muted-foreground">
+              No notifications yet. Dues receipts and payment alerts will show up here.
+            </p>
+          ) : (
+            <ul className="divide-y rounded-lg border border-border">
+              {notifs.map(n => (
+                <li key={n.id} className="p-4 flex items-start justify-between gap-4 flex-wrap">
+                  <div className="min-w-0">
+                    <span className="font-sans text-sm text-foreground">{n.subject}</span>
+                    <p className="font-mono text-[10px] text-muted-foreground mt-1">
+                      {new Date(n.createdAt).toLocaleString()}
+                      {n.sentAt ? ` · sent ${new Date(n.sentAt).toLocaleDateString()}` : ''}
+                    </p>
+                  </div>
+                  <Badge variant={n.status === 'sent' ? 'default' : 'outline'}>
+                    {n.status === 'sent' ? 'Sent' : n.status === 'failed' ? 'Failed' : 'Queued'}
+                  </Badge>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
 
         <section>
