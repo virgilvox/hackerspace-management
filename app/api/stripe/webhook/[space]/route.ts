@@ -181,6 +181,10 @@ export async function POST(
         break
     }
   } catch (e) {
+    // The dedupe row was written BEFORE processing; if processing failed,
+    // remove it so Stripe's retry of this same event is reprocessed rather
+    // than silently short-circuited as a duplicate (no lost events).
+    await admin.from('stripe_webhook_events').delete().eq('event_id', event.id)
     return NextResponse.json(
       { error: e instanceof Error ? e.message : 'handler error' },
       { status: 500 },
