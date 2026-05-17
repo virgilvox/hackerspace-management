@@ -15,6 +15,7 @@ import { MemberCardsDialog } from '@/components/door/member-cards-dialog'
 import { MemberFormsDialog } from '@/components/forms/member-forms-dialog'
 
 type Member = Tables<'space_members'>
+type SortKey = 'name' | 'tier' | 'joined' | 'last_payment' | 'status'
 type AreaLeadRole = { id: string; area_name: string; lead_id: string | null }
 
 interface Props {
@@ -64,6 +65,7 @@ export function MembersClient({ members: initialMembers, currentRole, areaLeadRo
   const [activeTab, setActiveTab] = useState<'all' | 'payment_issues' | 'unverified' | 'inactive'>('all')
   const [search, setSearch] = useState('')
   const [tierFilter, setTierFilter] = useState('')
+  const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' } | null>(null)
   const [showAdd, setShowAdd] = useState(false)
   const [editMember, setEditMember] = useState<Member | null>(null)
   const [loading, setLoading] = useState(false)
@@ -95,6 +97,32 @@ export function MembersClient({ members: initialMembers, currentRole, areaLeadRo
 
     return matchesTab && matchesSearch && matchesTier
   })
+
+  const sortedMembers = sort
+    ? [...filteredMembers].sort((a, b) => {
+        const dir = sort.dir === 'asc' ? 1 : -1
+        const val = (m: Member): string => {
+          switch (sort.key) {
+            case 'name': return (m.display_name ?? '').toLowerCase()
+            case 'tier': return m.tier ?? ''
+            case 'status': return m.status ?? ''
+            case 'joined': return m.joined_at ?? ''
+            case 'last_payment': return (m.last_paid_at || m.last_payment_at || '') as string
+            default: return ''
+          }
+        }
+        return val(a).localeCompare(val(b)) * dir
+      })
+    : filteredMembers
+
+  function toggleSort(key: SortKey) {
+    setSort(s =>
+      s && s.key === key
+        ? (s.dir === 'asc' ? { key, dir: 'desc' } : null)
+        : { key, dir: 'asc' },
+    )
+  }
+  const caret = (key: SortKey) => (sort?.key === key ? (sort.dir === 'asc' ? ' ↑' : ' ↓') : '')
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault()
@@ -282,11 +310,24 @@ export function MembersClient({ members: initialMembers, currentRole, areaLeadRo
           <table className="w-full">
             <thead>
               <tr className="border-b border-border">
-                <th className="px-4 py-3 text-left font-mono text-[10px] tracking-widest text-muted-foreground">MEMBER</th>
-                <th className="px-4 py-3 text-left font-mono text-[10px] tracking-widest text-muted-foreground">TIER</th>
-                <th className="px-4 py-3 text-left font-mono text-[10px] tracking-widest text-muted-foreground hidden md:table-cell">JOINED</th>
-                <th className="px-4 py-3 text-left font-mono text-[10px] tracking-widest text-muted-foreground hidden lg:table-cell">LAST PAYMENT</th>
-                <th className="px-4 py-3 text-left font-mono text-[10px] tracking-widest text-muted-foreground">STATUS</th>
+                {([
+                  ['name', 'MEMBER', ''],
+                  ['tier', 'TIER', ''],
+                  ['joined', 'JOINED', 'hidden md:table-cell'],
+                  ['last_payment', 'LAST PAYMENT', 'hidden lg:table-cell'],
+                  ['status', 'STATUS', ''],
+                ] as [SortKey, string, string][]).map(([key, label, cls]) => (
+                  <th key={key} className={`px-4 py-3 text-left font-mono text-[10px] tracking-widest text-muted-foreground ${cls}`}>
+                    <button
+                      type="button"
+                      onClick={() => toggleSort(key)}
+                      className="font-mono text-[10px] tracking-widest uppercase hover:text-foreground transition"
+                      aria-label={`Sort by ${label}`}
+                    >
+                      {label}{caret(key)}
+                    </button>
+                  </th>
+                ))}
                 {canGrantCerts && (
                   <th className="px-4 py-3 text-left font-mono text-[10px] tracking-widest text-muted-foreground">CERTS</th>
                 )}
@@ -302,7 +343,7 @@ export function MembersClient({ members: initialMembers, currentRole, areaLeadRo
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {filteredMembers.length > 0 ? filteredMembers.map(m => {
+              {sortedMembers.length > 0 ? sortedMembers.map(m => {
                 const initials = (m.display_name || 'U').split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
                 const hasIssue = m.payment_status && m.payment_status !== 'current'
                 return (
