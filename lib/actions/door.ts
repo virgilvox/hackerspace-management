@@ -24,6 +24,7 @@ import {
   encodeHeatSyncRevoke,
   applyTemplate,
   redactDoorSecrets,
+  last4,
 } from '@/lib/door-logic'
 import { pickLowestFreeSlot, slotCapacity } from '@/lib/door-slots-logic'
 import { callDoor } from '@/lib/door/executor'
@@ -600,6 +601,49 @@ export async function revokeCard(input: unknown) {
   })
   revalidatePath('/door/manage')
   return { data: { ok: true } }
+}
+
+// Active cards in the space plus the slot (if any) each holds on this
+// connection, for the operator grant/revoke UI. door.operate; service client
+// (operators have no RLS read on member_cards). The raw UID is never returned
+// -- only the masked last4, like the member self-view.
+export async function listDoorCards(input: unknown) {
+  const gate = await requireDoorOperator()
+  if (!gate.ok) return { error: gate.error }
+  const { member } = gate
+
+  const v = parseInput(doorConnectionIdSchema, input)
+  if (!v.ok) return { error: v.error }
+
+  const admin = createAdminClient()
+  const { data: cards, error } = await admin
+    .from('member_cards')
+    .select('id, card_uid, label, member_id, space_members!member_cards_member_id_fkey(display_name)')
+    .eq('space_id', member.space_id)
+    .eq('is_active', true)
+    .order('created_at', { ascending: false })
+  if (error) return { error: error.message }
+
+  const { data: slots } = await admin
+    .from('door_card_slots')
+    .select('card_id, slot')
+    .eq('connection_id', v.data.connectionId)
+  const slotByCard = new Map<string, number>()
+  for (const s of slots ?? []) slotByCard.set(s.card_id as string, s.slot as number)
+
+  return {
+    data: (cards ?? []).map(c => {
+      const sm = c.space_members as { display_name: string | null } | { display_name: string | null }[] | null
+      const name = Array.isArray(sm) ? sm[0]?.display_name : sm?.display_name
+      return {
+        cardId: c.id as string,
+        memberName: name ?? 'Unknown member',
+        label: (c.label as string | null) ?? null,
+        last4: last4(c.card_uid as string),
+        slot: slotByCard.has(c.id as string) ? (slotByCard.get(c.id as string) as number) : null,
+      }
+    }),
+  }
 }
 
 // Open / unlock / lock. No slot involvement. HeatSync 'open' = momentary o1.

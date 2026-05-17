@@ -13,6 +13,10 @@ import {
   updateDoorConnection,
   deleteDoorConnection,
   testDoorConnection,
+  doorControl,
+  grantCard,
+  revokeCard,
+  listDoorCards,
 } from '@/lib/actions'
 import { KNOWN_DOOR_CONTROLLERS, controllerForAdapter } from '@/lib/door-logic'
 
@@ -30,6 +34,7 @@ type Conn = {
   is_enabled: boolean
 }
 type LogRow = { id: string; action: string; success: boolean; detail: string | null; occurred_at: string }
+type DoorCard = { cardId: string; memberName: string; label: string | null; last4: string; slot: number | null }
 
 const input = 'w-full bg-background border border-border text-foreground font-sans text-sm rounded px-3 py-2 focus:outline-none focus:border-primary'
 
@@ -45,17 +50,80 @@ export function DoorManageClient({
   initial,
   secrets,
   log,
+  canOperate,
 }: {
   initial: unknown[]
   secrets: { id: string; title: string }[]
   log: unknown[]
+  canOperate: boolean
 }) {
   const confirm = useConfirm()
   const [conns, setConns] = useState<Conn[]>(initial as Conn[])
   const [showNew, setShowNew] = useState(false)
   const [d, setD] = useState(emptyDraft())
   const [busy, setBusy] = useState(false)
+  const [cardsFor, setCardsFor] = useState<string | null>(null)
+  const [cards, setCards] = useState<DoorCard[]>([])
+  const [cardsBusy, setCardsBusy] = useState(false)
   const rows = log as LogRow[]
+
+  async function onControl(c: Conn, verb: 'open' | 'unlock' | 'lock') {
+    const label = verb === 'open' ? 'Open (momentary)' : verb === 'unlock' ? 'Unlock (hold open)' : 'Lock'
+    const ok = await confirm({
+      title: `${label}?`,
+      description: `This sends a live "${verb}" command to "${c.name}". It physically actuates the door.`,
+      confirmText: label,
+      destructive: verb === 'unlock',
+    })
+    if (!ok) return
+    setBusy(true)
+    const res = await doorControl({ connectionId: c.id, verb })
+    setBusy(false)
+    if ('error' in res && res.error) return toast.error(res.error)
+    toast.success(`Sent "${verb}" (HTTP ${(res as { data: { status: number } }).data.status})`)
+  }
+
+  async function loadCards(c: Conn) {
+    if (cardsFor === c.id) { setCardsFor(null); return }
+    setCardsFor(c.id)
+    setCardsBusy(true)
+    const res = await listDoorCards({ connectionId: c.id })
+    setCardsBusy(false)
+    if ('error' in res && res.error) { setCardsFor(null); return toast.error(res.error) }
+    setCards((res as { data: DoorCard[] }).data)
+  }
+
+  async function onGrant(c: Conn, card: DoorCard) {
+    const ok = await confirm({
+      title: 'Grant access?',
+      description: `Push card •••${card.last4} (${card.memberName}) to "${c.name}". This writes the card to the physical controller.`,
+      confirmText: 'Grant',
+    })
+    if (!ok) return
+    setCardsBusy(true)
+    const res = await grantCard({ connectionId: c.id, cardId: card.cardId })
+    setCardsBusy(false)
+    if ('error' in res && res.error) return toast.error(res.error)
+    const slot = (res as { data: { slot: number } }).data.slot
+    setCards(prev => prev.map(x => (x.cardId === card.cardId ? { ...x, slot } : x)))
+    toast.success(`Granted (slot ${slot})`)
+  }
+
+  async function onRevoke(c: Conn, card: DoorCard) {
+    const ok = await confirm({
+      title: 'Revoke access?',
+      description: `Remove card •••${card.last4} (${card.memberName}) from "${c.name}". This deletes it from the physical controller.`,
+      confirmText: 'Revoke',
+      destructive: true,
+    })
+    if (!ok) return
+    setCardsBusy(true)
+    const res = await revokeCard({ connectionId: c.id, cardId: card.cardId })
+    setCardsBusy(false)
+    if ('error' in res && res.error) return toast.error(res.error)
+    setCards(prev => prev.map(x => (x.cardId === card.cardId ? { ...x, slot: null } : x)))
+    toast.success('Revoked')
+  }
 
   function buildVerbs(dr: typeof d) {
     if (dr.adapter === 'native_heatsync') return {}
@@ -256,26 +324,69 @@ export function DoorManageClient({
         ) : (
           <div className="divide-y rounded-lg border border-border">
             {conns.map(c => (
-              <div key={c.id} className="p-4 flex items-start justify-between gap-4 flex-wrap">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-sans text-sm font-semibold text-foreground">{c.name}</span>
-                    <Badge variant="outline">{c.adapter === 'native_heatsync' ? 'HeatSync' : 'Generic'}</Badge>
-                    {!c.is_enabled && <Badge variant="outline">Disabled</Badge>}
-                    {c.allow_member_self_entry && <span className="font-mono text-[10px] text-amber-600">self-entry on</span>}
+              <div key={c.id} className="p-4 space-y-3">
+                <div className="flex items-start justify-between gap-4 flex-wrap">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-sans text-sm font-semibold text-foreground">{c.name}</span>
+                      <Badge variant="outline">{c.adapter === 'native_heatsync' ? 'HeatSync' : 'Generic'}</Badge>
+                      {!c.is_enabled && <Badge variant="outline">Disabled</Badge>}
+                      {c.allow_member_self_entry && <span className="font-mono text-[10px] text-amber-600">self-entry on</span>}
+                    </div>
+                    <p className="font-mono text-[10px] text-muted-foreground mt-1">
+                      {c.base_url} · pinned {c.pinned_host} · auth {c.secret_ref ? 'secret' : 'none'}
+                    </p>
                   </div>
-                  <p className="font-mono text-[10px] text-muted-foreground mt-1">
-                    {c.base_url} · pinned {c.pinned_host} · auth {c.secret_ref ? 'secret' : 'none'}
-                  </p>
+                  <div className="flex items-center gap-1.5">
+                    <Button size="sm" variant="outline" disabled={busy} onClick={() => onTest(c)}>Test</Button>
+                    <Button size="sm" variant="outline" onClick={() => onToggleEnabled(c)}>{c.is_enabled ? 'Disable' : 'Enable'}</Button>
+                    <Button size="sm" variant="outline" onClick={() => onToggleSelfEntry(c)}>
+                      {c.allow_member_self_entry ? 'Self-entry off' : 'Self-entry on'}
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => onDelete(c)}>Delete</Button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <Button size="sm" variant="outline" disabled={busy} onClick={() => onTest(c)}>Test</Button>
-                  <Button size="sm" variant="outline" onClick={() => onToggleEnabled(c)}>{c.is_enabled ? 'Disable' : 'Enable'}</Button>
-                  <Button size="sm" variant="outline" onClick={() => onToggleSelfEntry(c)}>
-                    {c.allow_member_self_entry ? 'Self-entry off' : 'Self-entry on'}
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => onDelete(c)}>Delete</Button>
-                </div>
+
+                {canOperate && c.is_enabled && (
+                  <div className="flex items-center gap-1.5 flex-wrap border-t border-border pt-3">
+                    <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mr-1">Operate</span>
+                    <Button size="sm" disabled={busy} onClick={() => onControl(c, 'open')}>Open</Button>
+                    <Button size="sm" variant="outline" disabled={busy} onClick={() => onControl(c, 'unlock')}>Unlock</Button>
+                    <Button size="sm" variant="outline" disabled={busy} onClick={() => onControl(c, 'lock')}>Lock</Button>
+                    <Button size="sm" variant="outline" onClick={() => loadCards(c)}>
+                      {cardsFor === c.id ? 'Hide cards' : 'Cards'}
+                    </Button>
+                  </div>
+                )}
+
+                {canOperate && cardsFor === c.id && (
+                  <div className="rounded border border-border bg-background p-3">
+                    {cardsBusy && cards.length === 0 ? (
+                      <p className="font-mono text-[10px] text-muted-foreground">Loading cards…</p>
+                    ) : cards.length === 0 ? (
+                      <p className="font-mono text-[10px] text-muted-foreground">No active cards in this space.</p>
+                    ) : (
+                      <ul className="divide-y">
+                        {cards.map(card => (
+                          <li key={card.cardId} className="py-2 flex items-center justify-between gap-3">
+                            <span className="font-mono text-[11px] text-muted-foreground min-w-0 truncate">
+                              {card.memberName} · •••{card.last4}
+                              {card.label ? ` · ${card.label}` : ''}
+                              {card.slot !== null && <span className="text-primary"> · slot {card.slot}</span>}
+                            </span>
+                            <span className="flex items-center gap-1.5 shrink-0">
+                              {card.slot === null ? (
+                                <Button size="sm" disabled={cardsBusy} onClick={() => onGrant(c, card)}>Grant</Button>
+                              ) : (
+                                <Button size="sm" variant="outline" disabled={cardsBusy} onClick={() => onRevoke(c, card)}>Revoke</Button>
+                              )}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>
