@@ -4,6 +4,8 @@ import { redirect } from 'next/navigation'
 import type { Tables } from '@/types/database'
 import { PageTitle } from '@/components/ui/page-title'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
+import { listSelfEntryDoors } from '@/lib/actions'
+import { DoorSelfEntry } from './door-self-entry'
 
 function IcoUsers({ className }: { className?: string }) {
   return <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
@@ -19,6 +21,9 @@ function IcoPay({ className }: { className?: string }) {
 }
 function IcoPlus({ className }: { className?: string }) {
   return <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+}
+function IcoDoor({ className }: { className?: string }) {
+  return <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21h18M6 21V5a2 2 0 012-2h8a2 2 0 012 2v16M14 12h.01" /></svg>
 }
 
 export default async function DashboardPage() {
@@ -152,6 +157,9 @@ export default async function DashboardPage() {
       </div>
     )
   }
+
+  const selfEntryRes = await listSelfEntryDoors()
+  const selfEntryDoors = ('data' in selfEntryRes ? selfEntryRes.data : []) as { id: string; name: string }[]
 
   return (
     <div className="min-h-screen bg-background">
@@ -321,6 +329,15 @@ export default async function DashboardPage() {
           </div>
 
           <div className="space-y-6">
+            {selfEntryDoors.length > 0 && (
+              <div>
+                <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase mb-3 flex items-center gap-1.5">
+                  <IcoDoor className="w-3 h-3" /> Door access
+                </p>
+                <DoorSelfEntry doors={selfEntryDoors} />
+              </div>
+            )}
+
             <div>
               <div className="flex items-center justify-between mb-3">
                 <p className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase">Payment Alerts</p>

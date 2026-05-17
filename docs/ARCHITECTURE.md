@@ -513,7 +513,7 @@ override and may book on a member's behalf). No anonymous path.
 
 ### Door / access control (migrations 034-036; epic in progress)
 
-Phased; P1-P3 built (member self-entry deferred to a separately reviewed step). `member_cards` (034) associates RFID/NFC UIDs to
+Phased; P1-P3 built, including member self-entry (reviewed at the locked checkpoint, then built). `member_cards` (034) associates RFID/NFC UIDs to
 members; the UID is a credential (`door.manage`-only RLS, no member SELECT;
 masked count+last4 self-view via a service-client action). `door.manage` /
 `door.operate` permissions (group Access). `door_connections` (035) is a
@@ -542,10 +542,15 @@ the controller, and rolls the reservation back if the call fails;
 `revokeCard` is idempotent and frees the slot only on confirmed controller
 success so the app map never diverges from the device; `doorControl`
 (open/unlock/lock) touches no slot. `/door/manage` surfaces these to
-`door.operate` holders. The per-connection member self-entry (opt-in,
-elevated risk, off by default) is the next, separately reviewed step;
-phases 4-5 add inbound log ingest and the universal API-call UI builder.
-No anonymous path.
+`door.operate` holders. Member self-entry (`selfEntry`) is built: any
+active member with at least one active card on file may trigger a momentary
+OPEN on a connection that is enabled and has `allow_member_self_entry` on
+(opt-in, off by default; the locked eligibility rule is "any active card",
+no `door_card_slots` row required). Membership/cards are resolved
+server-side, strict per-member rate limit, one redacted `self_entry` audit
+row; surfaced as a "Door access" panel on the dashboard, hidden entirely
+for ineligible members. Phases 4-5 add inbound log ingest and the
+universal API-call UI builder. No anonymous path.
 
 ---
 

@@ -4,6 +4,23 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-17 (pass 28) — Member self-entry BUILT (dashboard surface); LOCAL, awaiting deploy
+
+Branch `main`. Pass-27 (Door P3) is deployed. User then directed: "add door access controls to dashboard if user has card access enabled" = build the locked-design member self-entry, surfaced on the dashboard. No new migration (reuses 035 `allow_member_self_entry` + `member_cards`).
+
+### Built (LOCAL, not deployed)
+- `lib/actions/door.ts`: `selfEntry({connectionId})` — `requireMember` (any active member, no permission code), strict rate limit `door-self` 5/min, momentary OPEN only (HeatSync `?o1` / generic `open` template) through the existing hardened executor. Eligibility (locked rule): connection `is_enabled` AND `allow_member_self_entry` AND caller has >=1 active `member_card` (NO `door_card_slots` row required). Membership/cards resolved server-side (client sends only `connectionId`); never unlock/lock/grant/revoke; never anon. One redacted `door_access_log` row `action='self_entry'`, `target_member_id`=self (denials audited too). `listSelfEntryDoors()` returns enabled self-entry connections only if the caller has an active card (else empty → surface hidden).
+- Dashboard: `app/(app)/dashboard/door-self-entry.tsx` (client, confirm + toast) + a "Door access" panel in the dashboard right column, rendered only when `listSelfEntryDoors()` is non-empty. First-run dashboard branch unaffected (query runs after that early return).
+- Docs: API_REFERENCE + ARCHITECTURE updated; this entry.
+
+### Open / next
+- LOCAL & undeployed: self-entry (1 commit, see `git log`). Plus still-unpushed pass-27 deploy-state docs commit `14a2554`. **Awaiting deploy approval** (no migration; app-only). After push: with a self-entry-enabled connection + the member holding an active card, the dashboard "Door access" panel should appear and the confirm button should fire `selfEntry`; verify `self_entry` audit rows are redacted. NOT browser/controller-verified here.
+- Gate green at build time: suite 417, `pnpm build` clean.
+- Door epic remaining: **P4** inbound access-log ingest (poll `?z`/webhook → resolve card_uid→member); **P5** universal API-call UI builder (`api_buttons`, same SSRF executor, door template).
+- Residual/test gap unchanged: SSRF pin is host-string equality (theoretical DNS-rebinding, mitigated); no Supabase mock harness so action orchestration (incl. self-entry eligibility) is not unit-tested; pure slot logic is.
+
+---
+
 ## 2026-05-17 (pass 27) — Door P3 DEPLOYED (slot allocator + live actions); self-entry CHECKPOINT next
 
 Branch `main`. Start state was the pass-26 clean checkpoint. Reaffirmed framing: this is a generic multi-space hackerspace platform, HeatSync is one tenant/adapter (memory `platform-not-heatsync-only`). Slot-allocator design presented and APPROVED before building; user decisions locked: slot range **0-200 no reservation**, grant ordering **reserve -> call -> roll back on failure**, **checkpoint before member self-entry: YES**.
