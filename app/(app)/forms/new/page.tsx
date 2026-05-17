@@ -5,7 +5,7 @@ import { FormBuilder } from '@/components/forms/form-builder'
 export const dynamic = 'force-dynamic'
 
 export default async function NewFormPage() {
-  await requireFormsManagerPage()
+  const { spaceSlug } = await requireFormsManagerPage()
 
   return (
     <>
@@ -15,6 +15,7 @@ export default async function NewFormPage() {
       <div className="p-4 md:p-6">
         <FormBuilder
           initial={{
+            spaceSlug,
             slug: '',
             title: '',
             description: '',

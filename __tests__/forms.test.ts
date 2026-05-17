@@ -184,9 +184,12 @@ describe('linkSubmissionsSchema', () => {
 })
 
 describe('getPublicFormSchema', () => {
-  it('validates the slug', () => {
-    expect(getPublicFormSchema.safeParse({ slug: 'a-form' }).success).toBe(true)
-    expect(getPublicFormSchema.safeParse({ slug: 'Bad' }).success).toBe(false)
+  it('requires both a space and a valid form slug', () => {
+    expect(getPublicFormSchema.safeParse({ space: 'heatsynclabs', slug: 'a-form' }).success).toBe(true)
+    expect(getPublicFormSchema.safeParse({ slug: 'a-form' }).success).toBe(false)
+    expect(getPublicFormSchema.safeParse({ space: 'heatsynclabs' }).success).toBe(false)
+    expect(getPublicFormSchema.safeParse({ space: 'heatsynclabs', slug: 'Bad' }).success).toBe(false)
+    expect(getPublicFormSchema.safeParse({ space: '', slug: 'a-form' }).success).toBe(false)
   })
 })
 

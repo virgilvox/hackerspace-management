@@ -29,6 +29,7 @@ type Status = 'draft' | 'published' | 'closed'
 
 export type BuilderForm = {
   id?: string
+  spaceSlug: string
   slug: string
   title: string
   description: string
@@ -171,8 +172,9 @@ export function FormBuilder({ initial }: { initial: BuilderForm }) {
     router.refresh()
   }
 
+  const publicPath = `/f/${initial.spaceSlug}/${initial.slug}`
   const publicUrl =
-    typeof window !== 'undefined' ? `${window.location.origin}/f/${initial.slug}` : `/f/${initial.slug}`
+    typeof window !== 'undefined' ? `${window.location.origin}${publicPath}` : publicPath
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
@@ -240,7 +242,7 @@ export function FormBuilder({ initial }: { initial: BuilderForm }) {
             {isEdit ? (
               <p className="text-xs text-muted-foreground">The slug cannot change after creation.</p>
             ) : (
-              <p className="text-xs text-muted-foreground">Public address: /f/{slug || '…'}</p>
+              <p className="text-xs text-muted-foreground">Public address: /f/{initial.spaceSlug}/{slug || '…'}</p>
             )}
           </div>
           <div className="space-y-1.5">

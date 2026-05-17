@@ -666,7 +666,10 @@ export const linkSubmissionsSchema = z.object({
   email: emailField(),
 })
 
-export const getPublicFormSchema = z.object({ slug: formSlug })
+export const getPublicFormSchema = z.object({
+  space: z.string().min(1).max(100),
+  slug: formSlug,
+})
 
 // ─── Generic ID schemas ──────────────────────────────────────────────────────
 

@@ -24,7 +24,7 @@ const VIS_LABEL: Record<string, string> = {
   public_anon: 'Public',
 }
 
-export function FormsClient({ forms }: { forms: FormRow[] }) {
+export function FormsClient({ forms, spaceSlug }: { forms: FormRow[]; spaceSlug: string }) {
   return (
     <>
       <PageHeader>
@@ -65,7 +65,7 @@ export function FormsClient({ forms }: { forms: FormRow[] }) {
                     </Link>
                     {f.kind === 'waiver' && <Badge variant="secondary">Waiver</Badge>}
                   </div>
-                  <p className="font-mono text-xs text-muted-foreground">/f/{f.slug}</p>
+                  <p className="font-mono text-xs text-muted-foreground">/f/{spaceSlug}/{f.slug}</p>
                 </div>
                 <Badge variant="outline">{VIS_LABEL[f.visibility] ?? f.visibility}</Badge>
                 <Badge variant={f.status === 'published' ? 'default' : 'secondary'}>

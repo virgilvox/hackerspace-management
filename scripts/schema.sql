@@ -1899,7 +1899,7 @@ CREATE TRIGGER trg_prevent_member_self_role_change
 CREATE TABLE IF NOT EXISTS public.forms (
   id          uuid        PRIMARY KEY DEFAULT uuid_generate_v4(),
   space_id    uuid        NOT NULL REFERENCES public.spaces(id) ON DELETE CASCADE,
-  slug        text        NOT NULL UNIQUE
+  slug        text        NOT NULL
                           CHECK (slug ~ '^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$'
                                  AND char_length(slug) BETWEEN 1 AND 80),
   title       text        NOT NULL CHECK (char_length(title) BETWEEN 1 AND 200),
@@ -1915,9 +1915,11 @@ CREATE TABLE IF NOT EXISTS public.forms (
   version     integer     NOT NULL DEFAULT 1 CHECK (version >= 1),
   created_by  uuid        REFERENCES public.space_members(id) ON DELETE SET NULL,
   created_at  timestamptz NOT NULL DEFAULT now(),
-  updated_at  timestamptz NOT NULL DEFAULT now()
+  updated_at  timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT forms_space_slug_key UNIQUE (space_id, slug)
 );
--- slug already has a UNIQUE btree index from the column constraint.
+-- The UNIQUE(space_id, slug) constraint above also serves slug lookups
+-- scoped to a space (the /f/[space]/[slug] public route).
 CREATE INDEX IF NOT EXISTS idx_forms_space  ON public.forms (space_id, status);
 
 CREATE TABLE IF NOT EXISTS public.form_submissions (

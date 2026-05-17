@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 
 export default async function EditFormPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const { supabase, member } = await requireFormsManagerPage()
+  const { supabase, member, spaceSlug } = await requireFormsManagerPage()
 
   const { data: form } = await supabase
     .from('forms')
@@ -28,6 +28,7 @@ export default async function EditFormPage({ params }: { params: Promise<{ id: s
         <FormBuilder
           initial={{
             id: form.id,
+            spaceSlug,
             slug: form.slug,
             title: form.title,
             description: form.description ?? '',

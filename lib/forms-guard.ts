@@ -15,7 +15,7 @@ export async function requireFormsManagerPage() {
 
   const { data: member } = await supabase
     .from('space_members')
-    .select('id, space_id, role, user_id, display_name')
+    .select('id, space_id, role, user_id, display_name, spaces(slug)')
     .eq('user_id', user.id)
     .in('status', ['current', 'unverified', 'late'])
     .single()
@@ -28,5 +28,6 @@ export async function requireFormsManagerPage() {
   })
   if (!allowed) redirect('/dashboard')
 
-  return { supabase, member }
+  const spaceSlug = (member.spaces as { slug?: string } | null)?.slug ?? ''
+  return { supabase, member, spaceSlug }
 }

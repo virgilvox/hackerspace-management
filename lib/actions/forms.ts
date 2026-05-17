@@ -395,11 +395,19 @@ export async function getPublicForm(input: unknown) {
   if (!v.ok) return { error: v.error }
 
   const admin = createAdminClient()
+  const { data: space } = await admin
+    .from('spaces')
+    .select('id')
+    .eq('slug', v.data.space)
+    .maybeSingle()
+  if (!space) return { error: 'This form is not available.' }
+
   const { data: form } = await admin
     .from('forms')
     .select('id, slug, title, description, kind, visibility, schema, legal_text, version, status')
+    .eq('space_id', space.id)
     .eq('slug', v.data.slug)
-    .single()
+    .maybeSingle()
 
   // Members-only forms are never served on the public page (that would expose
   // their schema to anyone). They are filled from inside the app.

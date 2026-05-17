@@ -5,9 +5,13 @@ import { PublicFormClient } from './public-form-client'
 
 export const dynamic = 'force-dynamic'
 
-export default async function PublicFormPage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params
-  const res = await getPublicForm({ slug })
+export default async function PublicFormPage({
+  params,
+}: {
+  params: Promise<{ space: string; slug: string }>
+}) {
+  const { space, slug } = await params
+  const res = await getPublicForm({ space, slug })
 
   if ('error' in res && res.error) {
     return (
@@ -29,7 +33,8 @@ export default async function PublicFormPage({ params }: { params: Promise<{ slu
   return (
     <main className="mx-auto max-w-2xl p-4 md:p-8">
       <PublicFormClient
-        slug={form.slug}
+        formId={form.id}
+        nextPath={`/f/${space}/${slug}`}
         title={form.title}
         description={form.description}
         kind={form.kind}

@@ -9,7 +9,8 @@ import { submitForm } from '@/lib/actions'
 import type { FormField } from '@/lib/forms-schema'
 
 export function PublicFormClient({
-  slug,
+  formId,
+  nextPath,
   title,
   description,
   kind,
@@ -18,7 +19,8 @@ export function PublicFormClient({
   fields,
   authed,
 }: {
-  slug: string
+  formId: string
+  nextPath: string
   title: string
   description: string | null
   kind: string
@@ -41,8 +43,10 @@ export function PublicFormClient({
   async function submit() {
     setError(null)
     setSubmitting(true)
+    // Submit by formId: form slugs are only unique per space now, so id is
+    // the unambiguous handle.
     const res = await submitForm({
-      slug,
+      formId,
       answers: values,
       email: showEmail && email ? email : undefined,
       consent: isWaiver ? consent : undefined,
@@ -75,7 +79,7 @@ export function PublicFormClient({
         <div className="rounded-lg border bg-muted/40 p-6 text-center">
           <p className="text-sm">You need to be signed in to submit this form.</p>
           <Button asChild className="mt-3">
-            <a href={`/login?next=/f/${slug}`}>Sign in</a>
+            <a href={`/login?next=${encodeURIComponent(nextPath)}`}>Sign in</a>
           </Button>
         </div>
       ) : (
