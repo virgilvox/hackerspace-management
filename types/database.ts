@@ -166,6 +166,12 @@ export type Database = {
         Update: { id?: string; space_id?: string; connection_id?: string | null; actor_member_id?: string | null; target_member_id?: string | null; action?: string; success?: boolean; detail?: string | null; occurred_at?: string }
         Relationships: []
       }
+      door_card_slots: {
+        Row: { id: string; space_id: string; connection_id: string; card_id: string; slot: number; created_by: string | null; created_at: string; updated_at: string }
+        Insert: { id?: string; space_id: string; connection_id: string; card_id: string; slot: number; created_by?: string | null; created_at?: string; updated_at?: string }
+        Update: { id?: string; space_id?: string; connection_id?: string; card_id?: string; slot?: number; created_by?: string | null; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
       activity_log: {
         Row: {
           action: string

@@ -2453,3 +2453,47 @@ DROP TRIGGER IF EXISTS trg_door_connections_touch ON public.door_connections;
 CREATE TRIGGER trg_door_connections_touch
   BEFORE UPDATE ON public.door_connections
   FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
+
+
+-- =============================================================================
+-- 23. Door card slot allocation (Door epic, phase 3)
+--     (equivalent to scripts/036_door_card_slots.sql).
+--
+--     A controller may key cards by integer slot (HeatSync/23b: 0-200). The
+--     slot space is PER CONNECTION; door_card_slots is the allocation map.
+--     UNIQUE (connection_id, slot) lets the DB arbitrate concurrent grants;
+--     UNIQUE (connection_id, card_id) makes re-granting idempotent. The
+--     lowest-free-slot policy + range bounds live in pure unit-tested logic
+--     (lib/door-slots-logic.ts), not SQL, so it stays adapter-generic. RLS
+--     additive/default-deny: SELECT = door.manage OR door.operate; NO client
+--     write policy (validated service-client executor only, in lockstep with
+--     the controller). No new permission codes. No anonymous path.
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS public.door_card_slots (
+  id            uuid        PRIMARY KEY DEFAULT uuid_generate_v4(),
+  space_id      uuid        NOT NULL REFERENCES public.spaces(id) ON DELETE CASCADE,
+  connection_id uuid        NOT NULL REFERENCES public.door_connections(id) ON DELETE CASCADE,
+  card_id       uuid        NOT NULL REFERENCES public.member_cards(id) ON DELETE CASCADE,
+  slot          integer     NOT NULL CHECK (slot >= 0),
+  created_by    uuid        REFERENCES public.space_members(id) ON DELETE SET NULL,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  updated_at    timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_door_card_slots_slot ON public.door_card_slots (connection_id, slot);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_door_card_slots_card ON public.door_card_slots (connection_id, card_id);
+CREATE INDEX IF NOT EXISTS        idx_door_card_slots_space ON public.door_card_slots (space_id);
+
+ALTER TABLE public.door_card_slots ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS door_card_slots_select ON public.door_card_slots;
+CREATE POLICY door_card_slots_select ON public.door_card_slots FOR SELECT
+  USING (
+    public.user_has_permission(auth.uid(), space_id, 'door.manage')
+    OR public.user_has_permission(auth.uid(), space_id, 'door.operate')
+  );
+
+DROP TRIGGER IF EXISTS trg_door_card_slots_touch ON public.door_card_slots;
+CREATE TRIGGER trg_door_card_slots_touch
+  BEFORE UPDATE ON public.door_card_slots
+  FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
