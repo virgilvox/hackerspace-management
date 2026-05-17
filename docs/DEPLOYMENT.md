@@ -24,6 +24,10 @@ All variables are listed in [.env.example](../.env.example). At minimum:
 - `SUPABASE_SERVICE_ROLE_KEY` — service-role JWT, server-side only
 - `NEXT_PUBLIC_APP_URL` — public URL of the deployed app, used in OAuth redirects
 
+Optional:
+
+- `NEXT_PUBLIC_OAUTH_GITHUB` / `NEXT_PUBLIC_OAUTH_GOOGLE` — set to `"true"` only for an OAuth provider you have actually configured in Supabase Auth. The login page hides any provider button that is not enabled, and hides the whole social-sign-in block if neither is set. These are build-time public values, so a change requires a redeploy to take effect.
+
 ## How a deploy runs
 
 1. A developer pushes to `main`.
