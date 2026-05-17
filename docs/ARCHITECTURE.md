@@ -415,10 +415,11 @@ Integration credentials stored in `integrations.config` (JSONB):
 | 010 | Fixed channel trigger (removed description column) |
 | 011 | Fixed enum values (active→current, pending→unverified) |
 
-Migrations 012-029 are tracked authoritatively in `docs/DATABASE_SCHEMA.md`
+Migrations 012-030 are tracked authoritatively in `docs/DATABASE_SCHEMA.md`
 (governance kernel, areas, forum/tiers/roles/invites, configurable onboarding,
 customizable permissions + Ops ACLs, self-change hardening, `026`-`029` custom
-forms + waivers + onboarding form step + per-space form slug + invite roles).
+forms + waivers + onboarding form step + per-space form slug + invite roles,
+`030` certifications + Instructor capability).
 
 ### Forms & waivers (migrations 026-029; complete Phases 1-5)
 
@@ -441,6 +442,28 @@ every non-service client and submissions are immutable. The public fill page is
 served by a service-client server action, so the `anon` Postgres role gets no
 grant on `forms`. Form management is gated by the new additive `forms.manage`
 permission via `user_has_permission`.
+
+### Certifications & Instructor (migration 030)
+
+`certifications` (per-space cert types; optional `validity_months`;
+`is_active` archive) and `member_certifications` (per-member grants) back a
+certification tracker. Pure decision logic is isolated in
+`lib/certifications-logic.ts` (`computeExpiry` with month/leap-year clamping;
+`certificationStatus` = revoked > expired > expiring_soon > active),
+unit-tested. Server actions in `lib/actions/certifications.ts`. Two new
+additive permissions: `certifications.manage` (cert types, gates
+`/certifications` admin pages via `lib/certifications-guard.ts`) and
+`certifications.grant` (award/revoke = the Instructor capability, assignable
+to any role/area-lead through the existing `space_role_permissions` model, NOT
+a new built-in role). The per-member award/revoke/renew panel is reachable
+from a "Certs" column on `/members` shown to any `certifications.grant` holder
+(independent of admin/board). Members see their own grants + effective
+permissions read-only at `/me`. RLS is additive and default-deny: cert types
+readable by any space member; grants readable by managers/granters (all) or
+the member (own); `member_certifications` has no DELETE policy so grant/revoke
+history is immutable (revoke is a soft `revoked_at` UPDATE). Expiry is
+snapshotted at grant time so later edits to the cert type never retroactively
+change an existing grant. There is no anonymous path.
 
 ---
 

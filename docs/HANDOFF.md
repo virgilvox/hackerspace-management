@@ -4,6 +4,31 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-17 (pass 21) — Two UX fixes DEPLOYED; Certifications module (1) code-complete LOCAL
+
+Branch `main`. Start state clean, deploys green (incident-tracking pass-20 live).
+
+### Deployed this pass (2 commits, pushed, Actions run 25978300957 success 1m28s, smoke-verified)
+- `feat(auth)`: login OAuth buttons are now opt-in via `NEXT_PUBLIC_OAUTH_GITHUB`/`_GOOGLE` (pure `lib/auth-config.ts` `resolveOAuthProviders`, unit-tested; `.env.example` + DEPLOYMENT.md). Prod `/login` smoke: 200, GitHub/Google + OR divider ABSENT (no env set = correctly hidden).
+- `fix(members)`: members page now renders the existing `InvitesPanel` for admin/board (server page loads invites + slug, composes via a new `inviteSlot` prop; MembersClient stays invite-agnostic). First-run dashboard copy fixed. Prod `/members` 307 -> /login (auth-gated; logged-in invite UI NOT browser-verified — needs a manual check).
+
+### Certifications + Instructor (locked module 1) — CODE-COMPLETE, LOCAL, 6 commits, NOT deployed
+Built phase-by-phase, each gated (vitest + `pnpm build` read in-run) + its own commit:
+- A: migration `030_certifications.sql` (`certifications`, `member_certifications`) + mirrored in `schema.sql` (in-place seed fn updated + appended Section 18) + `permissions-catalog` (`certifications.manage`, `certifications.grant`, group Certifications, board defaults + backfill) + `types/database.ts` + DATABASE_SCHEMA/DB_SCHEMA_MAP. RLS additive/default-deny: cert types readable by any space member; grants readable by managers/granters (all) or member (own); INSERT/UPDATE = `certifications.grant`; NO DELETE policy (immutable history, soft revoke); no anon path. Expiry snapshotted at grant.
+- B: pure `lib/certifications-logic.ts` (`computeExpiry` month/leap clamp; `isCertificationActive`; `certificationStatus`) + 16 tests (suite 348 -> 364) + Zod schemas.
+- C: `lib/actions/certifications.ts` (create/update/delete/list types; grant/revoke/renew; listMemberCertifications; getMyCertifications — no-params, session+RLS scoped) + `lib/certifications-guard.ts` + barrel + API_REFERENCE.
+- D: `/certifications` admin pages (manage cert types) + sidebar Admin link.
+- E: per-member award/revoke/renew dialog reachable from a "Certs" column on `/members` shown to ANY `certifications.grant` holder (non-admin instructors included; server resolves the perm via RPC).
+- F: member-facing `/me` ("My certifications & access": own grants + read-only effective permissions) + sidebar "My access" link + ARCHITECTURE.
+
+### Open / not done
+- Certifications is LOCAL (6 commits ahead). Awaiting deploy approval. After push: confirm `030` applied, board has both perms, exercise create-type -> grant -> revoke -> renew -> `/me` -> non-admin-instructor path; nothing is browser-verified (no live browser this session).
+- Pure logic is unit-tested; action *orchestration* (RLS/visibility/grant uniqueness) is NOT (no Supabase mock harness — same systemic gap as forms).
+- Queued by user, NOT yet started: (a) verify secrets reveal works via BOTH `ops.secrets.read` role perm AND direct `ops_acl` entry (read-only audit under the RLS guardrail); (b) KB + processes should render markdown with working in-document anchor links.
+- STILL OPEN: production incident-INSERT RLS bug — raised to user this pass; awaiting a prod retry to diagnose (#1 SSR auth.uid() vs #3 data drift). Do not touch the permissions/RLS surface without that diagnosis + approval.
+
+---
+
 ## 2026-05-17 (pass 20) — Forms epic deployed; research; incident tracking; forward roadmap
 
 ### Deployed & verified
