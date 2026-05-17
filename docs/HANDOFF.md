@@ -4,7 +4,27 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
-## 2026-05-17 (pass 36) — Analysis acted on: F1/F2 fixes + UX pack (part 1); LOCAL, awaiting deploy
+## 2026-05-17 (pass 37) — UX pack part 2: dashboard attention + cached perms; LOCAL, awaiting deploy
+
+Branch `main`. Continues pass-36. Pass-36 batch (F1/F2 + palette + sortable + skeletons) is DEPLOYED (run 25985954925, smoke clean). 2 new commits this pass, suite 469, build clean.
+
+### Done (gated, own commits)
+- **`ca498d5`**: dashboard "Needs your attention" strip (admin/board) — members awaiting approval + unreconciled payments as deep links, only when non-empty (one extra count query).
+- **`b8440e9`**: `lib/permissions-cache.ts` — React `cache()`-wrapped `hasPermission(uid,sid,perm)`; layout nav-perm resolution + members page now dedupe overlapping `user_has_permission` RPCs per render. Pure dedupe, semantics unchanged (no permission-logic reimplementation — RLS-guardrail respected).
+
+### Remaining from the chosen backlog (NOT done — heavier UI work)
+- **Mobile card layouts** for the members + payments tables (currently `overflow-x-auto` only; action buttons off-screen on phones).
+- **Bulk member actions** (multi-select + "Approve selected" / batch dues) with a sticky selected-count bar.
+- **a11y AA sweep**: verify sonner already provides an aria-live region (likely yes — then this narrows to icon-button `aria-label` + ≥24px target size + focus ring/sticky `scroll-padding`); targeted, not a blind global edit.
+- **`PageHeader` dedupe** across ~21 hand-rolled `bg-sidebar …` headers (mechanical, high churn, low user-visible value — lowest priority; do last or skip).
+- Deferred by user: product spine (Stripe dues → notifications → self-serve portal).
+
+### Open
+- LOCAL & undeployed: pass-37 (2 commits + this docs). **Awaiting deploy approval** (no migration; app only). After deploy: dashboard attention strip for an admin with unverified members/unlinked payments. Default ASK-before-deploy.
+
+---
+
+## 2026-05-17 (pass 36) — Analysis acted on: F1/F2 fixes + UX pack (part 1) (DEPLOYED, run 25985954925)
 
 Branch `main`. The pass-35 deep analysis (3 agents: competitive, UX/a11y best practice, codebase UX/IA — full report in session history) produced a prioritized backlog. User chose: F1/F2 fixes + UX quick-win pack + bigger UX bets (product spine deferred). 6 commits this pass, suite 469, build clean each.
 
