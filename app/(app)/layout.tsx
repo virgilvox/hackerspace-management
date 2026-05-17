@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { AppSidebar } from '@/components/app-sidebar'
 import { CommandPalette } from '@/components/command-palette'
+import { hasPermission } from '@/lib/permissions-cache'
 import { ConfirmProvider } from '@/components/ui/confirm'
 import { getRoleLabelMap } from '@/lib/role-labels'
 
@@ -69,11 +70,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const navPerms: Record<string, boolean> = {}
   if (!isAdminRole) {
     const results = await Promise.all(
-      NAV_PERM_CODES.map(perm =>
-        supabase.rpc('user_has_permission', { uid: user.id, sid: member.space_id, perm }),
-      ),
+      NAV_PERM_CODES.map(perm => hasPermission(user.id, member.space_id, perm)),
     )
-    NAV_PERM_CODES.forEach((perm, i) => { navPerms[perm] = !!results[i].data })
+    NAV_PERM_CODES.forEach((perm, i) => { navPerms[perm] = results[i] })
   }
 
   return (

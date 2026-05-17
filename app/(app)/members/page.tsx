@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { PageHeader, PageTitle } from '@/components/ui/page-title'
+import { hasPermission } from '@/lib/permissions-cache'
 import { MembersClient } from './members-client'
 import { InvitesPanel } from '../customize/panels/invites-panel'
 
@@ -90,21 +91,13 @@ export default async function MembersPage() {
   // certifications.grant (the Instructor capability) is independent of
   // admin/board, so check it explicitly to decide whether to show the
   // per-member certifications panel.
-  const { data: canGrantCerts } = await supabase.rpc('user_has_permission', {
-    uid: user.id,
-    sid: self.space_id,
-    perm: 'certifications.grant',
-  })
-  const { data: canManageCards } = await supabase.rpc('user_has_permission', {
-    uid: user.id,
-    sid: self.space_id,
-    perm: 'door.manage',
-  })
-  const { data: canViewForms } = await supabase.rpc('user_has_permission', {
-    uid: user.id,
-    sid: self.space_id,
-    perm: 'forms.manage',
-  })
+  // Request-cached: door.manage / forms.manage here dedupe with the layout's
+  // nav-permission resolution for the same render.
+  const [canGrantCerts, canManageCards, canViewForms] = await Promise.all([
+    hasPermission(user.id, self.space_id, 'certifications.grant'),
+    hasPermission(user.id, self.space_id, 'door.manage'),
+    hasPermission(user.id, self.space_id, 'forms.manage'),
+  ])
 
   return (
     <MembersClient
