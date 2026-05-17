@@ -65,9 +65,13 @@ export function PaymentsClient({ payments: initialPayments, members, integration
       const data = await res.json()
       if (!res.ok) { toast.error(data.error ?? 'Sync failed'); return }
       toast.success(`PayPal sync complete: ${data.imported} transactions imported`)
-      if (data.imported > 0) {
-        // Reload page to show new transactions
-        window.location.reload()
+      if (data.imported > 0 && Array.isArray(data.rows)) {
+        // Prepend the freshly imported (unlinked) rows; no full reload, so
+        // scroll/filter state is preserved (mirrors handleLogCash).
+        setPayments(prev => [
+          ...(data.rows as Payment[]).map(r => ({ ...r, space_members: null })),
+          ...prev,
+        ])
       }
     } catch {
       toast.error('PayPal sync failed')

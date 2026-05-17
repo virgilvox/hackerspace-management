@@ -144,7 +144,7 @@ export async function POST(req: NextRequest) {
       .select()
     if (insertError) throw new Error(insertError.message)
 
-    return NextResponse.json({ imported: imported?.length ?? newRows.length })
+    return NextResponse.json({ imported: imported?.length ?? newRows.length, rows: imported ?? [] })
   } catch (err: any) {
     console.error('[PayPal sync error]', err)
     return NextResponse.json({ error: err.message ?? 'Sync failed' }, { status: 500 })
