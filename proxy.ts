@@ -13,6 +13,11 @@ const PUBLIC_ROUTES = [
   '/signup',
   '/auth',
   '/api/health',
+  // Public form / waiver fill page. Only /f/[slug] lives here and must be
+  // reachable anonymously (the page serves only published public forms and
+  // submitForm enforces visibility). The /forms* management routes do NOT
+  // match the '/f/' prefix and stay auth-gated.
+  '/f',
   '/resources',
   '/zine',
   '/governance',
