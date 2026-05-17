@@ -8,6 +8,8 @@ import {
   type CertStatus,
 } from '@/lib/certifications-logic'
 import { PERMISSIONS, PERMISSION_CODES } from '@/lib/permissions-catalog'
+import { getMyClassSignups } from '@/lib/actions'
+import { SIGNUP_STATUS_LABEL, SESSION_STATUS_LABEL } from '@/lib/classes-logic'
 
 export const dynamic = 'force-dynamic'
 
@@ -73,6 +75,26 @@ export default async function MePage() {
     }
   }
   const held = PERMISSIONS.filter(p => heldCodes.includes(p.code))
+
+  const signupRes = await getMyClassSignups()
+  type ClassSignup = {
+    id: string
+    status: string
+    attended: boolean
+    signed_up_at: string
+    class_sessions:
+      | { starts_at: string; ends_at: string | null; location: string | null; status: string; classes: { title: string } | { title: string }[] | null }
+      | { starts_at: string; ends_at: string | null; location: string | null; status: string; classes: { title: string } | { title: string }[] | null }[]
+      | null
+  }
+  const classSignups: ClassSignup[] = 'data' in signupRes ? (signupRes.data as ClassSignup[]) : []
+  const sessionOf = (cs: ClassSignup) =>
+    Array.isArray(cs.class_sessions) ? cs.class_sessions[0] : cs.class_sessions
+  const titleOf = (cs: ClassSignup) => {
+    const sess = sessionOf(cs)
+    const c = sess ? (Array.isArray(sess.classes) ? sess.classes[0] : sess.classes) : null
+    return c?.title ?? 'Class'
+  }
 
   return (
     <>
@@ -151,6 +173,45 @@ export default async function MePage() {
           <p className="font-sans text-xs text-muted-foreground mt-3">
             Permissions are set per role by a space admin. This is a read-only view.
           </p>
+        </section>
+
+        <section>
+          <h2 className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-3">
+            My classes
+          </h2>
+          {classSignups.length === 0 ? (
+            <p className="font-sans text-sm text-muted-foreground">
+              You have not signed up for any classes. Browse what&rsquo;s on at{' '}
+              <a href="/classes" className="text-primary underline">Classes</a>.
+            </p>
+          ) : (
+            <ul className="divide-y rounded-lg border border-border">
+              {classSignups.map(cs => {
+                const sess = sessionOf(cs)
+                return (
+                  <li key={cs.id} className="p-4 flex items-start justify-between gap-4 flex-wrap">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-sans text-sm font-semibold text-foreground">{titleOf(cs)}</span>
+                        <Badge variant={cs.status === 'registered' ? 'default' : 'outline'}>
+                          {SIGNUP_STATUS_LABEL[cs.status] ?? cs.status}
+                        </Badge>
+                        {cs.attended && <Badge variant="outline">Attended</Badge>}
+                      </div>
+                      {sess && (
+                        <p className="font-mono text-[10px] text-muted-foreground mt-1">
+                          {new Date(sess.starts_at).toLocaleString()}
+                          {sess.location ? ` · ${sess.location}` : ''}
+                          {' · '}
+                          {SESSION_STATUS_LABEL[sess.status] ?? sess.status}
+                        </p>
+                      )}
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
         </section>
       </div>
     </>

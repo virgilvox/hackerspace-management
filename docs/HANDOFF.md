@@ -4,6 +4,28 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-17 (pass 22) — Classes module (2) code-complete LOCAL; roadmap reaffirmed
+
+Branch `main`. Incident-INSERT RLS bug confirmed RESOLVED by the user (closed; see pass-21 note). User asked to continue the locked roadmap; chose Classes (module 2) next; reaffirmed the locked order (Certs done → Classes → Equipment → Door epic, which is where the "custom API-call UI builder" lives, module 4, design-first/last).
+
+### Classes + sessions + signups (locked module 2) — CODE-COMPLETE, LOCAL, 6 commits, NOT deployed
+Phase-by-phase, each gated (vitest + `pnpm build` read in-run) + its own commit:
+- A: migration `032_classes.sql` (`classes`, `class_sessions`, `class_signups`) mirrored in `schema.sql` (in-place seed fn + appended Section 19); `classes.manage`/`classes.instruct` perms (group Classes) seeded+backfilled; types; DATABASE_SCHEMA/DB_SCHEMA_MAP. Additive default-deny RLS; `class_signups` has SELECT (manage/instruct or own) + instructor UPDATE, NO INSERT/DELETE (signup/cancel via validated service-client action); partial unique = one non-cancelled signup per member+session.
+- B: pure `lib/classes-logic.ts` (effectiveCapacity, computeSignupStatus, sessionTiming, canSignUp, pickPromotion) + 10 tests (suite 382) + Zod.
+- C: `lib/actions/classes.ts` (class/session CRUD; service-client signUp/cancel w/ capacity+waitlist+dedupe+promotion; listUpcomingSessions w/ service-client counts so members see spots-left but not who; markAttendance; completeSession) + `lib/classes-guard.ts` + barrel + API_REFERENCE.
+- D: `/classes/manage` admin pages + sidebar Admin "Manage classes".
+- E: `/classes` member calendar (signup/waitlist/cancel) + instructor attendance/completion component + sidebar member "Classes".
+- F: "My classes" on `/me` + ARCHITECTURE + this entry.
+
+Cert-on-completion (user-approved design): `completeSession` awards `classes.grants_certification_id` to attended members via the normal `grantCertification` path, so it only issues if the acting instructor also holds `certifications.grant`; else completion still succeeds and the UI says certificates were skipped. No service-role bypass of the guarded certifications surface.
+
+### Open / not done
+- Classes is LOCAL (6 commits). Awaiting deploy approval. After push: confirm `032` applied, board has both perms, exercise create class → schedule session → member signup/waitlist/cancel → attendance → complete (cert-on-completion) → `/me`. NOT browser-verified (no live browser).
+- Pure logic unit-tested; action orchestration (capacity/waitlist/promotion/RLS) NOT (same systemic no-mock-harness gap as forms/certs).
+- Roadmap remaining: module 3 Equipment, module 4 Door epic (member_cards + configurable door integration + native HeatSync adapter + the universal API-call UI builder; design-first, do last). Noted cert refinement still open: `/certifications` (and `/classes/manage`) sidebar links are in the admin-only block, so a non-admin permission-holder must reach them by URL.
+
+---
+
 ## 2026-05-17 (pass 21) — Two UX fixes DEPLOYED; Certifications module (1) code-complete LOCAL
 
 Branch `main`. Start state clean, deploys green (incident-tracking pass-20 live).

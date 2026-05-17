@@ -419,7 +419,8 @@ Migrations 012-030 are tracked authoritatively in `docs/DATABASE_SCHEMA.md`
 (governance kernel, areas, forum/tiers/roles/invites, configurable onboarding,
 customizable permissions + Ops ACLs, self-change hardening, `026`-`029` custom
 forms + waivers + onboarding form step + per-space form slug + invite roles,
-`030` certifications + Instructor capability).
+`030` certifications + Instructor capability, `031` secrets SELECT honors
+`ops.secrets.read`, `032` classes + sessions + signups).
 
 ### Forms & waivers (migrations 026-029; complete Phases 1-5)
 
@@ -464,6 +465,29 @@ the member (own); `member_certifications` has no DELETE policy so grant/revoke
 history is immutable (revoke is a soft `revoked_at` UPDATE). Expiry is
 snapshotted at grant time so later edits to the cert type never retroactively
 change an existing grant. There is no anonymous path.
+
+### Classes (migration 032)
+
+`classes` (offering), `class_sessions` (scheduled occurrence), and
+`class_signups` (member signup) back a class scheduler. Pure logic in
+`lib/classes-logic.ts` (`effectiveCapacity`, `computeSignupStatus`,
+`canSignUp`, `pickPromotion`), unit-tested. Server actions in
+`lib/actions/classes.ts`. Two additive permissions: `classes.manage`
+(class/session CRUD, gates `/classes/manage` via `lib/classes-guard.ts`)
+and `classes.instruct` (attendance, completion, attendee list). Member
+signup needs only membership. `/classes` is the member calendar (sign up /
+waitlist / cancel); the member's own signups also appear on `/me`. RLS is
+additive and default-deny: classes readable by managers (all) or members
+(active only), sessions by any space member, signups by managers/instructors
+(all) or the member (own) with instructor-only UPDATE and **no INSERT/DELETE
+policy** so signup/cancel funnels through one validated service-client
+action that enforces capacity/waitlist/dedupe and promotes the earliest
+waitlisted member when a seat frees. Completing a session can award the
+class's certification, but only through the normal `grantCertification`
+path, so it still requires the acting instructor to hold
+`certifications.grant`; otherwise completion succeeds and the result
+reports the certificates were skipped (no service-role bypass of the
+guarded certifications surface). No anonymous path.
 
 ---
 
