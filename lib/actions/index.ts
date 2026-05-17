@@ -50,3 +50,6 @@ export * from './forms'
 
 // Certifications + Instructor capability
 export * from './certifications'
+
+// Classes (offerings, sessions, signups)
+export * from './classes'
