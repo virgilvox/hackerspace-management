@@ -31,6 +31,7 @@ import {
   shouldBumpFormVersion,
   escapeLike,
   pickMemberForEmail,
+  deriveSubmitterEmail,
 } from '@/lib/forms-logic'
 
 // Associate prior unlinked submissions in a space with a member by email
@@ -270,6 +271,8 @@ export async function relinkAllSubmissions() {
   const { member } = gate
 
   const admin = createAdminClient()
+  // Email -> earliest-joined member id (first occurrence wins; members are
+  // ordered by joined_at so this matches pickMemberForEmail's determinism).
   const { data: members, error } = await admin
     .from('space_members')
     .select('id, email, joined_at')
@@ -277,10 +280,40 @@ export async function relinkAllSubmissions() {
     .not('email', 'is', null)
     .order('joined_at', { ascending: true })
   if (error) return { error: error.message }
+  const byEmail = new Map<string, string>()
+  for (const m of members ?? []) {
+    const e = (m.email as string | null)?.trim().toLowerCase()
+    if (e && !byEmail.has(e)) byEmail.set(e, m.id as string)
+  }
+
+  // Every unlinked submission: match on submitter_email OR an email found in
+  // the answers (forms that collect email as an ordinary field). Backfill
+  // submitter_email when we derived it so future paths stay consistent.
+  const { data: subs, error: subErr } = await admin
+    .from('form_submissions')
+    .select('id, submitter_email, answers, form_snapshot')
+    .eq('space_id', member.space_id)
+    .is('member_id', null)
+  if (subErr) return { error: subErr.message }
 
   let linked = 0
-  for (const m of members ?? []) {
-    linked += await linkSubmissionsByEmail(admin, member.space_id, m.id as string, m.email as string)
+  for (const s of subs ?? []) {
+    const email = deriveSubmitterEmail(
+      parseFormSchema(s.form_snapshot) as Array<{ key: string; type: string }>,
+      (s.answers ?? {}) as Record<string, unknown>,
+      s.submitter_email as string | null,
+    )
+    if (!email) continue
+    const memberId = byEmail.get(email)
+    if (!memberId) continue
+    const patch: Record<string, unknown> = { member_id: memberId }
+    if (!s.submitter_email) patch.submitter_email = email
+    const { error: upErr } = await admin
+      .from('form_submissions')
+      .update(patch)
+      .eq('id', s.id as string)
+      .eq('space_id', member.space_id)
+    if (!upErr) linked++
   }
 
   revalidatePath('/forms')
@@ -436,6 +469,24 @@ export async function submitForm(input: unknown) {
   }
   // public_anon: no auth required; submitter_email is whatever was provided.
 
+  if (form.kind === 'waiver' && body.consent !== true) {
+    return { error: 'You must agree to the waiver to continue' }
+  }
+
+  const fields = parseFormSchema(form.schema)
+  const answers = validateAnswers(fields, body.answers)
+  if (!answers.ok) return { error: answers.error }
+
+  // If no dedicated submitter email, derive one from an email-type answer so
+  // a form that collects email as an ordinary field still links + persists
+  // it (otherwise submitter_email stays null and nothing ever matches).
+  if (!submitterEmail) {
+    submitterEmail = deriveSubmitterEmail(
+      fields as Array<{ key: string; type: string }>,
+      answers.value,
+    )
+  }
+
   // Email-match association. PRODUCT DECISION (2026-05, owner-chosen): link a
   // submission to a member whenever the submitter_email matches a member in
   // the space, INCLUDING raw anonymous public submissions where the email was
@@ -451,14 +502,6 @@ export async function submitForm(input: unknown) {
       .ilike('email', escapeLike(submitterEmail))
     linkedMemberId = pickMemberForEmail((matches ?? []) as Array<{ id: string; joined_at: string | null }>)
   }
-
-  if (form.kind === 'waiver' && body.consent !== true) {
-    return { error: 'You must agree to the waiver to continue' }
-  }
-
-  const fields = parseFormSchema(form.schema)
-  const answers = validateAnswers(fields, body.answers)
-  if (!answers.ok) return { error: answers.error }
 
   const h = await headers()
   const { error: insErr } = await admin.from('form_submissions').insert({

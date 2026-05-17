@@ -24,6 +24,7 @@ import {
   deriveFieldKeys,
   escapeLike,
   pickMemberForEmail,
+  deriveSubmitterEmail,
 } from '@/lib/forms-logic'
 import { INVITE_ROLES, isInviteRole, canAssignInviteRole } from '@/lib/invite-logic'
 import { createInviteSchema, updateInviteSchema } from '@/lib/validations'
@@ -559,5 +560,28 @@ describe('pickMemberForEmail', () => {
       { id: 'x', joined_at: '2026-01-01T00:00:00Z' },
       { id: 'y', joined_at: null },
     ])).toBe('y')
+  })
+})
+
+describe('deriveSubmitterEmail', () => {
+  const fields = [
+    { key: 'name', type: 'short_text' },
+    { key: 'contact', type: 'email' },
+  ]
+  it('prefers the explicit submitter email', () => {
+    expect(deriveSubmitterEmail(fields, { contact: 'a@b.com' }, 'EXPLICIT@X.com')).toBe('explicit@x.com')
+  })
+  it('falls back to an email-type field answer (the bug fix)', () => {
+    expect(deriveSubmitterEmail(fields, { name: 'Jo', contact: ' Jo@Foo.COM ' }, null)).toBe('jo@foo.com')
+  })
+  it('falls back to any answer that is a valid email when no email field', () => {
+    expect(deriveSubmitterEmail([{ key: 'q1', type: 'short_text' }], { q1: 'who@there.io' })).toBe('who@there.io')
+  })
+  it('returns null when nothing looks like an email', () => {
+    expect(deriveSubmitterEmail(fields, { name: 'Jo', contact: 'not-an-email' }, '')).toBeNull()
+    expect(deriveSubmitterEmail([], {}, null)).toBeNull()
+  })
+  it('ignores a non-email explicit value and still finds the field', () => {
+    expect(deriveSubmitterEmail(fields, { contact: 'real@x.com' }, 'garbage')).toBe('real@x.com')
   })
 })

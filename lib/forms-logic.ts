@@ -101,6 +101,36 @@ export function escapeLike(s: string): string {
   return s.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_')
 }
 
+const FORMS_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+// The email used to associate a submission with a member. The dedicated
+// `submitter_email` (the public "your email" box, or the signed-in user's
+// address) wins; otherwise fall back to the answer of an email-type field,
+// then any answer that is itself a valid email. Without this, a form that
+// collects email as an ordinary field never populates submitter_email and
+// so never links. Normalized to trimmed lowercase.
+export function deriveSubmitterEmail(
+  fields: Array<{ key: string; type: string }>,
+  answers: Record<string, unknown> | null | undefined,
+  explicit?: string | null,
+): string | null {
+  const norm = (v: unknown) => (typeof v === 'string' ? v.trim().toLowerCase() : '')
+  const e = norm(explicit)
+  if (e && FORMS_EMAIL_RE.test(e)) return e
+  const a = answers ?? {}
+  for (const f of fields) {
+    if (f.type === 'email') {
+      const v = norm(a[f.key])
+      if (FORMS_EMAIL_RE.test(v)) return v
+    }
+  }
+  for (const k of Object.keys(a)) {
+    const v = norm(a[k])
+    if (FORMS_EMAIL_RE.test(v)) return v
+  }
+  return null
+}
+
 // When an email matches more than one member row in a space (e.g. a manually
 // added duplicate), associate deterministically with the earliest-joined one
 // so the result is stable and reproducible.
