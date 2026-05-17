@@ -55,6 +55,7 @@ export default async function DashboardPage() {
     { data: openProposalsRaw },
     { data: myVotesRaw },
     { data: pendingIncidentsRaw },
+    { count: unverifiedMembers },
   ] = await Promise.all([
     supabase.from('space_members').select('*', { count: 'exact', head: true }).eq('space_id', spaceId).eq('status', 'current'),
     supabase.from('tasks').select('*', { count: 'exact', head: true }).eq('space_id', spaceId).in('status', ['open', 'claimed', 'in_progress']),
@@ -67,6 +68,9 @@ export default async function DashboardPage() {
     isAdminOrBoard
       ? supabase.from('incidents').select('*').eq('space_id', spaceId).in('status', ['received', 'under_review']).order('created_at', { ascending: false }).limit(5)
       : Promise.resolve({ data: [] as unknown[] }),
+    isAdminOrBoard
+      ? supabase.from('space_members').select('*', { count: 'exact', head: true }).eq('space_id', spaceId).eq('status', 'unverified')
+      : Promise.resolve({ count: 0 }),
   ])
 
   const votedProposalIds = new Set(
@@ -177,6 +181,24 @@ export default async function DashboardPage() {
       </div>
 
       <div className="p-4 md:p-6 space-y-6">
+        {isAdminOrBoard && ((unverifiedMembers ?? 0) > 0 || (unlinkedPayments ?? 0) > 0) && (
+          <div className="rounded-lg border border-orange-300 bg-orange-50 p-4">
+            <p className="font-mono text-[10px] tracking-widest text-orange-700 uppercase mb-2">Needs your attention</p>
+            <div className="flex flex-wrap gap-x-6 gap-y-1.5">
+              {(unverifiedMembers ?? 0) > 0 && (
+                <Link href="/members" className="font-sans text-sm text-orange-800 hover:underline">
+                  {unverifiedMembers} member{unverifiedMembers === 1 ? '' : 's'} awaiting approval →
+                </Link>
+              )}
+              {(unlinkedPayments ?? 0) > 0 && (
+                <Link href="/payments" className="font-sans text-sm text-orange-800 hover:underline">
+                  {unlinkedPayments} unreconciled payment{unlinkedPayments === 1 ? '' : 's'} →
+                </Link>
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
           {stats.map(({ label, value, Ico, sub, warn }) => (
             <div key={label} className="bg-card rounded border border-border p-4 md:p-5">
