@@ -404,10 +404,11 @@ Default channels created by trigger on space INSERT: `general`, `announcements`,
 | 036 | `door_card_slots` (Door epic P3). Per-connection integer-slot allocation map (HeatSync keys cards by slot 0-200). UNIQUE(connection_id,slot) + UNIQUE(connection_id,card_id); lowest-free policy in pure logic. SELECT = door.manage/operate, service-client-only writes |
 | 037 | `classes.required_form_id` nullable FK -> forms(id) ON DELETE SET NULL. Optional per-class form gate (waiver-on-file): signup requires a completed form_submissions row; classes.manage override + on-behalf. App-enforced; no RLS change |
 | 038 | `space_visits` (presence/attendance) + `spaces.host_requires_card` bool default true. One open visit per member (partial unique); SELECT = any space member; service-client-only writes (self-resolved, immutable). No new permission code |
+| 039 | DATA backfill only: link `form_submissions.member_id` (NULL) to earliest matching member by `(space_id, lower email = lower submitter_email)`. Idempotent; not in schema.sql |
 
 ---
 
-## Tables added by migrations 016-038 (quick map)
+## Tables added by migrations 016-039 (quick map)
 
 | Table | Key columns | Purpose |
 |-------|-------------|---------|
