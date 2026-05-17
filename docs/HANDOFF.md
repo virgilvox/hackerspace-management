@@ -4,6 +4,27 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-17 (pass 36) — Analysis acted on: F1/F2 fixes + UX pack (part 1); LOCAL, awaiting deploy
+
+Branch `main`. The pass-35 deep analysis (3 agents: competitive, UX/a11y best practice, codebase UX/IA — full report in session history) produced a prioritized backlog. User chose: F1/F2 fixes + UX quick-win pack + bigger UX bets (product spine deferred). 6 commits this pass, suite 469, build clean each.
+
+### Done (gated, own commits)
+- **`7054b35` F1**: member CSV import was inserting `space_members` from the browser with a fabricated `user_id` (FK-breaking, bypassed validation). Now routes through the existing admin-gated, Zod, batched `importMembers` action; dropped unused `spaceId` prop.
+- **`521fb1f` F2**: PayPal sync route returns inserted rows; client prepends them instead of `window.location.reload()` (preserves scroll/filter).
+- **`6c48780`**: ⌘K/Ctrl-K command palette (uses the previously-unused cmdk primitive; admin/manage entries gated by the same isAdmin+navPerms as the sidebar).
+- **`4feecda`**: sortable members table (name/tier/joined/last-payment/status, asc→desc→none).
+- **`c87cb35`**: per-route skeletons (dashboard/members/payments) + disable modal Cancel during submit.
+
+### Remaining from the chosen backlog (NOT yet done)
+- UX pack leftovers: WCAG AA sweep (icon-button target size, aria-live for toasts — verify sonner first, missing labels, focus ring/sticky scroll-padding), `PageHeader` dedupe across ~21 hand-rolled headers.
+- Bigger UX bets (task #35): mobile card layouts for members+payments tables; bulk member actions (multi-select + Approve selected); dashboard "Needs attention" zone + role-scoping; per-request cached permission resolver (replace per-page user_has_permission RPC fan-out).
+- Deferred by user: product spine (Stripe recurring dues → notifications → member self-serve portal).
+
+### Open
+- LOCAL & undeployed: pass-36 (6 commits). **Awaiting deploy approval** (no migration; app only). After deploy: try ⌘K, sort the members table, watch route skeletons, re-run a CSV member import + PayPal sync. Default ASK-before-deploy.
+
+---
+
 ## 2026-05-17 (pass 35) — CLEAN CHECKPOINT (all deployed) + UX/product analysis kickoff
 
 State: `origin/main == main`, tree clean, latest deploy green (run 25985079088, pass-34). Migrations applied through **039**. ~469 unit tests + e2e; `pnpm build` clean. Nothing local/undeployed.
