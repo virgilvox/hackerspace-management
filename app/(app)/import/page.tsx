@@ -26,7 +26,7 @@ export default async function ImportPage() {
         <PageTitle>Import & Sync</PageTitle>
         <p className="font-mono text-xs text-sidebar-foreground/50">CSV import · member & payment data</p>
       </div>
-      <ImportClient spaceId={member!.space_id} role={member!.role} />
+      <ImportClient role={member!.role} />
     </div>
   )
 }

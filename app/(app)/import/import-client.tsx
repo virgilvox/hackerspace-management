@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useMemo } from 'react'
 import { Upload, CheckCircle, AlertCircle, X, ChevronDown, ArrowRight, FileText, RefreshCcw } from 'lucide-react'
 import { toast } from 'sonner'
-import { importPaymentsCsv } from '@/lib/actions'
+import { importPaymentsCsv, importMembers } from '@/lib/actions'
 
 // ─── Lightweight CSV parser (handles quoted fields, no external deps) ──────────
 function parseCSV(text: string): { headers: string[]; rows: string[][] } {
@@ -133,13 +133,12 @@ function Steps({ current }: { current: number }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 interface Props {
-  spaceId: string
   role: string
 }
 
 type ImportResult = { success: number; failed: number; errors: string[] }
 
-export default function ImportClient({ spaceId, role }: Props) {
+export default function ImportClient({ role }: Props) {
   const [mode, setMode] = useState<ImportMode>('members')
   const [step, setStep] = useState(0)
   const [file, setFile] = useState<File | null>(null)
@@ -226,53 +225,49 @@ export default function ImportClient({ spaceId, role }: Props) {
       success = (result as any).count ?? paymentRows.length
 
     } else {
-      // Members import — call supabase directly since there's no existing action for bulk member import
-      const { createClient } = await import('@/lib/supabase/client')
-      const supabase = createClient()
-
-      for (let i = 0; i < rows.length; i++) {
-        const row = rows[i]
+      // Members import goes through the validated, admin-gated server action
+      // (Zod per row, batched upsert on (space_id,email), user_id left NULL
+      // for offline members). No direct client DB writes.
+      const tierMap: Record<string, 'plus' | 'basic' | 'associate'> = {
+        plus: 'plus', premium: 'plus', full: 'plus',
+        basic: 'basic', member: 'basic', standard: 'basic',
+        associate: 'associate', visitor: 'associate', guest: 'associate',
+      }
+      const memberRows = rows.map((row, i) => {
         const obj: Record<string, string> = {}
         headers.forEach((h, j) => {
           if (columnMap[h] && columnMap[h] !== 'skip') obj[columnMap[h]] = row[j] ?? ''
         })
-
         if (!obj.display_name || !obj.email) {
           errors.push(`Row ${i + 2}: missing name or email`)
-          continue
+          return null
         }
-
-        const joined_at = obj.joined_at ? new Date(obj.joined_at).toISOString() : new Date().toISOString()
-        const last_paid_at = obj.last_paid_at ? new Date(obj.last_paid_at).toISOString() : null
-        const has_card_access = /yes|true|1|y/i.test(obj.has_card_access ?? '')
-
-        // Map tier value to valid enum or default to 'basic'
-        const tierMap: Record<string, 'plus' | 'basic' | 'associate'> = {
-          plus: 'plus', premium: 'plus', full: 'plus',
-          basic: 'basic', member: 'basic', standard: 'basic',
-          associate: 'associate', visitor: 'associate', guest: 'associate',
-        }
-        const tier = tierMap[(obj.tier || '').toLowerCase()] || 'basic'
-
-        const { error } = await supabase.from('space_members').insert({
-          space_id: spaceId,
-          user_id: crypto.randomUUID(),
+        return {
           display_name: obj.display_name,
           email: obj.email,
           phone: obj.phone || null,
-          handle: obj.handle || null,
-          tier,
-          role: 'member',
-          status: 'current',
-          approved: true,
-          joined_at,
-          last_paid_at,
-          has_card_access,
-        })
+          tier: tierMap[(obj.tier || '').toLowerCase()] || 'basic',
+          joined_at: obj.joined_at || undefined,
+          last_paid_at: obj.last_paid_at || undefined,
+          has_card_access: /yes|true|1|y/i.test(obj.has_card_access ?? ''),
+        }
+      }).filter(Boolean) as Array<Record<string, unknown>>
 
-        if (error) errors.push(`Row ${i + 2} (${obj.email}): ${error.message}`)
-        else success++
+      if (memberRows.length === 0) {
+        toast.error('No valid rows to import')
+        setImporting(false)
+        return
       }
+
+      const result = await importMembers(memberRows)
+      if ('error' in result && result.error) {
+        toast.error(result.error)
+        setImporting(false)
+        return
+      }
+      const r = result as { count: number; skipped: number }
+      success = r.count
+      if (r.skipped > 0) errors.push(`${r.skipped} row(s) skipped (invalid email, name, tier, or date)`)
     }
 
     setImporting(false)
