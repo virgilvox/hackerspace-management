@@ -56,6 +56,25 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const roleMap = await getRoleLabelMap(supabase, member.space_id)
   const roleName = roleMap[member.role]?.name ?? member.role
 
+  // The Admin nav section's feature-management links were previously gated by
+  // role only, so a member granted a delegated *.manage permission had no nav
+  // link to it (and the page guards authorize by permission, not role). Resolve
+  // the actual permissions here so the nav matches what the guards allow.
+  const isAdminRole = member.role === 'admin' || member.role === 'board'
+  const NAV_PERM_CODES = [
+    'forms.manage', 'certifications.manage', 'classes.manage',
+    'equipment.manage', 'door.manage',
+  ] as const
+  const navPerms: Record<string, boolean> = {}
+  if (!isAdminRole) {
+    const results = await Promise.all(
+      NAV_PERM_CODES.map(perm =>
+        supabase.rpc('user_has_permission', { uid: user.id, sid: member.space_id, perm }),
+      ),
+    )
+    NAV_PERM_CODES.forEach((perm, i) => { navPerms[perm] = !!results[i].data })
+  }
+
   return (
     <ConfirmProvider>
     <div className="flex h-screen bg-background overflow-hidden">
@@ -70,6 +89,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         roleName={roleName}
         taskBadge={taskCount ?? 0}
         paymentBadge={paymentCount ?? 0}
+        navPerms={navPerms}
       />
       <main id="main-content" tabIndex={-1} className="flex-1 overflow-y-auto pt-[52px] md:pt-0 flex flex-col">
         <div className="flex-1">{children}</div>

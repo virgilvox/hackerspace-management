@@ -107,13 +107,23 @@ interface AppSidebarProps {
   taskBadge?: number
   commsBadge?: number
   paymentBadge?: number
+  navPerms?: Record<string, boolean>
 }
 
-export function AppSidebar({ member, roleName, taskBadge = 0, commsBadge = 0, paymentBadge = 0 }: AppSidebarProps) {
+export function AppSidebar({ member, roleName, taskBadge = 0, commsBadge = 0, paymentBadge = 0, navPerms = {} }: AppSidebarProps) {
   const pathname = usePathname()
   const space = member.spaces
   const initials = (member.display_name || 'U').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
   const isAdmin = member.role === 'admin' || member.role === 'board'
+  // Feature-management links: admin/board see all; a member with a delegated
+  // *.manage permission sees just that one (matches the page guards).
+  const can = (perm: string) => isAdmin || !!navPerms[perm]
+  const canForms = can('forms.manage')
+  const canCerts = can('certifications.manage')
+  const canClasses = can('classes.manage')
+  const canEquip = can('equipment.manage')
+  const canDoor = can('door.manage')
+  const showAdminSection = isAdmin || canForms || canCerts || canClasses || canEquip || canDoor
   const [drawerOpen, setDrawerOpen] = useState(false)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
   const drawerCloseRef = useRef<HTMLButtonElement>(null)
@@ -174,6 +184,8 @@ export function AppSidebar({ member, roleName, taskBadge = 0, commsBadge = 0, pa
         </NavSection>
 
         <NavSection id="learn" title="Access & Resources">
+          {/* Classes/Equipment use exact-match (not isActive) so /classes/manage
+              and /equipment/manage highlight only the Admin link, not both. */}
           <NavLink href="/classes" label="Classes" icon={GraduationCap} active={pathname === '/classes' || pathname.startsWith('/classes?')} onClick={onNav} />
           <NavLink href="/equipment" label="Equipment" icon={Hammer} active={pathname === '/equipment' || pathname.startsWith('/equipment?')} onClick={onNav} />
           <NavLink href="/doors" label="Doors" icon={DoorClosed} active={isActive('/doors')} onClick={onNav} />
@@ -199,16 +211,16 @@ export function AppSidebar({ member, roleName, taskBadge = 0, commsBadge = 0, pa
           <NavLink href="/me" label="My access" icon={BadgeCheck} active={isActive('/me')} onClick={onNav} />
         </NavSection>
 
-        {isAdmin && (
+        {showAdminSection && (
           <NavSection id="admin" title="Admin">
-            <NavLink href="/customize" label="Customize" icon={SlidersHorizontal} active={isActive('/customize')} onClick={onNav} />
-            <NavLink href="/forms" label="Forms & waivers" icon={ClipboardList} active={isActive('/forms')} onClick={onNav} />
-            <NavLink href="/certifications" label="Certifications" icon={Award} active={isActive('/certifications')} onClick={onNav} />
-            <NavLink href="/classes/manage" label="Manage classes" icon={GraduationCap} active={isActive('/classes/manage')} onClick={onNav} />
-            <NavLink href="/equipment/manage" label="Manage equipment" icon={Hammer} active={isActive('/equipment/manage')} onClick={onNav} />
-            <NavLink href="/door/manage" label="Door access" icon={DoorClosed} active={isActive('/door/manage')} onClick={onNav} />
-            <NavLink href="/import" label="Import / Sync" icon={Download} active={isActive('/import')} onClick={onNav} />
-            <NavLink href="/settings" label="Settings" icon={Settings2} active={isActive('/settings')} onClick={onNav} />
+            {isAdmin && <NavLink href="/customize" label="Customize" icon={SlidersHorizontal} active={isActive('/customize')} onClick={onNav} />}
+            {canForms && <NavLink href="/forms" label="Forms & waivers" icon={ClipboardList} active={isActive('/forms')} onClick={onNav} />}
+            {canCerts && <NavLink href="/certifications" label="Certifications" icon={Award} active={isActive('/certifications')} onClick={onNav} />}
+            {canClasses && <NavLink href="/classes/manage" label="Manage classes" icon={GraduationCap} active={isActive('/classes/manage')} onClick={onNav} />}
+            {canEquip && <NavLink href="/equipment/manage" label="Manage equipment" icon={Hammer} active={isActive('/equipment/manage')} onClick={onNav} />}
+            {canDoor && <NavLink href="/door/manage" label="Door access" icon={DoorClosed} active={isActive('/door/manage')} onClick={onNav} />}
+            {isAdmin && <NavLink href="/import" label="Import / Sync" icon={Download} active={isActive('/import')} onClick={onNav} />}
+            {isAdmin && <NavLink href="/settings" label="Settings" icon={Settings2} active={isActive('/settings')} onClick={onNav} />}
           </NavSection>
         )}
       </nav>

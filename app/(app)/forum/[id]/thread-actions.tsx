@@ -65,6 +65,7 @@ export function ThreadActions({ threadId, pinned, locked, canModerate, isAuthor 
           onClick={handleDelete}
           className="text-muted-foreground hover:text-red-500 transition p-1.5"
           title="Delete"
+          aria-label="Delete thread"
         >
           <Trash2 className="w-3.5 h-3.5" />
         </button>
