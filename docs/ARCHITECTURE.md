@@ -566,6 +566,29 @@ universal API-call UI builder. No anonymous path.
 
 ---
 
+### Presence & attendance (migration 038)
+
+`space_visits` records one row per visit (check-in/out, `is_host`, in/out
+notes); an open row (`checked_out_at IS NULL`) means the member is here. A
+partial unique index keeps at most one open visit per member. Pure logic in
+`lib/presence-logic.ts` (`presenceStatus`, `hostEligibility`,
+`summarizePresence`), unit-tested. Server actions in
+`lib/actions/presence.ts` are self-only (member resolved server-side) and
+funnel through the service client; `space_visits` has SELECT for any space
+member (presence is social) and **no client write policy**. There is no new
+permission code: current presence is visible to all members, the org-wide
+`/attendance` history is all-members by product decision, and every member
+sees their own history on `/me`. Forgotten check-outs are handled without a
+cron: an open visit older than `PRESENCE_MAX_OPEN_HOURS` (18h) is treated as
+not-present in pure logic and auto-closed on the member's next check-in.
+Checking in as a host is gated by `spaces.host_requires_card` (default
+true): when set, the member needs an active `member_card` on file
+(reuses the access-card model); a space may relax it to let anyone
+self-mark host. Surfaced as the dashboard "Who's here" panel, the
+`/attendance` page, and "My recent visits" on `/me`. No anonymous path.
+
+---
+
 ## 13. Known Limitations
 
 1. **No test suite** - Unit, integration, and E2E tests needed
