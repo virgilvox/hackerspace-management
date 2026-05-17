@@ -4,7 +4,7 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
-## 2026-05-17 (pass 33) — Form/submission deletion + space-wide re-link; LOCAL, awaiting deploy
+## 2026-05-17 (pass 33) — Form/submission deletion + space-wide re-link (DEPLOYED, run 25984491717)
 
 Branch `main`. 4 commits `c4ae5d2..` (this entry). No migration, no browser verification here.
 
@@ -16,7 +16,7 @@ Branch `main`. 4 commits `c4ae5d2..` (this entry). No migration, no browser veri
 User explicitly wanted forms + results + individual entries deletable with a confirmation; this overrides the prior "submissions are immutable, close instead" stance. Hard delete (no archive); CSV export remains available and the confirm copy points to it. Documented so an audit doesn't revert it.
 
 ### Open
-- LOCAL & undeployed: pass-33 (4 commits). **Awaiting deploy approval** (no migration; app + docs only). After push: smoke /forms (delete a draft form, delete a response, Re-link button), confirm cascade removed submissions. Default remains ASK-before-deploy.
+- **DEPLOYED** pass-33: pushed `bff8dea..cec2d69`, Actions run `25984491717` success, no migration. Smoke: `/` `/login` 200; `/forms` `/members` `/dashboard` 307->login. NOT browser-verified. Next live check: delete a draft form, delete a response, Re-link button; confirm cascade removed submissions. Default remains ASK-before-deploy.
 
 ---
 
