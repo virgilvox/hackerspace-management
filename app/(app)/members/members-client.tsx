@@ -306,7 +306,7 @@ export function MembersClient({ members: initialMembers, currentRole, areaLeadRo
         </div>
 
         <div className="bg-card rounded border border-border overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto hidden md:block">
           <table className="w-full">
             <thead>
               <tr className="border-b border-border">
@@ -479,6 +479,58 @@ export function MembersClient({ members: initialMembers, currentRole, areaLeadRo
               )}
             </tbody>
           </table>
+          </div>
+
+          {/* Mobile: stacked cards (the table is unusable on phones). */}
+          <div className="md:hidden divide-y divide-border">
+            {sortedMembers.length > 0 ? sortedMembers.map(m => {
+              const hasIssue = m.payment_status && m.payment_status !== 'current'
+              return (
+                <div key={m.id} className={`p-4 ${hasIssue ? 'bg-red-50/20' : ''}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-sans text-sm font-medium text-foreground truncate">{m.display_name}</p>
+                      <p className={`font-mono text-[10px] truncate ${hasIssue ? 'text-red-500' : 'text-muted-foreground'}`}>{m.email}</p>
+                    </div>
+                    <span className={`font-mono text-[10px] px-2 py-0.5 rounded border shrink-0 ${TIER_COLORS[m.tier?.toLowerCase()] ?? 'text-muted-foreground bg-muted border-border'}`}>
+                      {m.tier?.toUpperCase()}
+                    </span>
+                  </div>
+                  <p className="font-mono text-[10px] text-muted-foreground mt-1">
+                    {m.status === 'unverified' ? 'unverified' : (m.payment_status || m.status)}
+                    {m.joined_at ? ` · joined ${new Date(m.joined_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}` : ''}
+                  </p>
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {isAdmin(currentRole) && m.status === 'unverified' && (
+                      <button onClick={() => handleApprove(m.id)} className="font-mono text-[10px] border border-primary/30 text-primary bg-primary/5 px-3 py-2 min-h-[44px] rounded">APPROVE</button>
+                    )}
+                    {isAdmin(currentRole) && (
+                      <button onClick={() => openEdit(m)} className="font-mono text-[10px] border border-border px-3 py-2 min-h-[44px] rounded">EDIT</button>
+                    )}
+                    {canGrantCerts && (
+                      <button onClick={() => setCertMember(m)} className="font-mono text-[10px] border border-border px-3 py-2 min-h-[44px] rounded">CERTS</button>
+                    )}
+                    {canManageCards && (
+                      <button onClick={() => setCardMember(m)} className="font-mono text-[10px] border border-border px-3 py-2 min-h-[44px] rounded">CARDS</button>
+                    )}
+                    {canViewForms && (
+                      <button onClick={() => setFormsMember(m)} className="font-mono text-[10px] border border-border px-3 py-2 min-h-[44px] rounded">FORMS</button>
+                    )}
+                    {isAdmin(currentRole) && (
+                      <button onClick={() => handleRemove(m.id)} className="font-mono text-[10px] border border-border px-3 py-2 min-h-[44px] rounded hover:border-red-300 hover:text-red-600">REMOVE</button>
+                    )}
+                  </div>
+                </div>
+              )
+            }) : (
+              <Empty className="border-0">
+                <EmptyHeader>
+                  <EmptyMedia variant="icon"><Users /></EmptyMedia>
+                  <EmptyTitle>No members match this filter</EmptyTitle>
+                  <EmptyDescription>Try a different tab, clear the search, or change the tier filter.</EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            )}
           </div>
         </div>
       </div>

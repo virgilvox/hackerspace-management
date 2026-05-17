@@ -202,7 +202,7 @@ export function PaymentsClient({ payments: initialPayments, members, integration
           </div>
 
           <div className="bg-card rounded border border-border overflow-hidden">
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto hidden md:block">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border">
@@ -261,6 +261,46 @@ export function PaymentsClient({ payments: initialPayments, members, integration
                 )}
               </tbody>
             </table>
+            </div>
+
+            {/* Mobile: stacked cards */}
+            <div className="md:hidden divide-y divide-border">
+              {filtered.length > 0 ? filtered.map(p => (
+                <div key={p.id} className={`p-4 ${p.link_status === 'linked' ? 'bg-primary/3' : ''}`}>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="font-sans text-sm font-medium">{'$'}{Number(p.amount).toFixed(2)}</span>
+                    <span className={`font-mono text-[10px] font-bold ${platformColors[p.platform] ?? ''}`}>{p.platform?.toUpperCase()}</span>
+                  </div>
+                  <p className="font-mono text-[10px] text-muted-foreground mt-1 truncate">
+                    {p.from_identifier}{p.from_note ? ` · "${p.from_note}"` : ''}
+                    {p.transaction_date ? ` · ${new Date(p.transaction_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}
+                  </p>
+                  <div className="mt-3">
+                    {p.link_status === 'linked' && p.space_members ? (
+                      <span className="font-mono text-[10px] text-primary bg-primary/5 px-2 py-1 rounded border border-primary/20">
+                        ✓ {p.space_members.display_name}
+                      </span>
+                    ) : canEdit(currentRole) ? (
+                      <button
+                        onClick={() => setLinkingPayment(p)}
+                        className="font-mono text-[10px] border border-dashed border-border px-3 py-2 min-h-[44px] rounded hover:border-primary hover:text-primary transition"
+                      >
+                        + Link member
+                      </button>
+                    ) : (
+                      <span className="font-mono text-[10px] text-muted-foreground">unlinked</span>
+                    )}
+                  </div>
+                </div>
+              )) : (
+                <Empty className="border-0">
+                  <EmptyHeader>
+                    <EmptyMedia variant="icon"><Receipt /></EmptyMedia>
+                    <EmptyTitle>No payments yet</EmptyTitle>
+                    <EmptyDescription>Synced and logged transactions show up here once they exist.</EmptyDescription>
+                  </EmptyHeader>
+                </Empty>
+              )}
             </div>
           </div>
         </div>
