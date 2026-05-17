@@ -946,6 +946,25 @@ export const doorConnectionIdSchema = z.object({
   connectionId: z.string().uuid('Invalid connection ID'),
 })
 
+// ─── Door live actions (door.operate) ────────────────────────────────────────
+
+export const doorGrantSchema = z.object({
+  connectionId: z.string().uuid('Invalid connection ID'),
+  cardId: z.string().uuid('Invalid card ID'),
+  // HeatSync permission mask; defaults to 1 (basic access).
+  permissionMask: z.number().int().min(0).max(255).optional().default(1),
+})
+
+export const doorRevokeSchema = z.object({
+  connectionId: z.string().uuid('Invalid connection ID'),
+  cardId: z.string().uuid('Invalid card ID'),
+})
+
+export const doorControlSchema = z.object({
+  connectionId: z.string().uuid('Invalid connection ID'),
+  verb: z.enum(['open', 'unlock', 'lock']),
+})
+
 // ─── Generic ID schemas ──────────────────────────────────────────────────────
 
 export const uuidSchema = z.string().uuid('Invalid ID format')
