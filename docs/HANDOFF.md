@@ -4,6 +4,30 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-17 (pass 30) — Presence/attendance feature + full app audit pass
+
+Branch `main`. Big session: landing wording fix, a new presence module, a 4-agent read-only audit, and audit fixes. User authorized deploying this work without the per-deploy ask (one-time, for this ready work; default reverts to ASK next session unless reaffirmed). 10 commits `5108774..dc96d6f`.
+
+### Presence & attendance (migration 038) — F1-F5, suite 432
+`space_visits` (check-in/out, is_host, in/out notes; partial UNIQUE one-open-per-member) + `spaces.host_requires_card` (bool default true). RLS additive/default-deny: SELECT = any space member (presence is social), NO client write policy (self-resolved service-client actions only; immutable). Pure `lib/presence-logic.ts` (presenceStatus/hostEligibility/summarizePresence, 11 tests). `lib/actions/presence.ts`: checkIn (host eligibility via host_requires_card + active-card count; blocks fresh double check-in; auto-closes a >18h stale visit, no cron), checkOut, listPresentNow, getMyVisits, listAttendance. UI: dashboard "Who's here" panel (self check-in/out + host + note), `/attendance` page (all members, by product decision), `/me` history, sidebar link. Locked decisions: host = per-space toggle (default require card); attendance report = all members; stale = auto-treat (no cron); report at /attendance.
+
+### Audit (4 parallel read-only agents) + fixes
+No P0 anywhere. Door/secrets/multi-tenant clean. Fixes landed:
+- **harden `dd9e3ac`**: castVote now verifies proposal in-space + open before upsert; cancelMySignup promotion path scoped by space_id; setAreaLead rejects foreign lead_id. (All were RLS-safe; defense-in-depth.)
+- **docs `3efa3cd`**: ARCHITECTURE status=production + authoritative note (no monolithic lib/actions.ts), rewrote stale Known Limitations, fixed env table (dropped phantom SUPABASE_JWT_SECRET); DATABASE_SCHEMA/DB_SCHEMA_MAP ~43 tables / through 038, space_members.status enum default 'unverified' (was wrongly 'active'); README webhook wording; API_REFERENCE real paths + 4 undocumented actions. NOTE: docs-agent's "createSecret should be Admin-only" was a FALSE POSITIVE (ADMIN_ROLES = admin+board) — left correct.
+- **nav `c4cba10`**: Admin manage links now gated by actual permission (layout resolves forms/certifications/classes/equipment/door .manage), not role — fixes orphaned delegated-permission members + admins seeing dead links. Customize/Import/Settings stay admin-only.
+- **test `dc96d6f`**: +16 (→448): permissions least-privilege guard, invite-logic suite, door SSRF host-spoof + redact edges, pickPromotion unlimited branch.
+
+### Open / deferred (NOT done — need a deliberate decision)
+- **getAuthMember single-space assumption** (`lib/auth-helpers.ts:51` `.single()` by user_id): a user in 2+ spaces fails every action (fails closed, no leak). The app has no space switcher — it is single-space-per-user by design. Documented in ARCHITECTURE Known Limitations #7. CHECKPOINT: decide if multi-space is a product goal (needs an active-space selector) before changing.
+- **settings page `select('*')`** ships webhook_secret + integration config to an admin-only client. By-design admin exposure; recommend narrowing to explicit columns / reveal-pattern in a focused pass (not changed: risk of breaking settings UI without browser test).
+- **PayPal sync `onConflict: 'external_id'`** not tenant-scoped (near-zero real collision; PayPal txn ids globally unique). Recommend a 039 migration adding UNIQUE(space_id, external_id) + route change.
+- **door-logic IPv6 pin quirk**: `pinnedHost.split(':')[0]` mangles an IPv6 pin (fails closed → rejects). Fine for IPv4/hostnames; revisit if an IPv6 controller is ever pinned.
+- **ARCHITECTURE.md §7 / project tree** still describe the old monolithic layout; corrected with a top-of-doc authoritative note, full rewrite deferred.
+- Systemic: no Supabase mock harness; e2e is mostly render smoke. Action orchestration (presence one-open/stale, form gate, door slot) unverified end-to-end.
+
+---
+
 ## 2026-05-17 (pass 29) — Classes form-gate + rosters + /doors page DEPLOYED
 
 Branch `main`. Pass-28 (self-entry) deployed. User: "continue, also polish, also add a doors page, also polish the classes and equipment reservation stuff, should be able to see who signed up and also should be able to require a form optionally for classes." Four design forks asked + LOCKED: roster = staff-only (members stay blind); form gate = hard gate + classes.manage override; "completed" = any submission on file (waiver model), form must be published; doors page = full at `/doors`.
