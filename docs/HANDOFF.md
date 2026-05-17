@@ -4,6 +4,33 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-17 (pass 35) — CLEAN CHECKPOINT (all deployed) + UX/product analysis kickoff
+
+State: `origin/main == main`, tree clean, latest deploy green (run 25985079088, pass-34). Migrations applied through **039**. ~469 unit tests + e2e; `pnpm build` clean. Nothing local/undeployed.
+
+### Shipped this overall session (passes 26-34, all live; verify with `git log`, smoke-tested, NOT browser-verified)
+- Door epic P3 (slot allocator + live grant/revoke/open-lock-unlock), member self-entry (dashboard), `/doors` member page.
+- Classes optional required-form gate + signups roster; equipment reservations roster.
+- Presence/attendance (migration 038): check-in/out + host + notes, dashboard "Who's here", `/attendance` (search/day-filter/grouping), `/me` history.
+- Forms↔member email association (migration 039 + app): submit-time + member add/email-change + space-wide re-link + backfill; **pass-34 fix**: also derives the email from an email-type form field/answer (not just the dedicated `submitter_email`) and backfills existing rows via "Re-link submissions".
+- Per-member FORMS panel on `/members`; delete form (confirm+cascade) / delete submission / re-link button.
+- Full 4-agent audit + fixes (defense-in-depth, nav-permission, docs drift, +tests); landing 23b wording + mobile breakpoints.
+
+### Locked decisions / intentional (do NOT revert without explicit ask)
+- Single space per user (`getAuthMember` `.single()`, fails closed; documented).
+- Forms email-link includes raw anonymous typed emails (attribution-only tradeoff accepted; documented inline + ARCHITECTURE).
+- Settings page loads admin's own secrets by design (admin-only, documented).
+- ASK before every deploy (the one-time "deploy without asking" was pass-30 only).
+
+### Open / next
+- **In progress this pass:** deep app + UI/UX analysis with web research → a prioritized improvement report (suggestions only, no code yet). When the user picks items, build them phase-by-phase per the usual cadence.
+- Known deferred (from audit): multi-space support (needs space switcher; product call); PayPal tenant-scoped conflict key (near-zero risk; would need a migration); fuller ARCHITECTURE §7 prose rewrite; systemic test gap (no Supabase mock harness — action orchestration only e2e-able).
+
+### Kickoff prompt for next session (paste verbatim)
+> Continue the HeatSync/23b-and-any-hackerspace platform (hackerspace-management; Next.js+Supabase; push to main = prod deploy via GitHub Actions; https://hackerspace.sh). READ FIRST: CLAUDE.md; docs/HANDOFF.md top entry (pass-35 checkpoint); memory files collaboration-cadence, integration-api-facts, hackerspace-rls-guardrail, architecture-standards, platform-not-heatsync-only. VERIFY CLEAN: `git log --oneline origin/main..main` empty, `gh run list` latest green, `pnpm exec vitest run` ~469 green, `pnpm build` clean, migrations through 039. METHOD (locked): phase-by-phase — idempotent numbered migration mirrored in scripts/schema.sql + pure unit-tested lib/*-logic.ts + lib/actions/* + Zod + guard + pages + docs (DATABASE_SCHEMA/DB_SCHEMA_MAP/API_REFERENCE/ARCHITECTURE) in the same change; permissions additive via lib/permissions-catalog.ts; RLS additive/default-deny; gate (vitest + pnpm build) + small commit per phase; ASK before every deploy; after an approved push watch the Actions run + HTTP smoke test; end long sessions with an updated HANDOFF + kickoff prompt. The UX/product improvement report is in this session's history — ask the user which items to take, then build them in that order.
+
+---
+
 ## 2026-05-17 (pass 34) — BUGFIX: email linking ignored email-as-form-field (DEPLOYED, run 25985079088)
 
 Branch `main`. 1 commit `9f0ee18`. User report: re-link said "already linked" but submissions weren't showing under the member.
