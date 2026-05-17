@@ -970,6 +970,17 @@ export const doorControlSchema = z.object({
   verb: z.enum(['open', 'unlock', 'lock']),
 })
 
+// ─── Presence / attendance ───────────────────────────────────────────────────
+
+export const checkInSchema = z.object({
+  asHost: z.boolean().optional().default(false),
+  note: z.string().max(500).optional().nullable(),
+})
+
+export const checkOutSchema = z.object({
+  note: z.string().max(500).optional().nullable(),
+})
+
 // ─── Generic ID schemas ──────────────────────────────────────────────────────
 
 export const uuidSchema = z.string().uuid('Invalid ID format')

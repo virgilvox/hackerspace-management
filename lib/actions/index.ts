@@ -62,3 +62,6 @@ export * from './member-cards'
 
 // Door connections + executor (Door epic)
 export * from './door'
+
+// Presence & attendance (check-in / check-out / hosting)
+export * from './presence'
