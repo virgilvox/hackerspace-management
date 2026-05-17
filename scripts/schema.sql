@@ -1823,6 +1823,7 @@ BEGIN
     ('board','ops.process.write'),('board','ops.secrets.read'),('board','ops.secrets.write'),
     ('board','ops.arealeads.manage'),('board','members.manage'),('board','payments.manage'),
     ('board','governance.manage'),('board','forum.moderate'),('board','forms.manage'),
+    ('board','certifications.manage'),('board','certifications.grant'),
     ('board','customize.manage'),('board','settings.manage'),
     ('treasurer','payments.manage'),('treasurer','ops.kb.read'),('treasurer','ops.process.read'),
     ('member','ops.kb.read'),('member','ops.process.read'),
@@ -1975,4 +1976,106 @@ CREATE TRIGGER trg_forms_touch
 
 INSERT INTO public.space_role_permissions (space_id, subject, permission)
 SELECT id, 'board', 'forms.manage' FROM public.spaces
+ON CONFLICT (space_id, subject, permission) DO NOTHING;
+
+
+-- =============================================================================
+-- 18. Certifications + Instructor capability
+--     (equivalent to scripts/030_certifications.sql).
+--
+--     certification *types* per space (optional validity_months); per-member
+--     grants whose expires_at is snapshotted at grant time; soft revoke only.
+--     Permissions: certifications.manage (cert types) and certifications.grant
+--     (award/revoke = the Instructor capability, assignable to any role via
+--     the additive space_role_permissions model). RLS is additive/default-deny:
+--     members read cert types and their own grants; managers/granters read all;
+--     member_certifications has no DELETE policy so the history is immutable.
+--     There is no anonymous path. seed_default_role_permissions() above already
+--     seeds both codes to board; the backfill below covers existing spaces.
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS public.certifications (
+  id              uuid        PRIMARY KEY DEFAULT uuid_generate_v4(),
+  space_id        uuid        NOT NULL REFERENCES public.spaces(id) ON DELETE CASCADE,
+  name            text        NOT NULL CHECK (char_length(name) BETWEEN 1 AND 200),
+  description     text,
+  validity_months integer     CHECK (validity_months IS NULL OR validity_months > 0),
+  is_active       boolean     NOT NULL DEFAULT true,
+  created_by      uuid        REFERENCES public.space_members(id) ON DELETE SET NULL,
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  updated_at      timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_certifications_space_name
+  ON public.certifications (space_id, lower(name));
+CREATE INDEX IF NOT EXISTS idx_certifications_space
+  ON public.certifications (space_id, is_active);
+
+CREATE TABLE IF NOT EXISTS public.member_certifications (
+  id               uuid        PRIMARY KEY DEFAULT uuid_generate_v4(),
+  space_id         uuid        NOT NULL REFERENCES public.spaces(id) ON DELETE CASCADE,
+  member_id        uuid        NOT NULL REFERENCES public.space_members(id) ON DELETE CASCADE,
+  certification_id uuid        NOT NULL REFERENCES public.certifications(id) ON DELETE CASCADE,
+  granted_by       uuid        REFERENCES public.space_members(id) ON DELETE SET NULL,
+  granted_at       timestamptz NOT NULL DEFAULT now(),
+  expires_at       timestamptz,
+  revoked_at       timestamptz,
+  revoked_by       uuid        REFERENCES public.space_members(id) ON DELETE SET NULL,
+  revoked_reason   text,
+  note             text,
+  created_at       timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_member_certifications_active
+  ON public.member_certifications (member_id, certification_id)
+  WHERE revoked_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_member_certifications_space
+  ON public.member_certifications (space_id);
+CREATE INDEX IF NOT EXISTS idx_member_certifications_member
+  ON public.member_certifications (member_id);
+CREATE INDEX IF NOT EXISTS idx_member_certifications_cert
+  ON public.member_certifications (certification_id);
+
+ALTER TABLE public.certifications        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.member_certifications ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS certifications_select ON public.certifications;
+DROP POLICY IF EXISTS certifications_insert ON public.certifications;
+DROP POLICY IF EXISTS certifications_update ON public.certifications;
+DROP POLICY IF EXISTS certifications_delete ON public.certifications;
+CREATE POLICY certifications_select ON public.certifications FOR SELECT
+  USING (space_id IN (SELECT public.get_user_space_ids(auth.uid())));
+CREATE POLICY certifications_insert ON public.certifications FOR INSERT
+  WITH CHECK (public.user_has_permission(auth.uid(), space_id, 'certifications.manage'));
+CREATE POLICY certifications_update ON public.certifications FOR UPDATE
+  USING (public.user_has_permission(auth.uid(), space_id, 'certifications.manage'));
+CREATE POLICY certifications_delete ON public.certifications FOR DELETE
+  USING (public.user_has_permission(auth.uid(), space_id, 'certifications.manage'));
+
+DROP POLICY IF EXISTS member_certifications_select ON public.member_certifications;
+DROP POLICY IF EXISTS member_certifications_insert ON public.member_certifications;
+DROP POLICY IF EXISTS member_certifications_update ON public.member_certifications;
+CREATE POLICY member_certifications_select ON public.member_certifications FOR SELECT
+  USING (
+    public.user_has_permission(auth.uid(), space_id, 'certifications.manage')
+    OR public.user_has_permission(auth.uid(), space_id, 'certifications.grant')
+    OR member_id IN (
+      SELECT id FROM public.space_members
+      WHERE user_id = auth.uid() AND space_id = member_certifications.space_id
+    )
+  );
+CREATE POLICY member_certifications_insert ON public.member_certifications FOR INSERT
+  WITH CHECK (public.user_has_permission(auth.uid(), space_id, 'certifications.grant'));
+CREATE POLICY member_certifications_update ON public.member_certifications FOR UPDATE
+  USING (public.user_has_permission(auth.uid(), space_id, 'certifications.grant'));
+-- No DELETE policy: grant/revoke history is immutable to non-service clients.
+
+DROP TRIGGER IF EXISTS trg_certifications_touch ON public.certifications;
+CREATE TRIGGER trg_certifications_touch
+  BEFORE UPDATE ON public.certifications
+  FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
+
+INSERT INTO public.space_role_permissions (space_id, subject, permission)
+SELECT id, 'board', 'certifications.manage' FROM public.spaces
+ON CONFLICT (space_id, subject, permission) DO NOTHING;
+INSERT INTO public.space_role_permissions (space_id, subject, permission)
+SELECT id, 'board', 'certifications.grant' FROM public.spaces
 ON CONFLICT (space_id, subject, permission) DO NOTHING;

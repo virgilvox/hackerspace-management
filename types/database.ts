@@ -106,6 +106,18 @@ export type Database = {
         Update: { id?: string; form_id?: string; space_id?: string; member_id?: string | null; submitter_email?: string | null; answers?: Json; form_snapshot?: Json; legal_text_snapshot?: string | null; form_version?: number; ip?: string | null; user_agent?: string | null; created_at?: string }
         Relationships: []
       }
+      certifications: {
+        Row: { id: string; space_id: string; name: string; description: string | null; validity_months: number | null; is_active: boolean; created_by: string | null; created_at: string; updated_at: string }
+        Insert: { id?: string; space_id: string; name: string; description?: string | null; validity_months?: number | null; is_active?: boolean; created_by?: string | null; created_at?: string; updated_at?: string }
+        Update: { id?: string; space_id?: string; name?: string; description?: string | null; validity_months?: number | null; is_active?: boolean; created_by?: string | null; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
+      member_certifications: {
+        Row: { id: string; space_id: string; member_id: string; certification_id: string; granted_by: string | null; granted_at: string; expires_at: string | null; revoked_at: string | null; revoked_by: string | null; revoked_reason: string | null; note: string | null; created_at: string }
+        Insert: { id?: string; space_id: string; member_id: string; certification_id: string; granted_by?: string | null; granted_at?: string; expires_at?: string | null; revoked_at?: string | null; revoked_by?: string | null; revoked_reason?: string | null; note?: string | null; created_at?: string }
+        Update: { id?: string; space_id?: string; member_id?: string; certification_id?: string; granted_by?: string | null; granted_at?: string; expires_at?: string | null; revoked_at?: string | null; revoked_by?: string | null; revoked_reason?: string | null; note?: string | null; created_at?: string }
+        Relationships: []
+      }
       activity_log: {
         Row: {
           action: string
