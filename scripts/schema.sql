@@ -2587,3 +2587,48 @@ DROP TRIGGER IF EXISTS trg_member_billing_touch ON public.member_billing;
 CREATE TRIGGER trg_member_billing_touch
   BEFORE UPDATE ON public.member_billing
   FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
+
+-- =============================================================================
+-- 26. Transactional notifications outbox (Product spine Phase 2)
+--     (equivalent to scripts/041_notifications.sql.)
+--
+--     Dues-lifecycle emails are enqueued by the Stripe webhook and sent by a
+--     separate dispatcher cron. The webhook only writes an idempotent outbox
+--     row (never sends inline), so the money path stays fast and retry-safe;
+--     a duplicate enqueue is a no-op via the (space_id, dedupe_key) unique
+--     index. Service client (webhook enqueue + dispatcher) is the only
+--     writer; SELECT = admin/board/treasurer (mirrors member_billing). Member
+--     self-view is a validated service-client action, not an RLS path.
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS public.notifications (
+  id          uuid        PRIMARY KEY DEFAULT uuid_generate_v4(),
+  space_id    uuid        NOT NULL REFERENCES public.spaces(id) ON DELETE CASCADE,
+  member_id   uuid        REFERENCES public.space_members(id) ON DELETE CASCADE,
+  type        text        NOT NULL,
+  channel     text        NOT NULL DEFAULT 'email',
+  recipient   text        NOT NULL,
+  subject     text        NOT NULL,
+  body_html   text        NOT NULL,
+  body_text   text        NOT NULL,
+  status      text        NOT NULL DEFAULT 'pending',
+  attempts    integer     NOT NULL DEFAULT 0,
+  last_error  text,
+  dedupe_key  text        NOT NULL,
+  sent_at     timestamptz,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  updated_at  timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_notifications_dedupe  ON public.notifications (space_id, dedupe_key);
+CREATE INDEX IF NOT EXISTS        idx_notifications_pending ON public.notifications (created_at) WHERE status = 'pending';
+CREATE INDEX IF NOT EXISTS        idx_notifications_member  ON public.notifications (space_id, member_id);
+
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS notifications_select ON public.notifications;
+CREATE POLICY notifications_select ON public.notifications FOR SELECT
+  USING (public.user_has_role_in_space(auth.uid(), space_id, ARRAY['admin','board','treasurer']));
+
+DROP TRIGGER IF EXISTS trg_notifications_touch ON public.notifications;
+CREATE TRIGGER trg_notifications_touch
+  BEFORE UPDATE ON public.notifications
+  FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();

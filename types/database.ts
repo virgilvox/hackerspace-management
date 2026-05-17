@@ -190,6 +190,12 @@ export type Database = {
         Update: { event_id?: string; space_id?: string | null; type?: string | null; received_at?: string }
         Relationships: []
       }
+      notifications: {
+        Row: { id: string; space_id: string; member_id: string | null; type: string; channel: string; recipient: string; subject: string; body_html: string; body_text: string; status: string; attempts: number; last_error: string | null; dedupe_key: string; sent_at: string | null; created_at: string; updated_at: string }
+        Insert: { id?: string; space_id: string; member_id?: string | null; type: string; channel?: string; recipient: string; subject: string; body_html: string; body_text: string; status?: string; attempts?: number; last_error?: string | null; dedupe_key: string; sent_at?: string | null; created_at?: string; updated_at?: string }
+        Update: { id?: string; space_id?: string; member_id?: string | null; type?: string; channel?: string; recipient?: string; subject?: string; body_html?: string; body_text?: string; status?: string; attempts?: number; last_error?: string | null; dedupe_key?: string; sent_at?: string | null; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
       activity_log: {
         Row: {
           action: string
