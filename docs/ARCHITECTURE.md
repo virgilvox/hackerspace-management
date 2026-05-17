@@ -622,6 +622,31 @@ self-mark host. Surfaced as the dashboard "Who's here" panel, the
 
 ---
 
+### Stripe recurring dues (migration 040; product spine Phase 1)
+
+Per-space OWN Stripe account (NOT Connect): the secret key + webhook
+signing secret live encrypted in the AES-256-GCM secrets vault (the door
+secret pattern), referenced by id from `integrations.config` which also
+holds the mode, publishable key, tier→Price map and grace days. Pure
+mapping logic in `lib/stripe-logic.ts` (pinned API version,
+`duesMemberStatus`, `graceExceeded`) is unit-tested; `lib/stripe/client.ts`
+builds a per-request `Stripe` client (never global, never client-exposed);
+`lib/stripe/config.ts` holds the vault/config helpers (plain server module,
+not `'use server'`, since they take the admin client). Members pay via a
+hosted Checkout Session (`subscription` mode) and self-serve via the hosted
+Billing Portal — card data never touches the app (SAQ A). The per-space
+webhook `POST /api/stripe/webhook/[space]` verifies the signature with that
+space's signing secret, is idempotent on Stripe's event id
+(`stripe_webhook_events`), and maps the subscription lifecycle onto
+`member_billing` + a `stripe` `payments` row + `space_members.status`
+(grace → `late`, **never** auto-inactive, never auto-approves `unverified`).
+`member_billing` SELECT = admin/board/treasurer with **no client write
+policy** (webhook/service-client only); the member self-view is a validated
+action. No new permission code. Phases 2-3 (transactional notifications,
+broader self-serve) build on this.
+
+---
+
 ## 13. Known Limitations
 
 1. **Test suite** - Extensive Vitest unit coverage of pure logic (`__tests__/`, run with `pnpm test`) plus Playwright smoke e2e (`e2e/`). Gap: server-action orchestration is not unit-tested (no Supabase mock harness); e2e is mostly page-render checks, not full write/RLS flows.

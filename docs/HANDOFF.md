@@ -4,6 +4,29 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-17 (pass 42) — Stripe dues Phase 1 COMPLETE (P1f UI + P1g docs); LOCAL, one reviewed deploy pending
+
+Branch `main`. P1a/P1b deployed (inert foundation). P1c–P1g built locally — Phase 1 is now a complete, reviewable unit. Owner asked to review the money/webhook code before its deploy; build is clean, suite 479.
+
+### Done this pass (gated, committed, NOT deployed)
+- **`1f61029` P1f**: `StripeBillingPanel` (admin, on /settings after SettingsClient) — mode, publishable key, write-only secret/webhook secret, per-tier price ids, grace days, shows the per-space webhook URL + events to subscribe + Portal-activation reminder. `DuesCard` on /me — status via getMyBilling, "Pay dues" (startDuesCheckout redirect) / "Manage billing" (startBillingPortal).
+- **P1g**: API_REFERENCE + ARCHITECTURE Stripe sections + this entry.
+
+### Full Phase-1 commit set (LOCAL, awaiting one reviewed deploy)
+`5ca7ee6` P1c (dep+client+vault config) · `f293e41` P1d (checkout/portal/getMyBilling/listMemberBilling) · `fa76176` P1e (per-space signed webhook + dues→status) · `1f61029` P1f (UI) · docs. (P1a `521df69` + P1b `3d7cf87` already deployed, inert.)
+
+### Reviewer notes (money-critical surface)
+- Secrets: secret key + webhook signing secret only in the AES-256-GCM vault; `getStripeSettings` returns booleans, never values; keys never `NEXT_PUBLIC_`/client.
+- Webhook: signature-verified with the space's own secret; idempotent on `event.id`; per-space path (no Connect `event.account`); 400 bad-sig/config, 500 handler (Stripe retries; idempotent). No auth middleware exists so the path is reachable for Stripe by design.
+- Status automation only moves `current`↔`late` (filtered `IN ('current','late')`) — never auto-inactive, never auto-approves `unverified`; `last_paid_at` on paid.
+- Multi-tenant: every query space-scoped; member resolved by metadata then customer id, re-checked in-space.
+- Inert until an admin actually configures Stripe in Settings (no `integrations` stripe row exists in prod).
+
+### Open
+- LOCAL & undeployed: pass-42 (P1f + docs) on top of pass-41 (P1c–P1e). **One reviewed deploy** ships all of Phase 1 (no migration in this batch — 040 already live). ASK before deploy. After deploy: a space admin configures Stripe (test mode) → member "Pay dues" → webhook flips status. Then Phase 2 = transactional notifications (renewal/failed-payment/booking emails) — the next product-spine thread.
+
+---
+
 ## 2026-05-17 (pass 41) — Stripe dues P1c–P1e (config + actions + webhook) built; LOCAL, REVIEW before deploy
 
 Branch `main`. P1a/P1b deployed (run 25987779054, inert foundation live). Built the money-critical core; per the owner's choice this code should be reviewed before its deploy. 4 commits this pass, suite 479, build clean each.
