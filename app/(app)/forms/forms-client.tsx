@@ -6,6 +6,7 @@ import { PageHeader, PageTitle } from '@/components/ui/page-title'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
+import { CopyLinkButton } from '@/components/forms/copy-link-button'
 
 type FormRow = {
   id: string
@@ -76,6 +77,9 @@ export function FormsClient({ forms, spaceSlug }: { forms: FormRow[]; spaceSlug:
                   {f.status}
                 </Badge>
                 <div className="flex gap-2">
+                  {f.visibility !== 'members' && f.status === 'published' && (
+                    <CopyLinkButton path={`/f/${spaceSlug}/${f.slug}`} />
+                  )}
                   <Button asChild size="sm" variant="ghost">
                     <Link href={`/forms/${f.id}/results`}>Results</Link>
                   </Button>
