@@ -397,10 +397,11 @@ Default channels created by trigger on space INSERT: `general`, `announcements`,
 | 029 | `space_invites.role` (member_role enum, default `member`); invites can grant a role; admin-granting invites are admin-only (app-enforced) |
 | 030 | `certifications`, `member_certifications` + `certifications.manage` / `certifications.grant` permissions (the latter = Instructor). Additive default-deny RLS; grants soft-revoked + immutable (no DELETE policy); expiry snapshotted at grant; no anonymous path |
 | 031 | `secrets_select` additively also honors `ops.secrets.read` (previously admin/board OR per-secret `ops_acl` only). Reveal/list gates let RLS decide; writes unchanged. Access-neutral unless the permission is granted |
+| 032 | `classes`, `class_sessions`, `class_signups` + `classes.manage` / `classes.instruct` permissions. Additive default-deny RLS; signup/cancel via validated service-client action (no INSERT/DELETE policy); one non-cancelled signup per member+session; optional cert-on-completion via the normal certifications path |
 
 ---
 
-## Tables added by migrations 016-030 (quick map)
+## Tables added by migrations 016-032 (quick map)
 
 | Table | Key columns | Purpose |
 |-------|-------------|---------|
@@ -421,6 +422,9 @@ Default channels created by trigger on space INSERT: `general`, `announcements`,
 | `form_submissions` | form_id, space_id, member_id, submitter_email, answers jsonb, form_snapshot jsonb, legal_text_snapshot, form_version, ip, user_agent | Append-only submissions. Per-row snapshot = immutable waiver record. SELECT = `forms.manage`; NO write policy (service-client only; immutable) |
 | `certifications` | space_id, name (UNIQUE per space, case-insensitive), description, validity_months (null = never expires), is_active | Per-space certification types. SELECT = any space member; write-gated by `certifications.manage` |
 | `member_certifications` | space_id, member_id, certification_id, granted_by, granted_at, expires_at (snapshotted at grant), revoked_at, revoked_by, revoked_reason, note | Per-member grants. Partial UNIQUE = one active grant per member+cert. SELECT = `certifications.manage`/`certifications.grant` (all) or member (own); INSERT/UPDATE = `certifications.grant`; NO DELETE policy (immutable history) |
+| `classes` | space_id, title, description, payment_link (http(s) only), capacity, is_active, grants_certification_id -> certifications | Class offering. SELECT = `classes.manage` (all) or member (`is_active`); writes = `classes.manage` |
+| `class_sessions` | class_id, space_id, starts_at, ends_at, location, capacity, status (scheduled/cancelled/completed), notes | Scheduled occurrence. SELECT = any space member; writes = `classes.manage` |
+| `class_signups` | session_id, space_id, member_id, status (registered/waitlisted/cancelled), attended, signed_up_at | Member signup. Partial UNIQUE = one non-cancelled signup per member+session. SELECT = manage/instruct (all) or member (own); UPDATE = `classes.instruct`; NO INSERT/DELETE policy (signup/cancel via validated service-client action) |
 
 Column additions: `space_members.tier_id`, `onboarding_completed_at`, `onboarding_progress`; `secrets.encrypted_value`, `encryption_version`; `knowledge_base.render_markdown`, `is_meeting_minutes`, `meeting_date`. New enum `comment_entity_type`.
 

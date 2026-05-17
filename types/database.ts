@@ -118,6 +118,24 @@ export type Database = {
         Update: { id?: string; space_id?: string; member_id?: string; certification_id?: string; granted_by?: string | null; granted_at?: string; expires_at?: string | null; revoked_at?: string | null; revoked_by?: string | null; revoked_reason?: string | null; note?: string | null; created_at?: string }
         Relationships: []
       }
+      classes: {
+        Row: { id: string; space_id: string; title: string; description: string | null; payment_link: string | null; capacity: number | null; is_active: boolean; grants_certification_id: string | null; created_by: string | null; created_at: string; updated_at: string }
+        Insert: { id?: string; space_id: string; title: string; description?: string | null; payment_link?: string | null; capacity?: number | null; is_active?: boolean; grants_certification_id?: string | null; created_by?: string | null; created_at?: string; updated_at?: string }
+        Update: { id?: string; space_id?: string; title?: string; description?: string | null; payment_link?: string | null; capacity?: number | null; is_active?: boolean; grants_certification_id?: string | null; created_by?: string | null; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
+      class_sessions: {
+        Row: { id: string; class_id: string; space_id: string; starts_at: string; ends_at: string | null; location: string | null; capacity: number | null; status: string; notes: string | null; created_at: string; updated_at: string }
+        Insert: { id?: string; class_id: string; space_id: string; starts_at: string; ends_at?: string | null; location?: string | null; capacity?: number | null; status?: string; notes?: string | null; created_at?: string; updated_at?: string }
+        Update: { id?: string; class_id?: string; space_id?: string; starts_at?: string; ends_at?: string | null; location?: string | null; capacity?: number | null; status?: string; notes?: string | null; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
+      class_signups: {
+        Row: { id: string; session_id: string; space_id: string; member_id: string; status: string; attended: boolean; signed_up_at: string; created_at: string }
+        Insert: { id?: string; session_id: string; space_id: string; member_id: string; status?: string; attended?: boolean; signed_up_at?: string; created_at?: string }
+        Update: { id?: string; session_id?: string; space_id?: string; member_id?: string; status?: string; attended?: boolean; signed_up_at?: string; created_at?: string }
+        Relationships: []
+      }
       activity_log: {
         Row: {
           action: string

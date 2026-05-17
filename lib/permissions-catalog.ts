@@ -24,6 +24,8 @@ export const PERMISSIONS = [
   { code: 'forms.manage',       group: 'Community', label: 'Manage forms and waivers' },
   { code: 'certifications.manage', group: 'Certifications', label: 'Manage certification types' },
   { code: 'certifications.grant',  group: 'Certifications', label: 'Award and revoke certifications (Instructor)' },
+  { code: 'classes.manage',     group: 'Classes', label: 'Manage classes and schedule sessions' },
+  { code: 'classes.instruct',   group: 'Classes', label: 'Run classes: attendance, completion, attendees' },
   { code: 'customize.manage',   group: 'Admin', label: 'Customize roles, tiers, areas, invites, onboarding' },
   { code: 'settings.manage',    group: 'Admin', label: 'Space settings, integrations, webhooks' },
 ] as const
@@ -44,6 +46,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, PermissionCode[]> = {
     'members.manage', 'payments.manage', 'governance.manage',
     'forum.moderate', 'forms.manage',
     'certifications.manage', 'certifications.grant',
+    'classes.manage', 'classes.instruct',
     'customize.manage', 'settings.manage',
   ],
   treasurer: ['payments.manage', 'ops.kb.read', 'ops.process.read'],
