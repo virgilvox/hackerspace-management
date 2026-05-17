@@ -63,6 +63,21 @@ export function canSignUp(input: {
   return { ok: true }
 }
 
+// A class may require a form (waiver/intake) on file. Mirrors the equipment
+// required-certification gate: the requirement is bypassed for a manager
+// acting with override (e.g. signing a member up on their behalf). "On file"
+// means the member has at least one completed submission of that form.
+export function signupFormEligibility(input: {
+  requiresForm: boolean
+  memberHasForm: boolean
+  managerOverride: boolean
+}): SignupEligibility {
+  if (input.requiresForm && !input.memberHasForm && !input.managerOverride) {
+    return { ok: false, reason: 'This class requires a form to be completed before you can sign up.' }
+  }
+  return { ok: true }
+}
+
 // When a registered member cancels and a seat frees, the earliest-signed-up
 // waitlisted member is promoted. Returns that signup id, or null if there is
 // no free seat or no one waiting.

@@ -26,6 +26,7 @@ type Cls = {
   capacity: number | null
   is_active: boolean
   grants_certification_id: string | null
+  required_form_id: string | null
 }
 type Session = {
   id: string
@@ -38,12 +39,13 @@ type Session = {
   notes: string | null
 }
 type Cert = { id: string; name: string; is_active: boolean }
+type Form = { id: string; title: string; kind: string }
 
 const inputCls =
   'w-full bg-background border border-border text-foreground font-sans text-sm rounded px-3 py-2 focus:outline-none focus:border-primary'
 
 function emptyClassDraft() {
-  return { title: '', description: '', payment_link: '', capacity: '', grants_certification_id: '' }
+  return { title: '', description: '', payment_link: '', capacity: '', grants_certification_id: '', required_form_id: '' }
 }
 function emptySessionDraft() {
   return { starts_at: '', ends_at: '', location: '', capacity: '', notes: '' }
@@ -59,10 +61,12 @@ export function ClassesManageClient({
   initialClasses,
   initialSessions,
   certs,
+  forms,
 }: {
   initialClasses: Cls[]
   initialSessions: Session[]
   certs: Cert[]
+  forms: Form[]
 }) {
   const confirm = useConfirm()
   const [classes, setClasses] = useState<Cls[]>(initialClasses)
@@ -78,6 +82,9 @@ export function ClassesManageClient({
   function certName(id: string | null) {
     return id ? certs.find(c => c.id === id)?.name ?? null : null
   }
+  function formName(id: string | null) {
+    return id ? forms.find(f => f.id === id)?.title ?? null : null
+  }
 
   async function onCreate(e: React.FormEvent) {
     e.preventDefault()
@@ -89,6 +96,7 @@ export function ClassesManageClient({
       payment_link: draft.payment_link.trim() || null,
       capacity: num(draft.capacity),
       grants_certification_id: draft.grants_certification_id || null,
+      required_form_id: draft.required_form_id || null,
     })
     setBusy(false)
     if ('error' in res && res.error) return toast.error(res.error)
@@ -102,6 +110,7 @@ export function ClassesManageClient({
         capacity: num(draft.capacity),
         is_active: true,
         grants_certification_id: draft.grants_certification_id || null,
+        required_form_id: draft.required_form_id || null,
       },
       ...prev,
     ])
@@ -118,6 +127,7 @@ export function ClassesManageClient({
       payment_link: c.payment_link ?? '',
       capacity: c.capacity == null ? '' : String(c.capacity),
       grants_certification_id: c.grants_certification_id ?? '',
+      required_form_id: c.required_form_id ?? '',
     })
   }
 
@@ -131,6 +141,7 @@ export function ClassesManageClient({
       payment_link: editDraft.payment_link.trim() || null,
       capacity: num(editDraft.capacity),
       grants_certification_id: editDraft.grants_certification_id || null,
+      required_form_id: editDraft.required_form_id || null,
     })
     setBusy(false)
     if ('error' in res && res.error) return toast.error(res.error)
@@ -144,6 +155,7 @@ export function ClassesManageClient({
               payment_link: editDraft.payment_link.trim() || null,
               capacity: num(editDraft.capacity),
               grants_certification_id: editDraft.grants_certification_id || null,
+              required_form_id: editDraft.required_form_id || null,
             }
           : c,
       ),
@@ -260,7 +272,17 @@ export function ClassesManageClient({
                 <option value="">Grants no certification</option>
                 {certs.map(c => <option key={c.id} value={c.id}>Grants: {c.name}</option>)}
               </select>
+              <select className={inputCls} value={draft.required_form_id}
+                onChange={e => setDraft({ ...draft, required_form_id: e.target.value })}>
+                <option value="">No required form</option>
+                {forms.map(f => <option key={f.id} value={f.id}>Requires: {f.title}{f.kind === 'waiver' ? ' (waiver)' : ''}</option>)}
+              </select>
             </div>
+            {forms.length === 0 && (
+              <p className="font-mono text-[10px] text-muted-foreground">
+                Tip: publish a form under Forms to be able to require it (e.g. a liability waiver) before signup.
+              </p>
+            )}
             <Button type="submit" size="sm" disabled={busy}>Create class</Button>
           </form>
         )}
@@ -297,6 +319,11 @@ export function ClassesManageClient({
                             <option value="">Grants no certification</option>
                             {certs.map(x => <option key={x.id} value={x.id}>Grants: {x.name}</option>)}
                           </select>
+                          <select className={inputCls} value={editDraft.required_form_id}
+                            onChange={e => setEditDraft({ ...editDraft, required_form_id: e.target.value })}>
+                            <option value="">No required form</option>
+                            {forms.map(f => <option key={f.id} value={f.id}>Requires: {f.title}{f.kind === 'waiver' ? ' (waiver)' : ''}</option>)}
+                          </select>
                         </div>
                         <div className="flex gap-2">
                           <Button size="sm" disabled={busy} onClick={() => onSaveEdit(c.id)}>Save</Button>
@@ -312,6 +339,9 @@ export function ClassesManageClient({
                             {c.capacity != null && <span className="font-mono text-[10px] text-muted-foreground">cap {c.capacity}</span>}
                             {certName(c.grants_certification_id) && (
                               <span className="font-mono text-[10px] text-primary">grants {certName(c.grants_certification_id)}</span>
+                            )}
+                            {formName(c.required_form_id) && (
+                              <span className="font-mono text-[10px] text-amber-600">requires form: {formName(c.required_form_id)}</span>
                             )}
                           </div>
                           {c.description && <p className="font-sans text-sm text-muted-foreground mt-1">{c.description}</p>}

@@ -26,9 +26,49 @@ import {
   effectiveCapacity,
   computeSignupStatus,
   canSignUp,
+  signupFormEligibility,
   pickPromotion,
 } from '@/lib/classes-logic'
 import { grantCertification } from './certifications'
+
+// A class manager need not hold forms.manage, so form lookups + the
+// submission gate use the service client (scoped by space_id) and never
+// return form answers -- only existence/metadata.
+async function findSpaceForm(
+  admin: ReturnType<typeof createAdminClient>,
+  spaceId: string,
+  formId: string,
+): Promise<{ id: string; status: string; title: string; slug: string } | null> {
+  const { data } = await admin
+    .from('forms')
+    .select('id, status, title, slug')
+    .eq('id', formId)
+    .eq('space_id', spaceId)
+    .maybeSingle()
+  return data
+    ? {
+        id: data.id as string,
+        status: data.status as string,
+        title: data.title as string,
+        slug: data.slug as string,
+      }
+    : null
+}
+
+async function hasFormSubmission(
+  admin: ReturnType<typeof createAdminClient>,
+  spaceId: string,
+  memberId: string,
+  formId: string,
+): Promise<boolean> {
+  const { count } = await admin
+    .from('form_submissions')
+    .select('id', { count: 'exact', head: true })
+    .eq('space_id', spaceId)
+    .eq('form_id', formId)
+    .eq('member_id', memberId)
+  return (count ?? 0) > 0
+}
 
 type Gate =
   | { ok: true; supabase: ServerSupabase; member: Member }
@@ -84,6 +124,12 @@ export async function createClass(input: unknown) {
     if (!cert) return { error: 'The selected certification was not found in this space.' }
   }
 
+  if (c.required_form_id) {
+    const form = await findSpaceForm(createAdminClient(), member.space_id, c.required_form_id)
+    if (!form) return { error: 'The selected form was not found in this space.' }
+    if (form.status !== 'published') return { error: 'The required form must be published before it can gate signups.' }
+  }
+
   const { data, error } = await supabase
     .from('classes')
     .insert({
@@ -93,6 +139,7 @@ export async function createClass(input: unknown) {
       payment_link: c.payment_link ?? null,
       capacity: c.capacity ?? null,
       grants_certification_id: c.grants_certification_id ?? null,
+      required_form_id: c.required_form_id ?? null,
       created_by: member.id,
     })
     .select('id')
@@ -123,12 +170,19 @@ export async function updateClass(input: unknown) {
     if (!cert) return { error: 'The selected certification was not found in this space.' }
   }
 
+  if (u.required_form_id) {
+    const form = await findSpaceForm(createAdminClient(), member.space_id, u.required_form_id)
+    if (!form) return { error: 'The selected form was not found in this space.' }
+    if (form.status !== 'published') return { error: 'The required form must be published before it can gate signups.' }
+  }
+
   const patch: Record<string, unknown> = {}
   if (u.title !== undefined) patch.title = u.title
   if (u.description !== undefined) patch.description = u.description ?? null
   if (u.payment_link !== undefined) patch.payment_link = u.payment_link ?? null
   if (u.capacity !== undefined) patch.capacity = u.capacity ?? null
   if (u.grants_certification_id !== undefined) patch.grants_certification_id = u.grants_certification_id ?? null
+  if (u.required_form_id !== undefined) patch.required_form_id = u.required_form_id ?? null
   if (u.is_active !== undefined) patch.is_active = u.is_active
   if (Object.keys(patch).length === 0) return { data: { id: u.classId } }
 
@@ -179,13 +233,14 @@ export async function listClasses() {
 
   const { data, error } = await supabase
     .from('classes')
-    .select('id, title, description, payment_link, capacity, is_active, grants_certification_id, created_at, updated_at')
+    .select('id, title, description, payment_link, capacity, is_active, grants_certification_id, required_form_id, created_at, updated_at')
     .eq('space_id', member.space_id)
     .order('is_active', { ascending: false })
     .order('title', { ascending: true })
   if (error) return { error: error.message }
   return { data: data ?? [] }
 }
+
 
 // ─── Sessions (classes.manage) ───────────────────────────────────────────────
 
@@ -303,7 +358,7 @@ export async function listUpcomingSessions() {
   const nowIso = new Date().toISOString()
   const { data: sessions, error } = await supabase
     .from('class_sessions')
-    .select('id, class_id, starts_at, ends_at, location, capacity, status, notes, classes(title, description, payment_link, capacity, is_active, grants_certification_id)')
+    .select('id, class_id, starts_at, ends_at, location, capacity, status, notes, classes(title, description, payment_link, capacity, is_active, grants_certification_id, required_form_id)')
     .eq('space_id', member.space_id)
     .neq('status', 'cancelled')
     .gte('starts_at', nowIso)
@@ -317,6 +372,10 @@ export async function listUpcomingSessions() {
 
   const counts: Record<string, number> = {}
   const mine: Record<string, string> = {}
+  // required_form_id -> { slug, title } and whether THIS member has it on file.
+  const formMeta: Record<string, { slug: string; title: string }> = {}
+  const mySatisfiedForms = new Set<string>()
+  let spaceSlug: string | null = null
   if (ids.length > 0) {
     const admin = createAdminClient()
     const { data: agg } = await admin
@@ -338,14 +397,57 @@ export async function listUpcomingSessions() {
     for (const r of my ?? []) {
       mine[(r as { session_id: string }).session_id] = (r as { status: string }).status
     }
+
+    const formIds = Array.from(
+      new Set(
+        rows
+          .map((s: { classes?: { required_form_id?: string | null } | null }) => s.classes?.required_form_id)
+          .filter((x): x is string => !!x),
+      ),
+    )
+    if (formIds.length > 0) {
+      const { data: forms } = await admin
+        .from('forms')
+        .select('id, slug, title')
+        .in('id', formIds)
+      for (const f of forms ?? []) {
+        formMeta[f.id as string] = { slug: f.slug as string, title: f.title as string }
+      }
+      const { data: subs } = await admin
+        .from('form_submissions')
+        .select('form_id')
+        .eq('space_id', member.space_id)
+        .eq('member_id', member.id)
+        .in('form_id', formIds)
+      for (const sub of subs ?? []) mySatisfiedForms.add(sub.form_id as string)
+      const { data: space } = await admin
+        .from('spaces')
+        .select('slug')
+        .eq('id', member.space_id)
+        .maybeSingle()
+      spaceSlug = (space?.slug as string | undefined) ?? null
+    }
   }
 
   return {
-    data: rows.map((s: Record<string, unknown>) => ({
-      ...s,
-      registered_count: counts[s.id as string] ?? 0,
-      my_status: mine[s.id as string] ?? null,
-    })),
+    data: rows.map((s: Record<string, unknown>) => {
+      const cls = s.classes as { required_form_id?: string | null } | null
+      const rfid = cls?.required_form_id ?? null
+      const meta = rfid ? formMeta[rfid] ?? null : null
+      return {
+        ...s,
+        registered_count: counts[s.id as string] ?? 0,
+        my_status: mine[s.id as string] ?? null,
+        required_form:
+          rfid && meta
+            ? {
+                title: meta.title,
+                url: spaceSlug ? `/f/${spaceSlug}/${meta.slug}` : null,
+                satisfied: mySatisfiedForms.has(rfid),
+              }
+            : null,
+      }
+    }),
   }
 }
 
@@ -362,13 +464,36 @@ export async function signUpForClass(input: unknown) {
 
   const { data: session } = await supabase
     .from('class_sessions')
-    .select('id, space_id, status, starts_at, ends_at, capacity, classes(capacity, is_active)')
+    .select('id, space_id, status, starts_at, ends_at, capacity, classes(capacity, is_active, required_form_id)')
     .eq('id', v.data.sessionId)
     .eq('space_id', member.space_id)
     .maybeSingle()
   if (!session) return { error: 'Session not found' }
-  const cls = (session as { classes?: { capacity: number | null; is_active: boolean } | null }).classes
+  const cls = (session as {
+    classes?: { capacity: number | null; is_active: boolean; required_form_id: string | null } | null
+  }).classes
   if (cls && cls.is_active === false) return { error: 'This class is no longer available.' }
+
+  const { data: isMgr } = await supabase.rpc('user_has_permission', {
+    uid: member.user_id as string,
+    sid: member.space_id,
+    perm: 'classes.manage',
+  })
+  const managerOverride = !!isMgr
+  // Only a manager may sign someone else up.
+  const targetMemberId = managerOverride && v.data.memberId ? v.data.memberId : member.id
+
+  const admin = createAdminClient()
+
+  if (targetMemberId !== member.id) {
+    const { data: tgt } = await admin
+      .from('space_members')
+      .select('id')
+      .eq('id', targetMemberId)
+      .eq('space_id', member.space_id)
+      .maybeSingle()
+    if (!tgt) return { error: 'That member was not found in this space.' }
+  }
 
   const eligible = canSignUp({
     sessionStatus: session.status as string,
@@ -377,17 +502,30 @@ export async function signUpForClass(input: unknown) {
   })
   if (!eligible.ok) return { error: eligible.reason }
 
-  const admin = createAdminClient()
+  // Optional per-class form gate (waiver-on-file). A manager override
+  // bypasses it, mirroring the equipment required-cert gate.
+  const requiredFormId = cls?.required_form_id ?? null
+  const memberHasForm = requiredFormId
+    ? await hasFormSubmission(admin, member.space_id, targetMemberId, requiredFormId)
+    : false
+  const formOk = signupFormEligibility({
+    requiresForm: !!requiredFormId,
+    memberHasForm,
+    managerOverride,
+  })
+  if (!formOk.ok) return { error: formOk.reason }
 
   // Already signed up (non-cancelled)?
   const { data: existing } = await admin
     .from('class_signups')
     .select('id, status')
     .eq('session_id', v.data.sessionId)
-    .eq('member_id', member.id)
+    .eq('member_id', targetMemberId)
     .neq('status', 'cancelled')
     .maybeSingle()
-  if (existing) return { error: 'You are already signed up for this session.' }
+  if (existing) {
+    return { error: targetMemberId === member.id ? 'You are already signed up for this session.' : 'That member is already signed up for this session.' }
+  }
 
   const cap = effectiveCapacity(
     session.capacity as number | null,
@@ -405,7 +543,7 @@ export async function signUpForClass(input: unknown) {
     .insert({
       session_id: v.data.sessionId,
       space_id: member.space_id,
-      member_id: member.id,
+      member_id: targetMemberId,
       status,
     })
     .select('id')

@@ -22,6 +22,7 @@ type Row = {
   classes: { title: string; description: string | null; payment_link: string | null; capacity: number | null } | Array<{ title: string; description: string | null; payment_link: string | null; capacity: number | null }> | null
   registered_count: number
   my_status: string | null
+  required_form: { title: string; url: string | null; satisfied: boolean } | null
 }
 
 function classOf(r: Row) {
@@ -97,6 +98,7 @@ export function ClassesBrowseClient({
               const cap = effectiveCapacity(r.capacity, c?.capacity ?? null)
               const spots = cap == null ? null : Math.max(0, cap - r.registered_count)
               const full = cap != null && r.registered_count >= cap
+              const formBlocked = !r.my_status && !!r.required_form && !r.required_form.satisfied
               return (
                 <li key={r.id} className="rounded-lg border border-border p-4">
                   <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -116,6 +118,21 @@ export function ClassesBrowseClient({
                         {r.location ? ` · ${r.location}` : ''}
                         {cap == null ? ' · open' : ` · ${spots} of ${cap} spots left`}
                       </p>
+                      {r.required_form && (
+                        <p className={`font-mono text-[10px] mt-1 ${r.required_form.satisfied ? 'text-muted-foreground' : 'text-amber-600'}`}>
+                          {r.required_form.satisfied
+                            ? `Required form on file: ${r.required_form.title}`
+                            : `Requires the "${r.required_form.title}" form before signup`}
+                          {!r.required_form.satisfied && r.required_form.url && (
+                            <>
+                              {' · '}
+                              <a href={r.required_form.url} target="_blank" rel="noopener noreferrer" className="text-primary underline">
+                                complete it
+                              </a>
+                            </>
+                          )}
+                        </p>
+                      )}
                       {r.notes && <p className="font-sans text-xs text-muted-foreground mt-1">{r.notes}</p>}
                       {c?.payment_link && (
                         <a href={c.payment_link} target="_blank" rel="noopener noreferrer"
@@ -131,6 +148,19 @@ export function ClassesBrowseClient({
                         >
                           Cancel signup
                         </button>
+                      ) : formBlocked ? (
+                        r.required_form?.url ? (
+                          <a
+                            href={r.required_form.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-mono text-[10px] border border-amber-500 text-amber-600 px-3 py-2 rounded hover:bg-amber-50 transition"
+                          >
+                            Complete required form
+                          </a>
+                        ) : (
+                          <span className="font-mono text-[10px] text-amber-600 px-3 py-2">Form required</span>
+                        )
                       ) : (
                         <button
                           onClick={() => onSignUp(r)}

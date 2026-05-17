@@ -773,6 +773,7 @@ export const createClassSchema = z.object({
   payment_link: paymentLink,
   capacity: classCapacity,
   grants_certification_id: z.string().uuid('Invalid certification ID').optional().nullable(),
+  required_form_id: z.string().uuid('Invalid form ID').optional().nullable(),
 })
 
 export const updateClassSchema = z.object({
@@ -782,6 +783,7 @@ export const updateClassSchema = z.object({
   payment_link: paymentLink,
   capacity: classCapacity,
   grants_certification_id: z.string().uuid('Invalid certification ID').optional().nullable(),
+  required_form_id: z.string().uuid('Invalid form ID').optional().nullable(),
   is_active: z.boolean().optional(),
 })
 
@@ -814,6 +816,9 @@ export const sessionIdSchema = z.object({
 
 export const signUpForClassSchema = z.object({
   sessionId: z.string().uuid('Invalid session ID'),
+  // Manager-only: sign another member up on their behalf (also bypasses the
+  // required-form gate). Ignored for non-managers.
+  memberId: z.string().uuid('Invalid member ID').optional().nullable(),
 })
 
 export const cancelSignupSchema = z.object({

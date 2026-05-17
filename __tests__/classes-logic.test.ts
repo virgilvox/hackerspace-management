@@ -4,6 +4,7 @@ import {
   computeSignupStatus,
   sessionTiming,
   canSignUp,
+  signupFormEligibility,
   pickPromotion,
 } from '@/lib/classes-logic'
 
@@ -70,5 +71,22 @@ describe('pickPromotion', () => {
   })
   it('returns null when nobody is waiting', () => {
     expect(pickPromotion([{ id: 'r1', status: 'registered', signed_up_at: 'x' }], 5)).toBeNull()
+  })
+})
+
+describe('signupFormEligibility', () => {
+  it('passes when no form is required', () => {
+    expect(signupFormEligibility({ requiresForm: false, memberHasForm: false, managerOverride: false }).ok).toBe(true)
+  })
+  it('passes when the form is on file', () => {
+    expect(signupFormEligibility({ requiresForm: true, memberHasForm: true, managerOverride: false }).ok).toBe(true)
+  })
+  it('blocks when required and not on file', () => {
+    const r = signupFormEligibility({ requiresForm: true, memberHasForm: false, managerOverride: false })
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.reason).toMatch(/requires a form/i)
+  })
+  it('a manager override bypasses the form requirement', () => {
+    expect(signupFormEligibility({ requiresForm: true, memberHasForm: false, managerOverride: true }).ok).toBe(true)
   })
 })
