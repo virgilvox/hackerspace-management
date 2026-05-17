@@ -16,8 +16,9 @@ Branch `main`. Owner asked for an extreme audit before deploy. Ran an independen
 - Audit PASS (no change needed): Phase-1 webhook guarantees intact, multi-tenant isolation, RLS + member self-view, HTML escaping, CRON_SECRET constant-time, migration idempotent + mirror exact, fresh-clone fails safe.
 
 ### State
-- **Still not deployed.** All P1s fixed and gated; awaiting the deploy decision. Local commits ahead of origin: pass-44 docs (dc76a86), the 5 Phase 2 commits, and this audit-fix + pass-46.
-- Post-deploy provisioning (owner, Droplet): set `RESEND_API_KEY`, `EMAIL_FROM` (verified domain + SPF/DKIM), `CRON_SECRET`; add the once-a-minute crontab line (docs/DEPLOYMENT.md). Inert until then.
+- **DEPLOYED** (run 25990457904, HEAD f1bae44, success). All 7 local commits (pass-44 docs + 5 Phase 2 + audit-fix) pushed; origin == local. Smoke clean: `/` `/login` 200; gated 307; Stripe webhook 400 (Phase 1 intact, not 307); `/api/cron/notifications` 503 with/without bearer (proxy whitelist works; CRON_SECRET unset = fails safe).
+- **Inert until owner provisions (Droplet):** set `RESEND_API_KEY`, `EMAIL_FROM` (Resend-verified domain + SPF/DKIM), `CRON_SECRET`; add the once-a-minute crontab line (docs/DEPLOYMENT.md). Until then the outbox fills but nothing sends.
+- Validation after provisioning: Stripe test-mode dues run -> `dues_renewed` enqueued once, dispatcher sends, `/me` shows it; force card failure -> `dues_payment_failed`; let it lapse -> `dues_lapsed`.
 
 ---
 
