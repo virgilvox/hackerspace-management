@@ -19,6 +19,7 @@ import {
   formIdSchema,
   submitFormSchema,
   linkSubmissionsSchema,
+  memberSubmissionsSchema,
   getPublicFormSchema,
 } from '@/lib/validations'
 import { parseFormSchema, validateAnswers } from '@/lib/forms-schema'
@@ -537,4 +538,42 @@ export async function linkSubmissionsForMember(input: unknown) {
     `${linked?.length ?? 0} submission(s) for ${email}`,
   )
   return { data: { linked: linked?.length ?? 0 } }
+}
+
+/**
+ * The forms a given member has submitted (for the per-member panel on the
+ * members page). forms.manage gated; the gate's client honors the
+ * form_submissions/forms RLS (forms.manage), so no service-client bypass.
+ * Metadata only -- answers stay in the audited results surface.
+ */
+export async function listMemberSubmissions(input: unknown) {
+  const gate = await requireFormsManager()
+  if (!gate.ok) return { error: gate.error }
+  const { supabase, member } = gate
+
+  const v = parseInput(memberSubmissionsSchema, input)
+  if (!v.ok) return { error: v.error }
+
+  const { data, error } = await supabase
+    .from('form_submissions')
+    .select('id, form_id, form_version, created_at, forms(title, kind, slug)')
+    .eq('space_id', member.space_id)
+    .eq('member_id', v.data.memberId)
+    .order('created_at', { ascending: false })
+  if (error) return { error: error.message }
+
+  return {
+    data: (data ?? []).map(s => {
+      const f = s.forms as { title: string; kind: string; slug: string } | { title: string; kind: string; slug: string }[] | null
+      const form = Array.isArray(f) ? f[0] : f
+      return {
+        id: s.id as string,
+        formId: s.form_id as string,
+        title: form?.title ?? 'Form',
+        kind: form?.kind ?? 'form',
+        version: s.form_version as number,
+        submittedAt: s.created_at as string,
+      }
+    }),
+  }
 }

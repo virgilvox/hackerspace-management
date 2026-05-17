@@ -100,6 +100,11 @@ export default async function MembersPage() {
     sid: self.space_id,
     perm: 'door.manage',
   })
+  const { data: canViewForms } = await supabase.rpc('user_has_permission', {
+    uid: user.id,
+    sid: self.space_id,
+    perm: 'forms.manage',
+  })
 
   return (
     <MembersClient
@@ -107,6 +112,7 @@ export default async function MembersPage() {
       currentRole={self.role}
       canGrantCerts={!!canGrantCerts}
       canManageCards={!!canManageCards}
+      canViewForms={!!canViewForms}
       areaLeadRoles={(areaLeadRoles ?? []) as Array<{ id: string; area_name: string; lead_id: string | null }>}
       inviteSlot={
         canInvite ? (

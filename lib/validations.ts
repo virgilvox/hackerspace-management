@@ -673,6 +673,10 @@ export const linkSubmissionsSchema = z.object({
   email: emailField(),
 })
 
+export const memberSubmissionsSchema = z.object({
+  memberId: z.string().uuid('Invalid member ID'),
+})
+
 export const getPublicFormSchema = z.object({
   space: z.string().min(1).max(100),
   slug: formSlug,
