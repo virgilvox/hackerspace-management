@@ -20,7 +20,7 @@ Branch `main`. Continuation of the pass-30 audit. User: handle the deferred item
 - A full ARCHITECTURE §7 prose rewrite remains a nice-to-have (paths now correct; an authoritative top-of-doc note already added pass-30).
 
 ### Open
-- LOCAL & undeployed: pass-31 (5 commits) + the pass-30 deploy-state docs. **Awaiting deploy approval** (no migration this pass; app + docs only). Default reverted to ASK-before-deploy (the pass-30 deploy-without-asking was one-time). After push: smoke `/attendance` (search/day filter/check-in), PayPal re-sync idempotency, door IPv6 pin if a controller is ever IPv6.
+- **DEPLOYED** pass-31: pushed `0bb934d..d0aef9a`, Actions run `25982959375` success, no migration. Smoke: `/` `/login` 200; `/attendance` `/dashboard` `/doors` `/payments` 307->login (gated, expected). NOT browser-verified. Next live check: `/attendance` search/day-filter/check-in, PayPal re-sync idempotency. Default remains ASK-before-deploy next session.
 
 ---
 
