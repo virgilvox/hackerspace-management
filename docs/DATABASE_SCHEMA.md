@@ -686,7 +686,7 @@ CREATE INDEX idx_activity_space ON activity_log(space_id, created_at);
 
 ---
 
-## Migrations 014-033 (additions since the 13-table baseline)
+## Migrations 014-034 (additions since the 13-table baseline)
 
 `scripts/schema.sql` is the canonical idempotent schema; each numbered
 migration is mirrored as a section in it. Tables/columns added:
@@ -713,6 +713,7 @@ migration is mirrored as a section in it. Tables/columns added:
 | 031 | `secrets_select` additively also honors the `ops.secrets.read` role permission (was admin/board OR per-secret `ops_acl` only; the permission was never consulted). Access-neutral unless an admin has granted the permission. Reveal/list server-side gates updated to let RLS be the boundary; write paths unchanged |
 | 032 | `classes`, `class_sessions`, `class_signups` (class offerings, scheduled sessions, member signups; optional `payment_link` and `grants_certification_id`; partial unique = one non-cancelled signup per member+session). RLS additive + default-deny: classes SELECT = `classes.manage` (all) or member (`is_active`), class_sessions SELECT = any space member, class_signups SELECT = manage/instruct (all) or member (own), UPDATE = `classes.instruct`, NO INSERT/DELETE policy (signup/cancel via a validated service-client action enforcing capacity/waitlist/dedupe). New `classes.manage` + `classes.instruct` permissions seeded to board + backfilled. Cert-on-completion uses the normal certifications path (still needs `certifications.grant`). No anonymous path |
 | 033 | `equipment` (registry; status available/maintenance/retired; optional `required_certification_id`; `is_active` archive) + `equipment_reservations` (member time-window reservation; denormalized space_id; no DB overlap constraint). RLS additive + default-deny: equipment SELECT = `equipment.manage` (all) or member (`is_active`), reservations SELECT = `equipment.manage` (all) or member (own), UPDATE = `equipment.manage`, NO INSERT/DELETE policy (reserve/cancel via validated service-client action enforcing status + no-overlap + required-cert, manager override). New `equipment.manage` permission seeded to board + backfilled. No anonymous path |
+| 034 | `member_cards` (RFID/NFC card UID -> member; the UID is a credential -- `door.manage`-only RLS, no member SELECT policy; masked self-view via a server action). New `door.manage` + `door.operate` permissions (group Access; the whole Door epic uses them) seeded to board + backfilled. No controller calls in this phase, no anonymous path |
 
 New enum: `comment_entity_type` = `forum_thread | proposal | incident | policy`.
 

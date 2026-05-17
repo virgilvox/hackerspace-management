@@ -11,6 +11,7 @@ import type { Tables } from '@/types/database'
 import { PageTitle } from '@/components/ui/page-title'
 import { useConfirm } from '@/components/ui/confirm'
 import { MemberCertificationsDialog } from '@/components/certifications/member-certifications-dialog'
+import { MemberCardsDialog } from '@/components/door/member-cards-dialog'
 
 type Member = Tables<'space_members'>
 type AreaLeadRole = { id: string; area_name: string; lead_id: string | null }
@@ -27,6 +28,9 @@ interface Props {
   // capability), independent of admin/board. Adds a per-member
   // certifications panel reachable by non-admin instructors.
   canGrantCerts?: boolean
+  // True when the viewer holds door.manage. Adds a per-member access-cards
+  // panel (card UID is a credential; managers only).
+  canManageCards?: boolean
 }
 
 const TIER_COLORS: Record<string, string> = {
@@ -38,9 +42,10 @@ const TIER_COLORS: Record<string, string> = {
 
 const isAdmin = (role: string) => role === 'admin' || role === 'board'
 
-export function MembersClient({ members: initialMembers, currentRole, areaLeadRoles = [], inviteSlot, canGrantCerts = false }: Props) {
+export function MembersClient({ members: initialMembers, currentRole, areaLeadRoles = [], inviteSlot, canGrantCerts = false, canManageCards = false }: Props) {
   const router = useRouter()
   const [certMember, setCertMember] = useState<Member | null>(null)
+  const [cardMember, setCardMember] = useState<Member | null>(null)
   const confirm = useConfirm()
   const [members, setMembers] = useState<Member[]>(initialMembers)
 
@@ -280,6 +285,9 @@ export function MembersClient({ members: initialMembers, currentRole, areaLeadRo
                 {canGrantCerts && (
                   <th className="px-4 py-3 text-left font-mono text-[10px] tracking-widest text-muted-foreground">CERTS</th>
                 )}
+                {canManageCards && (
+                  <th className="px-4 py-3 text-left font-mono text-[10px] tracking-widest text-muted-foreground">CARDS</th>
+                )}
                 {isAdmin(currentRole) && (
                   <th className="px-4 py-3 text-left font-mono text-[10px] tracking-widest text-muted-foreground">ACTIONS</th>
                 )}
@@ -344,6 +352,16 @@ export function MembersClient({ members: initialMembers, currentRole, areaLeadRo
                         </button>
                       </td>
                     )}
+                    {canManageCards && (
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={() => setCardMember(m)}
+                          className="font-mono text-[10px] border border-border px-3 py-2 min-h-[44px] rounded hover:border-primary hover:text-primary transition"
+                        >
+                          CARDS
+                        </button>
+                      </td>
+                    )}
                     {isAdmin(currentRole) && (
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
@@ -389,7 +407,7 @@ export function MembersClient({ members: initialMembers, currentRole, areaLeadRo
                 )
               }) : (
                 <tr>
-                  <td colSpan={5 + (canGrantCerts ? 1 : 0) + (isAdmin(currentRole) ? 1 : 0)} className="p-0">
+                  <td colSpan={5 + (canGrantCerts ? 1 : 0) + (canManageCards ? 1 : 0) + (isAdmin(currentRole) ? 1 : 0)} className="p-0">
                     <Empty className="border-0">
                       <EmptyHeader>
                         <EmptyMedia variant="icon"><Users /></EmptyMedia>
@@ -448,6 +466,13 @@ export function MembersClient({ members: initialMembers, currentRole, areaLeadRo
         <MemberCertificationsDialog
           member={certMember ? { id: certMember.id, display_name: certMember.display_name } : null}
           onClose={() => setCertMember(null)}
+        />
+      )}
+
+      {canManageCards && (
+        <MemberCardsDialog
+          member={cardMember ? { id: cardMember.id, display_name: cardMember.display_name } : null}
+          onClose={() => setCardMember(null)}
         />
       )}
     </div>

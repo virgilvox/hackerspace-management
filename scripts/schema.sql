@@ -1830,6 +1830,7 @@ BEGIN
     ('board','certifications.manage'),('board','certifications.grant'),
     ('board','classes.manage'),('board','classes.instruct'),
     ('board','equipment.manage'),
+    ('board','door.manage'),('board','door.operate'),
     ('board','customize.manage'),('board','settings.manage'),
     ('treasurer','payments.manage'),('treasurer','ops.kb.read'),('treasurer','ops.process.read'),
     ('member','ops.kb.read'),('member','ops.process.read'),
@@ -2317,4 +2318,59 @@ CREATE TRIGGER trg_equipment_touch
 
 INSERT INTO public.space_role_permissions (space_id, subject, permission)
 SELECT id, 'board', 'equipment.manage' FROM public.spaces
+ON CONFLICT (space_id, subject, permission) DO NOTHING;
+
+
+-- =============================================================================
+-- 21. Member access cards + door permissions (Door epic, phase 1)
+--     (equivalent to scripts/034_member_cards.sql).
+--
+--     member_cards (card UID is a credential; door.manage-only RLS, no
+--     member SELECT policy -- the masked self-view is a server action).
+--     Permissions door.manage / door.operate (group Access) introduced for
+--     the whole Door epic, seeded to board (above) + backfilled below.
+--     No controller calls in this phase. No anonymous path.
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS public.member_cards (
+  id         uuid        PRIMARY KEY DEFAULT uuid_generate_v4(),
+  space_id   uuid        NOT NULL REFERENCES public.spaces(id) ON DELETE CASCADE,
+  member_id  uuid        NOT NULL REFERENCES public.space_members(id) ON DELETE CASCADE,
+  card_uid   text        NOT NULL CHECK (char_length(card_uid) BETWEEN 1 AND 200),
+  card_type  text        NOT NULL DEFAULT 'rfid' CHECK (card_type IN ('rfid','nfc')),
+  label      text,
+  is_active  boolean     NOT NULL DEFAULT true,
+  created_by uuid        REFERENCES public.space_members(id) ON DELETE SET NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_member_cards_uid    ON public.member_cards (space_id, card_uid);
+CREATE INDEX IF NOT EXISTS        idx_member_cards_space  ON public.member_cards (space_id);
+CREATE INDEX IF NOT EXISTS        idx_member_cards_member ON public.member_cards (member_id);
+
+ALTER TABLE public.member_cards ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS member_cards_select ON public.member_cards;
+DROP POLICY IF EXISTS member_cards_insert ON public.member_cards;
+DROP POLICY IF EXISTS member_cards_update ON public.member_cards;
+DROP POLICY IF EXISTS member_cards_delete ON public.member_cards;
+CREATE POLICY member_cards_select ON public.member_cards FOR SELECT
+  USING (public.user_has_permission(auth.uid(), space_id, 'door.manage'));
+CREATE POLICY member_cards_insert ON public.member_cards FOR INSERT
+  WITH CHECK (public.user_has_permission(auth.uid(), space_id, 'door.manage'));
+CREATE POLICY member_cards_update ON public.member_cards FOR UPDATE
+  USING (public.user_has_permission(auth.uid(), space_id, 'door.manage'));
+CREATE POLICY member_cards_delete ON public.member_cards FOR DELETE
+  USING (public.user_has_permission(auth.uid(), space_id, 'door.manage'));
+
+DROP TRIGGER IF EXISTS trg_member_cards_touch ON public.member_cards;
+CREATE TRIGGER trg_member_cards_touch
+  BEFORE UPDATE ON public.member_cards
+  FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
+
+INSERT INTO public.space_role_permissions (space_id, subject, permission)
+SELECT id, 'board', 'door.manage' FROM public.spaces
+ON CONFLICT (space_id, subject, permission) DO NOTHING;
+INSERT INTO public.space_role_permissions (space_id, subject, permission)
+SELECT id, 'board', 'door.operate' FROM public.spaces
 ON CONFLICT (space_id, subject, permission) DO NOTHING;

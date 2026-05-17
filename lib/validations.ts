@@ -874,6 +874,35 @@ export const listEquipmentReservationsSchema = z.object({
   equipmentId: z.string().uuid('Invalid equipment ID'),
 })
 
+// ─── Member access cards (Door epic) ─────────────────────────────────────────
+
+const cardUid = z
+  .string()
+  .trim()
+  .min(1, 'Card UID is required')
+  .max(200, 'Card UID is too long')
+
+export const addMemberCardSchema = z.object({
+  memberId: z.string().uuid('Invalid member ID'),
+  card_uid: cardUid,
+  card_type: z.enum(['rfid', 'nfc']).optional().default('rfid'),
+  label: z.string().max(120).optional().nullable(),
+})
+
+export const updateMemberCardSchema = z.object({
+  cardId: z.string().uuid('Invalid card ID'),
+  label: z.string().max(120).optional().nullable(),
+  is_active: z.boolean().optional(),
+})
+
+export const cardIdSchema = z.object({
+  cardId: z.string().uuid('Invalid card ID'),
+})
+
+export const listMemberCardsSchema = z.object({
+  memberId: z.string().uuid('Invalid member ID'),
+})
+
 // ─── Generic ID schemas ──────────────────────────────────────────────────────
 
 export const uuidSchema = z.string().uuid('Invalid ID format')

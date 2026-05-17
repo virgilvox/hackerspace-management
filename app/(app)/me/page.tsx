@@ -8,7 +8,7 @@ import {
   type CertStatus,
 } from '@/lib/certifications-logic'
 import { PERMISSIONS, PERMISSION_CODES } from '@/lib/permissions-catalog'
-import { getMyClassSignups, getMyReservations } from '@/lib/actions'
+import { getMyClassSignups, getMyReservations, getMyCards } from '@/lib/actions'
 import { SIGNUP_STATUS_LABEL, SESSION_STATUS_LABEL } from '@/lib/classes-logic'
 import { RESERVATION_STATUS_LABEL } from '@/lib/equipment-logic'
 
@@ -103,6 +103,10 @@ export default async function MePage() {
   }
   const reservations: Reservation[] = 'data' in reservationRes ? (reservationRes.data as Reservation[]) : []
   const equipOf = (r: Reservation) => (Array.isArray(r.equipment) ? r.equipment[0] : r.equipment)
+
+  const cardsRes = await getMyCards()
+  type MyCard = { id: string; card_type: string; label: string | null; is_active: boolean; last4: string }
+  const myCards: MyCard[] = 'data' in cardsRes ? (cardsRes.data as MyCard[]) : []
   const titleOf = (cs: ClassSignup) => {
     const sess = sessionOf(cs)
     const c = sess ? (Array.isArray(sess.classes) ? sess.classes[0] : sess.classes) : null
@@ -260,6 +264,35 @@ export default async function MePage() {
               })}
             </ul>
           )}
+        </section>
+
+        <section>
+          <h2 className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-3">
+            My access cards
+          </h2>
+          {myCards.length === 0 ? (
+            <p className="font-sans text-sm text-muted-foreground">
+              No access cards are registered to you. A door manager can add one.
+            </p>
+          ) : (
+            <ul className="divide-y rounded-lg border border-border">
+              {myCards.map(c => (
+                <li key={c.id} className="p-4 flex items-center justify-between gap-4">
+                  <div>
+                    <span className="font-mono text-sm text-foreground">••••&nbsp;{c.last4}</span>
+                    <span className="font-mono text-[10px] text-muted-foreground ml-2 uppercase">{c.card_type}</span>
+                    {c.label && <span className="font-sans text-xs text-muted-foreground ml-2">{c.label}</span>}
+                  </div>
+                  <Badge variant={c.is_active ? 'default' : 'outline'}>
+                    {c.is_active ? 'Active' : 'Inactive'}
+                  </Badge>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="font-sans text-xs text-muted-foreground mt-3">
+            Only the last 4 digits are shown. The full card number is never displayed here.
+          </p>
         </section>
       </div>
     </>

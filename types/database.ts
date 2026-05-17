@@ -148,6 +148,12 @@ export type Database = {
         Update: { id?: string; equipment_id?: string; space_id?: string; member_id?: string; starts_at?: string; ends_at?: string; status?: string; notes?: string | null; created_by?: string | null; created_at?: string }
         Relationships: []
       }
+      member_cards: {
+        Row: { id: string; space_id: string; member_id: string; card_uid: string; card_type: string; label: string | null; is_active: boolean; created_by: string | null; created_at: string; updated_at: string }
+        Insert: { id?: string; space_id: string; member_id: string; card_uid: string; card_type?: string; label?: string | null; is_active?: boolean; created_by?: string | null; created_at?: string; updated_at?: string }
+        Update: { id?: string; space_id?: string; member_id?: string; card_uid?: string; card_type?: string; label?: string | null; is_active?: boolean; created_by?: string | null; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
       activity_log: {
         Row: {
           action: string

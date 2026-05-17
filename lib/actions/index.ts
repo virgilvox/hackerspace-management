@@ -56,3 +56,6 @@ export * from './classes'
 
 // Equipment registry + reservations
 export * from './equipment'
+
+// Member access cards (Door epic)
+export * from './member-cards'

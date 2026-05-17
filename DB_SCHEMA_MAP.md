@@ -399,10 +399,11 @@ Default channels created by trigger on space INSERT: `general`, `announcements`,
 | 031 | `secrets_select` additively also honors `ops.secrets.read` (previously admin/board OR per-secret `ops_acl` only). Reveal/list gates let RLS decide; writes unchanged. Access-neutral unless the permission is granted |
 | 032 | `classes`, `class_sessions`, `class_signups` + `classes.manage` / `classes.instruct` permissions. Additive default-deny RLS; signup/cancel via validated service-client action (no INSERT/DELETE policy); one non-cancelled signup per member+session; optional cert-on-completion via the normal certifications path |
 | 033 | `equipment`, `equipment_reservations` + `equipment.manage` permission. Additive default-deny RLS; reserve/cancel via validated service-client action (no INSERT/DELETE policy) enforcing status + no-overlap + required-cert with manager override |
+| 034 | `member_cards` + `door.manage` / `door.operate` permissions. Card UID is a credential: door.manage-only RLS, no member SELECT; masked (count+last4) self-view via server action. Door epic phase 1, no controller calls |
 
 ---
 
-## Tables added by migrations 016-033 (quick map)
+## Tables added by migrations 016-034 (quick map)
 
 | Table | Key columns | Purpose |
 |-------|-------------|---------|
@@ -428,6 +429,7 @@ Default channels created by trigger on space INSERT: `general`, `announcements`,
 | `class_signups` | session_id, space_id, member_id, status (registered/waitlisted/cancelled), attended, signed_up_at | Member signup. Partial UNIQUE = one non-cancelled signup per member+session. SELECT = manage/instruct (all) or member (own); UPDATE = `classes.instruct`; NO INSERT/DELETE policy (signup/cancel via validated service-client action) |
 | `equipment` | space_id, name, description, location, status (available/maintenance/retired), required_certification_id -> certifications, asset_tag, is_active | Tool/equipment registry. SELECT = `equipment.manage` (all) or member (`is_active`); writes = `equipment.manage` |
 | `equipment_reservations` | equipment_id, space_id, member_id, starts_at, ends_at, status (reserved/cancelled/completed), notes | Time-window reservation. SELECT = `equipment.manage` (all) or member (own); UPDATE = `equipment.manage`; NO INSERT/DELETE policy (reserve/cancel via validated service-client action; no-overlap + required-cert enforced there) |
+| `member_cards` | space_id, member_id, card_uid (credential), card_type rfid/nfc, label, is_active | RFID/NFC card association. SELECT/writes = `door.manage` only; member self-view is masked (server action, never raw UID) |
 
 Column additions: `space_members.tier_id`, `onboarding_completed_at`, `onboarding_progress`; `secrets.encrypted_value`, `encryption_version`; `knowledge_base.render_markdown`, `is_meeting_minutes`, `meeting_date`. New enum `comment_entity_type`.
 
