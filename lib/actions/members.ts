@@ -2,6 +2,8 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { linkSubmissionsByEmail } from './forms'
 import {
   requireMember,
   requireMemberWithRole,
@@ -54,6 +56,13 @@ export async function addMember(formData: {
     .single()
 
   if (error) return { error: error.message }
+
+  // Associate any prior unlinked form submissions for this email with the
+  // new member (admin-established email).
+  if (v.data.email) {
+    await linkSubmissionsByEmail(createAdminClient(), self.space_id, data.id as string, v.data.email)
+  }
+
   revalidatePath('/members')
   return { data }
 }
@@ -89,6 +98,12 @@ export async function updateMember(
     .eq('space_id', self.space_id)
 
   if (error) return { error: error.message }
+
+  // If the email was set/corrected, associate matching prior submissions.
+  if (patch.email) {
+    await linkSubmissionsByEmail(createAdminClient(), self.space_id, id, patch.email)
+  }
+
   revalidatePath('/members')
   return { success: true as const }
 }
