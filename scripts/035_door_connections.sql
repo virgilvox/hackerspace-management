@@ -8,8 +8,10 @@
 --     row in the existing AES-256-GCM `secrets` vault; the executor loads and
 --     decrypts it server-side only and never returns/logs it.
 --   * pinned_host is the SSRF pin: the executor will only ever call that exact
---     host (no redirects, size/time caps). A door is LAN-only, so private
---     ranges are allowed -- but only the pinned host, never metadata.
+--     host (no redirects, size/time caps). The app is cloud-hosted, so the
+--     target may be a public controller/proxy OR a VPN-reachable LAN device;
+--     any pinned host is allowed (public or private) EXCEPT cloud-metadata /
+--     link-local, which are always blocked.
 --   * adapter is 'native_heatsync' (verified query-string firmware) or
 --     'generic_http' (admin-supplied per-verb templates).
 --   * allow_member_self_entry opts a connection into the member "buzz me in"

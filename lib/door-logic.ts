@@ -13,6 +13,44 @@ export function maskCardUid(uid: string): string {
   return '•'.repeat(uid.length - 4) + uid.slice(-4)
 }
 
+// ─── Known door controllers (shown in the UI, with source links) ────────────
+// The app is cloud-hosted, so a connection's target may be a publicly
+// reachable controller/proxy OR a VPN-reachable LAN device. The adapter is
+// not assumed to be on a private network; the SSRF guard pins the exact host
+// (public or private) and always blocks metadata/link-local + redirects.
+
+export type KnownController = {
+  id: string
+  label: string
+  adapter: 'native_heatsync' | 'generic_http'
+  repos: { label: string; url: string }[]
+  note: string
+}
+
+export const KNOWN_DOOR_CONTROLLERS: KnownController[] = [
+  {
+    id: 'heatsync',
+    label: 'HeatSync / 23b Open Source Access Control (native)',
+    adapter: 'native_heatsync',
+    repos: [
+      { label: 'heatsynclabs/Open-Source-Access-Control-Web-Interface', url: 'https://github.com/heatsynclabs/Open-Source-Access-Control-Web-Interface' },
+      { label: 'zyphlar/Open_Access_Control_Ethernet (23b lineage)', url: 'https://github.com/zyphlar/Open_Access_Control_Ethernet' },
+    ],
+    note: 'Arduino HTTP query-string controller. Built-in verb encoding (fixed-width, password as a query param). Point base_url at the controller or a proxy that reaches it.',
+  },
+  {
+    id: 'generic',
+    label: 'Other / generic HTTP controller',
+    adapter: 'generic_http',
+    repos: [],
+    note: 'Any controller you can drive over HTTP. Configure a per-verb URL/query template with {slot}, {tag}, {perm}, {door}, {pw} placeholders.',
+  },
+]
+
+export function controllerForAdapter(adapter: string): KnownController | undefined {
+  return KNOWN_DOOR_CONTROLLERS.find(c => c.adapter === adapter)
+}
+
 // ─── SSRF guard (the dangerous part) ─────────────────────────────────────────
 // A door connection deliberately targets a LAN device, so private ranges are
 // allowed — but ONLY the exact host the admin pinned, and never the cloud

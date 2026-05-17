@@ -14,6 +14,7 @@ import {
   deleteDoorConnection,
   testDoorConnection,
 } from '@/lib/actions'
+import { KNOWN_DOOR_CONTROLLERS, controllerForAdapter } from '@/lib/door-logic'
 
 type Conn = {
   id: string
@@ -155,9 +156,12 @@ export function DoorManageClient({
 
       <div className="p-4 md:p-6 space-y-4">
         <p className="font-sans text-sm text-muted-foreground max-w-2xl">
-          A connection targets a door controller on your LAN. The shared password is read
-          from your encrypted Secrets vault, never stored here. The server only ever calls
-          the exact pinned host, never follows redirects, and records every action in the
+          A connection targets a door controller. Because this app is cloud-hosted, the
+          target can be a publicly reachable controller or proxy, or a VPN-reachable
+          device on your LAN. The shared password is read from your encrypted Secrets
+          vault and never stored here. The server only ever calls the exact pinned host
+          (any public or private host you set, except cloud-metadata/link-local), never
+          follows redirects, caps time and response size, and records every action in the
           access log with secrets redacted.
         </p>
 
@@ -167,8 +171,9 @@ export function DoorManageClient({
               value={d.name} onChange={e => setD({ ...d, name: e.target.value })} />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <select className={input} value={d.adapter} onChange={e => setD({ ...d, adapter: e.target.value })}>
-                <option value="native_heatsync">Native HeatSync controller</option>
-                <option value="generic_http">Generic HTTP</option>
+                {KNOWN_DOOR_CONTROLLERS.map(c => (
+                  <option key={c.id} value={c.adapter}>{c.label}</option>
+                ))}
               </select>
               <select className={input} value={d.secret_ref} onChange={e => setD({ ...d, secret_ref: e.target.value })}>
                 <option value="">No password (auth: none)</option>
@@ -179,16 +184,56 @@ export function DoorManageClient({
               <input className={input} placeholder="Pinned host (192.168.1.50)"
                 value={d.pinned_host} onChange={e => setD({ ...d, pinned_host: e.target.value })} />
             </div>
+            {(() => {
+              const k = controllerForAdapter(d.adapter)
+              if (!k) return null
+              return (
+                <div className="rounded border border-border bg-background p-3 text-xs text-muted-foreground space-y-1">
+                  <p className="font-sans">{k.note}</p>
+                  {k.repos.length > 0 && (
+                    <p className="font-mono text-[10px]">
+                      Source:{' '}
+                      {k.repos.map((r, i) => (
+                        <span key={r.url}>
+                          {i > 0 && ' · '}
+                          <a href={r.url} target="_blank" rel="noopener noreferrer" className="text-primary underline">{r.label}</a>
+                        </span>
+                      ))}
+                    </p>
+                  )}
+                </div>
+              )
+            })()}
             {d.adapter === 'generic_http' && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <input className={input} placeholder="grant template (?m{slot}&t{tag}&e={pw})"
-                  value={d.grant} onChange={e => setD({ ...d, grant: e.target.value })} />
-                <input className={input} placeholder="revoke template (?r{slot}&e={pw})"
-                  value={d.revoke} onChange={e => setD({ ...d, revoke: e.target.value })} />
-                <input className={input} placeholder="open template (?o1&e={pw})"
-                  value={d.open} onChange={e => setD({ ...d, open: e.target.value })} />
-                <input className={input} placeholder="status template (?9&e={pw})"
-                  value={d.status} onChange={e => setD({ ...d, status: e.target.value })} />
+              <div className="rounded border border-border bg-background p-3 space-y-3">
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <p className="font-sans">
+                    Per-verb request templates. The template is appended to the base URL and
+                    sent as an HTTP <code className="font-mono">GET</code> to the pinned host
+                    (no redirects followed). Placeholders are URL-encoded and substituted:
+                  </p>
+                  <ul className="font-mono text-[10px] list-disc list-inside">
+                    <li><code>{'{slot}'}</code> — the member&rsquo;s integer card slot</li>
+                    <li><code>{'{tag}'}</code> — the card UID / tag value</li>
+                    <li><code>{'{perm}'}</code> — permission level (default 1)</li>
+                    <li><code>{'{door}'}</code> — door identifier (for open/lock verbs)</li>
+                    <li><code>{'{pw}'}</code> — the shared password from your Secrets vault (server-side only; never shown or logged)</li>
+                  </ul>
+                  <p className="font-sans">
+                    Leave a verb blank if your controller does not support it. Example
+                    (HeatSync-style): <code className="font-mono">?m{'{slot}'}&p001&t{'{tag}'}&e={'{pw}'}</code>
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <input className={input} placeholder="grant template — e.g. ?m{slot}&t{tag}&e={pw}"
+                    value={d.grant} onChange={e => setD({ ...d, grant: e.target.value })} />
+                  <input className={input} placeholder="revoke template — e.g. ?r{slot}&e={pw}"
+                    value={d.revoke} onChange={e => setD({ ...d, revoke: e.target.value })} />
+                  <input className={input} placeholder="open template — e.g. ?o{door}&e={pw}"
+                    value={d.open} onChange={e => setD({ ...d, open: e.target.value })} />
+                  <input className={input} placeholder="status template — e.g. ?9&e={pw}"
+                    value={d.status} onChange={e => setD({ ...d, status: e.target.value })} />
+                </div>
               </div>
             )}
             <label className="flex items-center gap-2 font-mono text-[11px] text-muted-foreground">
