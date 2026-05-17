@@ -4,6 +4,32 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-17 (pass 26) — CLEAN CHECKPOINT: modules 1-3 + Door P1/P2 all DEPLOYED
+
+Clean state: `origin/main == main`, tree clean, latest deploy (`feat(door): flexible transport…`, run 25980463354) green. Migrations applied through **035**. 409 unit tests, `pnpm build` clean. Nothing local/undeployed except this HANDOFF commit (docs-only, unpushed; deploy or carry forward next pass).
+
+### Shipped & live this overall session (verify with `git log`, smoke-tested, NOT browser-verified)
+- UX: OAuth buttons gated by env; members-page invite UI; collapsible sidebar categories (order: Workspace, Governance, **Learn**, People, Finance, Account, Admin).
+- Bug fixes: `ops.secrets.read` now actually works for reveal/list (migration 031, additive); KB/processes render markdown with working in-document anchor links (shared `lib/markdown-anchors.ts`, also fixes governance docs). Production incident-INSERT RLS bug CONFIRMED RESOLVED by user (closed).
+- Modules (locked roadmap): **1 Certifications** (030), **2 Classes** (032), **3 Equipment** (033) — all deployed, each: migration + pure tested logic + actions + guard + admin pages + member surface + `/me` + docs.
+- Door epic **P1** (034: member_cards, door.manage/operate perms, masked self-view) and **P2** (035: door_connections + door_access_log + SSRF-safe `lib/door/executor.ts` + native HeatSync adapter + audit) — deployed.
+- Landing page + README refreshed to the full feature set.
+
+### Door epic — design APPROVED, locked decisions (do NOT re-litigate)
+- Transport is NOT LAN-only (cloud-hosted). Per-connection exact-host pin (public or private allowed) + ALWAYS block metadata/link-local + no redirects + time/body caps + secret server-side only + redacted audit. Plaintext-HTTP firmware risk → recommend a TLS proxy for public exposure. (memory `integration-api-facts` has this + the re-verified fixed-width HeatSync facts + GitHub links; `lib/door-logic.ts` KNOWN_DOOR_CONTROLLERS.)
+- Card UID = credential (count+last4 to owner). Member self "buzz me in" = ALLOWED but ELEVATED RISK, per-connection opt-in (`door_connections.allow_member_self_entry`, default false): safeguards = active member + authorized active card + per-connection toggle + strict rate limit + full audit + confirm + never anon.
+- Build whole epic phase by phase, each gated + committed; ASK before each deploy.
+
+### Remaining (resume here)
+- **P3**: live actions via `door.operate` — grant/revoke a card (HeatSync needs an integer slot allocator per connection: assign/track a 0-200 slot per member_card; pure + tested), open/lock/unlock, all audited + rate-limited + confirm. Then the member self-entry action (own active card + connection.allow_member_self_entry + rate limit + audit), surfaced on `/me`/a member door page. All writes funnel through the existing `lib/door/executor.ts` + service-client validated actions; door_access_log every attempt.
+- **P4**: inbound access-log ingest (poll `?z` / webhook) → door_access_log, resolve card_uid→member.
+- **P5**: universal API-call UI builder (`api_buttons` table: label/group/method/url_template/headers/body/secret_ref/confirm; same SSRF executor + host pin) with a door template.
+- Residual: SSRF pin is host-string equality; hostname pin → theoretical DNS-rebinding (mitigated by no-redirect + typically-IP pin). Consider resolve-and-check in P3 if hardening.
+- Systemic test gap (unchanged): no Supabase mock harness; pure logic well covered, action orchestration not unit-tested.
+- Slot allocation is the one genuinely new design question for P3 (HeatSync keys cards by integer slot 0-200): propose a `member_card.controller_slot` (per connection) allocator + handle exhaustion, present before building.
+
+---
+
 ## 2026-05-17 (pass 25) — Door P1 DEPLOYED; Door P2 code-complete LOCAL
 
 Door P1 + nav reorg DEPLOYED (push `1cbea13`, run 25980105959 success; migration `034` applied; smoke ok, not browser-verified). Nav further tweaked: collapsible categories; order Workspace, Governance, **Learn**, People, Finance, Account, Admin (user moved Learn before People).
