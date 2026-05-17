@@ -4,6 +4,31 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-17 (pass 24) — Equipment DEPLOYED; Door epic design approved; P1 + nav reorg LOCAL
+
+Branch `main`. Equipment module (pass-23) DEPLOYED this pass (push `f32743d`, Actions run 25979725237 success 1m19s; migration `033` applied; `/equipment`, `/equipment/manage`, `/me` smoke 307→login, not browser-verified). Modules 1-3 (Certifications, Classes, Equipment) all live.
+
+### Door epic — design APPROVED (full design in chat pass-24). Locked decisions:
+- Transport/SSRF: **per-connection host pin + "internal device" ack**; executor allows only the pinned host, no redirects, size/time caps, secret server-side only.
+- Card UID visibility to owner: **count + last4 only** (UID is a credential; managers full).
+- Open door: user chose **ALSO member self "buzz me in"** (I advised against; build it opt-in per-connection, active-member + authorized-card check, strict rate limit, per-connection toggle, full audit, confirm, never anon — ELEVATED RISK, flagged).
+- Build: **whole epic straight through**, phase by phase, each gated + committed; still ASK before each deploy.
+- Permissions: `door.manage` (config + cards) / `door.operate` (live actions) — additive, group Access.
+
+### Native HeatSync adapter facts RE-VERIFIED 2026-05-17 (saved to memory `integration-api-facts`)
+Fetched live via `gh api`: `zyphlar/Open_Access_Control_Ethernet.ino` + `heatsynclabs/.../app/models/card.rb`. Unchanged vs memory; ADDED precision: firmware parses FIXED-WIDTH ZERO-PADDED — user slot 3 digits, `&p` perm 3 digits, `&t` tag 8 hex, `?e=` password 4 chars. Canonical: `GET {url}?m{slot}&p{perm}&t{tag}&e{pw}`. Native adapter encoder MUST zero-pad 3/3/8 and be unit-tested. Cited in memory; no re-fetch needed through P2.
+
+### Shipped this pass (LOCAL, not deployed): Door P1 + nav reorg
+- Door **P1** (1 commit): migration `034_member_cards.sql` (`member_cards`; UID is a credential — `door.manage`-only RLS, NO member SELECT policy; masked self-view via service-client `getMyCards` = count+last4) + `door.manage`/`door.operate` perms (group Access) seeded+backfilled, mirrored schema.sql Section 21, types, DATABASE_SCHEMA/DB_SCHEMA_MAP. Pure `door-logic.ts` mask + 3 tests (suite 394). `lib/actions/member-cards.ts` (manage CRUD + masked getMyCards). Per-member "Cards" panel on `/members` gated to `door.manage`; "My access cards" (masked) on `/me`. No controller calls. Gated, committed.
+- **Nav reorg** (1 commit, user-requested): sidebar now collapsible categories (Workspace/Governance/People/Finance/Learn/Account/Admin), per-section open/closed persisted in localStorage; Finance + Learn split out. Build green.
+
+### Open / next
+- LOCAL & undeployed: Door P1 + nav reorg (2 commits). Awaiting deploy approval. After push: confirm `034` applied, board has `door.manage`/`door.operate`, exercise add card → /me masked view.
+- Door epic continues: **P2** = `door_connections` (secret_ref → AES-256-GCM secrets vault, host pin, adapter native_heatsync|generic_http, verb templates) + `door_access_log` + hardened SSRF-safe executor (pure URL/SSRF/HeatSync-encoder logic heavily unit-tested; zero-pad 3/3/8) + native adapter + door.manage admin UI + audit. Then P3 live actions (`door.operate` + the member self-entry opt-in), P4 inbound log, P5 universal API-call UI builder + door template.
+- Systemic test gap unchanged (no Supabase mock harness; pure logic well covered).
+
+---
+
 ## 2026-05-17 (pass 23) — Classes DEPLOYED; Equipment module (3) code-complete LOCAL
 
 Branch `main`. Classes module (pass-22) was deployed this pass (push `2096228`, Actions run 25979364584 success 1m? ; migration `032` applied; `/classes`, `/classes/manage`, `/me` smoke 307→login, not browser-verified). User then chose to continue the locked order → Equipment (module 3).
