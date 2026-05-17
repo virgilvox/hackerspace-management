@@ -4,7 +4,27 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
-## 2026-05-17 (pass 31) — Audit follow-ups + attendance polish; LOCAL, awaiting deploy
+## 2026-05-17 (pass 32) — Forms↔member email association + landing mobile; LOCAL, awaiting deploy
+
+Branch `main`. 6 commits `ea521de..` (this entry). No browser verification here.
+
+### Forms email-match association (owner-chosen looser model)
+Owner explicitly chose to link by email match INCLUDING raw anonymous typed-email submissions (the question spelled out the impersonated-attribution tradeoff; accepted — attribution only, no access). This SUPERSEDES the codebase's prior verified-email-only stance; the decision is documented inline in `submitForm`, in API_REFERENCE, and ARCHITECTURE so a future audit does not "fix" it back.
+- **G1 `ea521de`**: pure `escapeLike` (ILIKE-safe; `_`/`%` in emails literal) + `pickMemberForEmail` (earliest-joined deterministic) + 5 tests (suite 464). `submitForm` links member_id on any submitter_email match. Shared `linkSubmissionsByEmail` helper. Superseded verified-only comment updated.
+- **G2 `dbed9ac`**: `addMember` + email-changing `updateMember` call `linkSubmissionsByEmail` (service client, space-scoped).
+- **G3 `832a0ae`**: migration **039** — data-only, idempotent backfill of existing `form_submissions.member_id` (NULL only) by `(space_id, lower email match)`, earliest-joined. Not in schema.sql (no structural change). Docs bumped to 039.
+- **G4 `ed8d629`**: `listMemberSubmissions` (forms.manage, RLS-honoring, metadata only) + FORMS column/button on `/members` → `MemberFormsDialog` (title/kind/version/date + link to `/forms/[id]/results`).
+- **G5 (this)**: API_REFERENCE + ARCHITECTURE updated (decision documented), HANDOFF.
+
+### Landing mobile (L1, owner ask)
+`app/(landing)/landing.css`: tightened the ≤600px breakpoint (nav padding/gap, section/cta/hero padding, card padding/min-height) and added a ≤400px block (nav gap/font, button padding, wordmark size) so the nav row fits ~320px without overflow. CSS-only inside media queries; desktop untouched. Next auto-injects the viewport meta (no override anywhere) so scaling is correct. Not device-tested here.
+
+### Open
+- LOCAL & undeployed: pass-32 (6 commits incl migration 039). Suite 464, build clean each phase. **Awaiting deploy approval** (migration 039 = data backfill; safe/idempotent). After push: confirm 039 ran (submissions linked), exercise public form submit by a member's email → appears under member's FORMS panel; eyeball the landing page at 320/375/414px widths. Default remains ASK-before-deploy.
+
+---
+
+## 2026-05-17 (pass 31) — Audit follow-ups + attendance polish (DEPLOYED, run 25982959375)
 
 Branch `main`. Continuation of the pass-30 audit. User: handle the deferred items where confident + properly test/doc; "stick to single space for now". 5 commits `2dc0af5..` (this entry).
 

@@ -464,6 +464,16 @@ served by a service-client server action, so the `anon` Postgres role gets no
 grant on `forms`. Form management is gated by the new additive `forms.manage`
 permission via `user_has_permission`.
 
+Email-match association (migration 039 + app, owner-chosen 2026-05): a
+submission is linked to a member whenever `submitter_email` matches a member
+in the space — at submit time, on member add/email-change
+(`linkSubmissionsByEmail`), via self-claim at join/onboarding, and a one-time
+backfill. This intentionally includes raw anonymous submissions (attribution
+only, no access); the tradeoff is documented inline in `submitForm` so it is
+not mistaken for a bug. `forms.manage` holders see a member's submissions on
+the `/members` per-member panel (`listMemberSubmissions`, RLS-honoring,
+metadata only).
+
 ### Certifications & Instructor (migration 030)
 
 `certifications` (per-space cert types; optional `validity_months`;

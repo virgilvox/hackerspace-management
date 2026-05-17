@@ -208,9 +208,23 @@
 }
 @media (max-width: 600px) {
   .landing-root .landing-container { padding: 0 20px; }
-  .landing-root .landing-hero { padding: 56px 0 48px; }
+  .landing-root .landing-hero { padding: 48px 0 40px; }
+  .landing-root .landing-section { padding: 48px 0; }
+  .landing-root .landing-section-head { margin-bottom: 28px; }
+  .landing-root .landing-cta { padding: 56px 0; }
   .landing-root .landing-grid { grid-template-columns: 1fr; }
+  .landing-root .landing-card { padding: 24px; min-height: 0; }
   .landing-root .landing-showcase { grid-template-columns: repeat(2, 1fr); }
-  .landing-root .landing-nav-links { gap: 16px; }
+  .landing-root .landing-nav-inner { padding: 18px 0; gap: 12px; }
+  .landing-root .landing-nav-links { gap: 14px; }
+  .landing-root .landing-wordmark { min-width: 0; }
   .landing-root .landing-foot-inner { flex-direction: column; align-items: flex-start; }
+}
+
+/* Narrow phones: keep the nav on one row without overflow. */
+@media (max-width: 400px) {
+  .landing-root .landing-nav-links { gap: 10px; font-size: 0.75rem; }
+  .landing-root .landing-btn,
+  .landing-root .landing-btn-accent { padding: 10px 14px; gap: 6px; }
+  .landing-root .landing-wordmark span { font-size: 0.875rem; }
 }
