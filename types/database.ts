@@ -136,6 +136,18 @@ export type Database = {
         Update: { id?: string; session_id?: string; space_id?: string; member_id?: string; status?: string; attended?: boolean; signed_up_at?: string; created_at?: string }
         Relationships: []
       }
+      equipment: {
+        Row: { id: string; space_id: string; name: string; description: string | null; location: string | null; status: string; required_certification_id: string | null; asset_tag: string | null; is_active: boolean; created_by: string | null; created_at: string; updated_at: string }
+        Insert: { id?: string; space_id: string; name: string; description?: string | null; location?: string | null; status?: string; required_certification_id?: string | null; asset_tag?: string | null; is_active?: boolean; created_by?: string | null; created_at?: string; updated_at?: string }
+        Update: { id?: string; space_id?: string; name?: string; description?: string | null; location?: string | null; status?: string; required_certification_id?: string | null; asset_tag?: string | null; is_active?: boolean; created_by?: string | null; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
+      equipment_reservations: {
+        Row: { id: string; equipment_id: string; space_id: string; member_id: string; starts_at: string; ends_at: string; status: string; notes: string | null; created_by: string | null; created_at: string }
+        Insert: { id?: string; equipment_id: string; space_id: string; member_id: string; starts_at: string; ends_at: string; status?: string; notes?: string | null; created_by?: string | null; created_at?: string }
+        Update: { id?: string; equipment_id?: string; space_id?: string; member_id?: string; starts_at?: string; ends_at?: string; status?: string; notes?: string | null; created_by?: string | null; created_at?: string }
+        Relationships: []
+      }
       activity_log: {
         Row: {
           action: string
