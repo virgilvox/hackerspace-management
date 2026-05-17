@@ -69,6 +69,30 @@ export function isAlwaysBlockedHost(host: string): boolean {
   return false
 }
 
+// Normalize a host for pin comparison. Accepts either a bare hostname/IP or
+// what an admin pasted (scheme, userinfo, port, path, brackets) and reduces
+// it to just the host identity, so the pinned host and the request host
+// compare apples-to-apples. IPv6 is handled: `[::1]`, `[::1]:8080` and
+// `http://[2001:db8::1]/` all normalize to the inner address; a bare IPv6
+// (`fe80::1`) is kept whole (no port concept). Plain `host:port` drops the
+// port. This only strips transport decoration; it never rewrites the host
+// identity, so it cannot widen what the SSRF guard allows (mismatches still
+// fail closed, and `isAlwaysBlockedHost` runs independently).
+export function normalizeHost(input: string): string {
+  let h = input.trim().toLowerCase()
+  h = h.replace(/^[a-z][a-z0-9+.-]*:\/\//, '') // scheme://
+  h = h.replace(/^[^/@]*@/, '')                // userinfo@
+  h = h.split(/[/?#]/)[0]                       // path/query/fragment
+  if (h.startsWith('[')) {
+    const end = h.indexOf(']')
+    return end === -1 ? h.slice(1) : h.slice(1, end) // [ipv6](:port)? -> ipv6
+  }
+  const colons = (h.match(/:/g) ?? []).length
+  if (colons >= 2) return h          // bare IPv6, no port concept
+  if (colons === 1) return h.split(':')[0] // host:port -> host
+  return h
+}
+
 export type DoorTarget =
   | { ok: true; url: string; host: string }
   | { ok: false; reason: string }
@@ -87,10 +111,11 @@ export function validateDoorTarget(rawUrl: string, pinnedHost: string): DoorTarg
   if (u.protocol !== 'http:' && u.protocol !== 'https:') {
     return { ok: false, reason: 'Only http and https are allowed.' }
   }
-  const host = u.hostname.toLowerCase()
-  const pin = pinnedHost.trim().toLowerCase().replace(/^https?:\/\//, '').split('/')[0].split(':')[0]
+  const rawHost = u.hostname.toLowerCase()
+  const host = normalizeHost(rawHost)
+  const pin = normalizeHost(pinnedHost)
   if (!pin) return { ok: false, reason: 'This connection has no pinned host.' }
-  if (isAlwaysBlockedHost(host)) {
+  if (isAlwaysBlockedHost(rawHost) || isAlwaysBlockedHost(host)) {
     return { ok: false, reason: 'That host is blocked (link-local / metadata).' }
   }
   if (host !== pin) {

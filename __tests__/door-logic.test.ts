@@ -3,6 +3,7 @@ import {
   last4,
   maskCardUid,
   isAlwaysBlockedHost,
+  normalizeHost,
   validateDoorTarget,
   encodeHeatSyncGrant,
   encodeHeatSyncRevoke,
@@ -116,6 +117,41 @@ describe('redactDoorSecrets', () => {
   })
   it('redacts an e= value with no trailing delimiter (end of string)', () => {
     expect(redactDoorSecrets('GET /?o1&e=1234')).toBe('GET /?o1&e=<redacted>')
+  })
+})
+
+describe('normalizeHost', () => {
+  it('strips scheme, userinfo, port, path', () => {
+    expect(normalizeHost('192.168.1.50')).toBe('192.168.1.50')
+    expect(normalizeHost('192.168.1.50:8080')).toBe('192.168.1.50')
+    expect(normalizeHost('http://192.168.1.50:8080/door?x=1')).toBe('192.168.1.50')
+    expect(normalizeHost('https://user:pass@door.local/path')).toBe('door.local')
+    expect(normalizeHost('  Door.Local  ')).toBe('door.local')
+  })
+  it('normalizes every IPv6 spelling to the inner address', () => {
+    expect(normalizeHost('[::1]')).toBe('::1')
+    expect(normalizeHost('[::1]:8080')).toBe('::1')
+    expect(normalizeHost('http://[2001:db8::1]/x')).toBe('2001:db8::1')
+    expect(normalizeHost('::1')).toBe('::1')
+    expect(normalizeHost('fe80::1')).toBe('fe80::1')
+  })
+  it('does not strip a trailing dot (distinct host, fails closed)', () => {
+    expect(normalizeHost('door.local.')).toBe('door.local.')
+  })
+})
+
+describe('validateDoorTarget — IPv6 pins', () => {
+  it('matches an IPv6 pin across bracket/scheme/port spellings', () => {
+    expect(validateDoorTarget('http://[::1]/?9&e=1', '::1').ok).toBe(true)
+    expect(validateDoorTarget('http://[::1]:8080/?9&e=1', '[::1]:8080').ok).toBe(true)
+    expect(validateDoorTarget('http://[2001:db8::1]/?9', 'http://[2001:db8::1]/door').ok).toBe(true)
+  })
+  it('still blocks IPv6 metadata / link-local even if pinned', () => {
+    expect(validateDoorTarget('http://[fd00:ec2::254]/latest', 'fd00:ec2::254').ok).toBe(false)
+    expect(validateDoorTarget('http://[fe80::1]/x', 'fe80::1').ok).toBe(false)
+  })
+  it('an IPv4-mapped IPv6 request does not satisfy an IPv4 pin (fails closed)', () => {
+    expect(validateDoorTarget('http://[::ffff:192.168.1.50]/?o1', '192.168.1.50').ok).toBe(false)
   })
 })
 
