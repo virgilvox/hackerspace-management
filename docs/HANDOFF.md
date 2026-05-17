@@ -4,7 +4,26 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
-## 2026-05-17 (pass 40) — Product spine started: Stripe dues P1a+P1b; LOCAL, awaiting deploy
+## 2026-05-17 (pass 41) — Stripe dues P1c–P1e (config + actions + webhook) built; LOCAL, REVIEW before deploy
+
+Branch `main`. P1a/P1b deployed (run 25987779054, inert foundation live). Built the money-critical core; per the owner's choice this code should be reviewed before its deploy. 4 commits this pass, suite 479, build clean each.
+
+### Done (gated, committed, NOT deployed)
+- **`5ca7ee6` P1c**: `stripe@22.1.1` (exact). `lib/stripe/client.ts` per-request `getStripe` (pinned apiVersion, server-only). `lib/stripe/config.ts` (plain server module — takes admin client, NOT a 'use server' file): store/read secret key + webhook secret in the AES-256-GCM vault (door pattern), `getStripeConfig`. `lib/actions/stripe.ts`: `getStripeSettings` (status only, never returns secrets), `saveStripeSettings` (write-only secrets, integrations.config upsert). Zod `stripeSettingsSchema`.
+- **`f293e41` P1d**: `startDuesCheckout` (self/tier-resolved, ensures Stripe Customer, hosted Checkout subscription mode, client_reference_id + metadata on session AND subscription_data), `startBillingPortal` (hosted self-serve), `getMyBilling` (service-client self-view), `listMemberBilling` (admin/board/treasurer). All Stripe calls try/caught.
+- **`fa76176` P1e**: `app/api/stripe/webhook/[space]/route.ts` (nodejs/force-dynamic). Raw body, per-space vault secret+signing-secret, `constructEvent`, idempotency via `stripe_webhook_events` PK (replay→200). Handles checkout.session.completed / customer.subscription.* / invoice.paid|payment_succeeded → upsert member_billing + record stripe `payments` row + `duesMemberStatus`/`graceExceeded` → space_members status (only current↔late, never inactive/unverified; last_paid_at on paid). member resolved by metadata then customer id, always space-scoped. bad sig/config→400, handler error→500 (Stripe retries; idempotent).
+- No middleware in this app, so the webhook path is reachable unauthenticated by design (verify is signature-based).
+
+### Remaining Phase-1
+- **P1f UI**: Settings (admin) Stripe config panel — mode, publishable key, secret key + webhook secret (write-only), per-tier price ids, grace days, show the per-space webhook URL `…/api/stripe/webhook/{space_id}` + reminder to activate the Customer Portal in Stripe. Member surface on `/me`: "Pay dues" (startDuesCheckout) / "Manage billing" (startBillingPortal) + status from getMyBilling; dashboard attention already shows dues issues via member status. Admin dues list via listMemberBilling.
+- **P1g**: API_REFERENCE + ARCHITECTURE (Stripe section, per-space-keys + webhook + status mapping + Portal-activation caveat) + HANDOFF; then Phase 2 = transactional notifications, Phase 3 = broader self-serve.
+
+### Open / REVIEW GATE
+- LOCAL & undeployed: pass-41 (P1c/P1d/P1e + this docs). Money + webhook code — **owner asked to review before deploying it.** Nothing live can call Stripe yet (no config UI shipped, integrations has no stripe row). Recommended next: build P1f/P1g so Phase 1 is a complete reviewable unit, then one reviewed deploy. ASK before deploy.
+
+---
+
+## 2026-05-17 (pass 40) — Product spine started: Stripe dues P1a+P1b (DEPLOYED, run 25987779054, inert foundation)
 
 Branch `main`. Pass-39 backlog fully DEPLOYED. Began the product spine (Stripe recurring dues) — money-critical, so design-first with a fresh web re-verify. 3 commits this pass, suite 479, build clean.
 
