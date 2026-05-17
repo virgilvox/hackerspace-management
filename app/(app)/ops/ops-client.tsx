@@ -3,8 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, Search, Lock, Pin, Eye, EyeOff, Pencil, Trash2, ChevronDown, Users2, FileText, Copy, Check } from 'lucide-react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
+import { SafeMarkdown } from '@/components/safe-markdown'
 import { createKbEntry, updateKbEntry, deleteKbEntry } from '@/lib/actions'
 import { revealSecret, deleteSecret } from '@/lib/actions/secrets'
 import { OpsAclEditor } from '@/components/ops/ops-acl-editor'
@@ -572,9 +571,7 @@ function KbEntryRow({
             </div>
           </DialogHeader>
           <div>
-            <div className="prose prose-sm prose-neutral dark:prose-invert max-w-none break-words">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{entry.content ?? ''}</ReactMarkdown>
-            </div>
+            <SafeMarkdown>{entry.content ?? ''}</SafeMarkdown>
             {canManageAcl && (
               <OpsAclEditor
                 entityType={aclEntityType}

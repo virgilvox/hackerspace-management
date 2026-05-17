@@ -1,5 +1,6 @@
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { makeHeadingSlugger, isInDocumentHref } from '@/lib/markdown-anchors'
 
 /**
  * Server-renderable markdown component for governance text (proposals,
@@ -15,28 +16,38 @@ export function MarkdownBody({ content, className = '' }: { content: string | nu
     return null
   }
 
+  const slug = makeHeadingSlugger()
+
   return (
     <div className={`markdown-body font-sans text-sm text-foreground/90 ${className}`}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
-          h1: ({ children }) => <h1 className="text-xl font-semibold text-foreground mt-4 mb-2">{children}</h1>,
-          h2: ({ children }) => <h2 className="text-lg font-semibold text-foreground mt-4 mb-2">{children}</h2>,
-          h3: ({ children }) => <h3 className="text-base font-semibold text-foreground mt-3 mb-1">{children}</h3>,
+          h1: ({ children }) => <h1 id={slug(children)} className="text-xl font-semibold text-foreground mt-4 mb-2">{children}</h1>,
+          h2: ({ children }) => <h2 id={slug(children)} className="text-lg font-semibold text-foreground mt-4 mb-2">{children}</h2>,
+          h3: ({ children }) => <h3 id={slug(children)} className="text-base font-semibold text-foreground mt-3 mb-1">{children}</h3>,
+          h4: ({ children }) => <h4 id={slug(children)} className="text-sm font-semibold text-foreground mt-3 mb-1">{children}</h4>,
+          h5: ({ children }) => <h5 id={slug(children)} className="text-sm font-semibold text-foreground/90 mt-2 mb-1">{children}</h5>,
+          h6: ({ children }) => <h6 id={slug(children)} className="text-xs font-semibold text-muted-foreground mt-2 mb-1">{children}</h6>,
           p: ({ children }) => <p className="my-2 leading-relaxed">{children}</p>,
           ul: ({ children }) => <ul className="list-disc list-outside pl-5 my-2 space-y-1">{children}</ul>,
           ol: ({ children }) => <ol className="list-decimal list-outside pl-5 my-2 space-y-1">{children}</ol>,
           li: ({ children }) => <li className="leading-relaxed">{children}</li>,
-          a: ({ href, children }) => (
-            <a
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary underline hover:no-underline"
-            >
-              {children}
-            </a>
-          ),
+          a: ({ href, children }) =>
+            isInDocumentHref(href) ? (
+              <a href={href} className="text-primary underline hover:no-underline">
+                {children}
+              </a>
+            ) : (
+              <a
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary underline hover:no-underline"
+              >
+                {children}
+              </a>
+            ),
           code: ({ children }) => (
             <code className="bg-muted px-1 py-0.5 rounded font-mono text-xs">{children}</code>
           ),
