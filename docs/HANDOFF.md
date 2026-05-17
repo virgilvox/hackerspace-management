@@ -4,7 +4,7 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
-## 2026-05-17 (pass 39) — Bulk member actions + palette trigger/a11y (backlog complete); LOCAL, awaiting deploy
+## 2026-05-17 (pass 39) — Bulk member actions + palette trigger/a11y (backlog COMPLETE, DEPLOYED run 25987172786)
 
 Branch `main`. Pass-38 (mobile card tables) DEPLOYED (run 25986426224, smoke clean). 2 feature commits this pass, suite 469, build clean. This closes out the analysis-driven backlog the user chose.
 
@@ -18,7 +18,7 @@ Branch `main`. Pass-38 (mobile card tables) DEPLOYED (run 25986426224, smoke cle
 - Deferred by user (separate future thread): product spine — Stripe recurring dues → transactional notifications → member self-serve portal. See the pass-35 report in session history; rationale grounded in Fabman/Cobot/Nexudus/Wild Apricot.
 
 ### Open
-- LOCAL & undeployed: pass-39 (2 commits + this docs). **Awaiting deploy approval** (no migration). After deploy: select unverified members → Approve selected; click the sidebar "Jump to…" / ⌘K. Default ASK-before-deploy. Next session: product spine is the highest-leverage remaining work if the user wants to continue.
+- **DEPLOYED** pass-39: pushed `d348112..41193d3`, run `25987172786` success, no migration. Smoke: `/` `/login` 200; `/members` `/dashboard` `/payments` 307->login. The full pass-35 analysis backlog the user chose is now LIVE end-to-end. NOT browser-verified. Next session: product spine (Stripe dues → notifications → self-serve portal) is the highest-leverage remaining work. Default ASK-before-deploy.
 
 ---
 
