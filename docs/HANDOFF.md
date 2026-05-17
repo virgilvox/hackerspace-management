@@ -4,7 +4,7 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
-## 2026-05-17 (pass 34) — BUGFIX: email linking ignored email-as-form-field; LOCAL, awaiting deploy
+## 2026-05-17 (pass 34) — BUGFIX: email linking ignored email-as-form-field (DEPLOYED, run 25985079088)
 
 Branch `main`. 1 commit `9f0ee18`. User report: re-link said "already linked" but submissions weren't showing under the member.
 
@@ -16,7 +16,7 @@ Fix (suite 469, build clean):
 - `relinkAllSubmissions`: now scans every unlinked submission, re-derives email from its `form_snapshot` + answers, matches the space email→earliest-member map, and backfills BOTH `member_id` and `submitter_email` — repairs existing broken rows.
 
 ### Open
-- LOCAL & undeployed: pass-34 (1 commit). **Awaiting deploy approval** (no migration; app only). After deploy: hit "Re-link submissions" once to repair existing rows, then confirm the submission appears under the member's FORMS panel. Default remains ASK-before-deploy.
+- **DEPLOYED** pass-34: pushed `c2f8368..8befee9`, Actions run `25985079088` success, no migration. Smoke: `/` `/login` 200; `/forms` `/members` 307->login. ACTION FOR USER: click "Re-link submissions" on /forms once to repair existing rows (backfills member_id + submitter_email from answers), then verify the member's FORMS panel. Default remains ASK-before-deploy.
 
 ---
 
