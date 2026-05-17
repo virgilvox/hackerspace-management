@@ -21,6 +21,9 @@ const PUBLIC_ROUTES = [
   // (Stripe does not follow redirects). Scoped to the webhook path only —
   // the Stripe server actions are invoked from authenticated pages.
   '/api/stripe/webhook',
+  // The notification dispatcher is hit by the droplet's crontab (no
+  // session); it enforces its own CRON_SECRET shared-secret header.
+  '/api/cron',
   // Public form / waiver fill page. Only /f/[slug] lives here and must be
   // reachable anonymously (the page serves only published public forms and
   // submitForm enforces visibility). The /forms* management routes do NOT
