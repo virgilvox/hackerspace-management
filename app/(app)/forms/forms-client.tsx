@@ -65,7 +65,11 @@ export function FormsClient({ forms, spaceSlug }: { forms: FormRow[]; spaceSlug:
                     </Link>
                     {f.kind === 'waiver' && <Badge variant="secondary">Waiver</Badge>}
                   </div>
-                  <p className="font-mono text-xs text-muted-foreground">/f/{spaceSlug}/{f.slug}</p>
+                  <p className="font-mono text-xs text-muted-foreground">
+                    {f.visibility === 'members'
+                      ? 'Members-only (filled from the in-app Forms page)'
+                      : `/f/${spaceSlug}/${f.slug}`}
+                  </p>
                 </div>
                 <Badge variant="outline">{VIS_LABEL[f.visibility] ?? f.visibility}</Badge>
                 <Badge variant={f.status === 'published' ? 'default' : 'secondary'}>

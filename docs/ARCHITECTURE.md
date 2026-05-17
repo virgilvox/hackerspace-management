@@ -415,20 +415,23 @@ Integration credentials stored in `integrations.config` (JSONB):
 | 010 | Fixed channel trigger (removed description column) |
 | 011 | Fixed enum values (active→current, pending→unverified) |
 
-Migrations 012-026 are tracked authoritatively in `docs/DATABASE_SCHEMA.md`
+Migrations 012-029 are tracked authoritatively in `docs/DATABASE_SCHEMA.md`
 (governance kernel, areas, forum/tiers/roles/invites, configurable onboarding,
-customizable permissions + Ops ACLs, self-change hardening, and `026` custom
-forms + waivers).
+customizable permissions + Ops ACLs, self-change hardening, `026`-`029` custom
+forms + waivers + onboarding form step + per-space form slug + invite roles).
 
-### Forms & waivers (migration 026 — Phase 1: schema + RLS)
+### Forms & waivers (migrations 026-029; complete Phases 1-5)
 
 `forms` and `form_submissions` back a custom form/waiver builder. The feature
 is complete (Phases 1-5): schema + RLS; server actions in
-`lib/actions/forms.ts`; the builder UI under `/forms` + the public `/f/[slug]`
-page; onboarding `form` step type with required-waiver enforcement +
-auto-satisfy (migration 027); and verified-email retro-link of anonymous
-submissions (`claimMyAnonymousSubmissions`, hooked from `joinSpace` and
+`lib/actions/forms.ts`; the builder UI under `/forms` (with starter
+templates) + the public `/f/[space]/[slug]` page + a member-facing
+`/my-forms` list; onboarding `form` step type with required-waiver
+enforcement + auto-satisfy (migration 027); per-space form slug (028);
+verified-email retro-link of anonymous submissions
+(`claimMyAnonymousSubmissions`, hooked from `joinSpace` and
 `finishOnboarding`; admin manual-link for unverified/admin-added members).
+Invite codes can grant a role with usage caps (029; `/join/[space]`).
 Security shape:
 all submissions (anonymous, public-authenticated, or members) are written by a
 single validated server action using the service client AFTER server-side

@@ -874,7 +874,7 @@ validate input with Zod via `parseInput`, authorize via `requireMember` /
 `createChannel` (any member), `renameChannel`, `deleteChannel` (creator or admin/board; default channels protected).
 
 ### Tiers / roles / invites — `tiers.ts`, `roles.ts`, `invites.ts`
-`createTier`/`updateTier`/`deleteTier`; `upsertRoleLabel`, `createCustomRole`/`updateCustomRole`/`deleteCustomRole`, `assignCustomRole`/`unassignCustomRole`; `createInvite`/`updateInvite`/`deleteInvite`.
+`createTier`/`updateTier`/`deleteTier`; `upsertRoleLabel`, `createCustomRole`/`updateCustomRole`/`deleteCustomRole`, `assignCustomRole`/`unassignCustomRole`; `createInvite`/`updateInvite`/`deleteInvite`. Invites (migration 029) carry a granted `role` and usage caps (`max_uses`, single-use); `joinSpace` applies the invite's role. Who may grant which role is enforced by `lib/invite-logic.ts` `canAssignInviteRole` (admin → any; board → anything except admin). Space-scoped link `/join/[space]?code=` hands off to `/signup?invite=`.
 
 ### Onboarding — `onboarding.ts`
 `createOnboardingStep`/`updateOnboardingStep`/`deleteOnboardingStep` (admin/board); `markOnboardingStepDone`, `finishOnboarding`, `skipOnboarding` (member; completion writes via the service client after the server-side required-steps check, so the self-change trigger cannot be bypassed).
@@ -888,9 +888,9 @@ validate input with Zod via `parseInput`, authorize via `requireMember` /
 ### Bulk import — `imports.ts`, `payments.ts`
 `importMembers`, `importPaymentsCsv`: per-row Zod validation, lowercased emails, `flexibleDateTime` date normalization, enum-checked platform/tier, positive finite amounts; invalid rows skipped and returned as a `skipped` count.
 
-### Forms & waivers — `forms.ts` (migration 026)
+### Forms & waivers: `forms.ts` (migrations 026-029)
 Management actions are gated by `forms.manage` (checked via the `user_has_permission` RPC; the `forms` RLS independently enforces it):
-- `createForm(input)` — friendly error on slug collision (slug is globally unique). `updateForm(input)` — slug is immutable; for a published waiver, a legal-text or schema change bumps `version` (existing submissions stay valid against their own snapshot, non-blocking re-sign). `setFormStatus(input)` — draft/published/closed. `deleteForm(input)` — refused if the form has any submissions (close instead; submissions are immutable records). `listForms()`, `getFormResults(input)`, `exportFormResultsCsv(input)` (audited via `activity_log`).
+- `getPublicForm({ space, slug })` — service-client read for the public `/f/[space]/[slug]` page; returns only a published, non-members form. `createForm(input)` — friendly error on slug collision (slug is unique per space, migration 028). `updateForm(input)` — slug is immutable; for a published waiver, a legal-text or schema change bumps `version` (existing submissions stay valid against their own snapshot, non-blocking re-sign). `setFormStatus(input)` — draft/published/closed. `deleteForm(input)` — refused if the form has any submissions (close instead; submissions are immutable records). `listForms()`, `getFormResults(input)`, `exportFormResultsCsv(input)` (audited via `activity_log`).
 - `submitForm(input)` — public entry point (anonymous, signed-in non-member, or member by form `visibility`). Reads the form with the service client (anon has no `forms` grant), enforces visibility + waiver consent, validates `answers` against the stored field schema (`lib/forms-schema.ts`, unknown keys discarded), snapshots schema/legal-text/version, captures IP + user-agent, and writes the row with the service client (`form_submissions` has no write policy, so this is the only path; rows are immutable).
 - `linkSubmissionsForMember(input)` — `forms.manage` admin manual-link of prior anonymous submissions by email. The automatic verified-email retro-link is Phase 5.
 

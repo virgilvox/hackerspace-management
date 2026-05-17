@@ -135,8 +135,15 @@ export function FormBuilder({ initial }: { initial: BuilderForm }) {
       toast.error(res.error || 'Could not save')
       return
     }
-    toast.success(isEdit ? 'Form saved' : 'Form created')
-    router.push('/forms')
+    toast.success(isEdit ? 'Form saved' : 'Form created — now publish it to make it live')
+    if (isEdit) {
+      router.push('/forms')
+    } else {
+      // Land on the new form's edit page so the Publish step is right there
+      // (creating a form leaves it as a draft).
+      const newId = 'data' in res && res.data ? res.data.id : undefined
+      router.push(newId ? `/forms/${newId}/edit` : '/forms')
+    }
     router.refresh()
   }
 
@@ -180,6 +187,28 @@ export function FormBuilder({ initial }: { initial: BuilderForm }) {
     <div className="grid gap-6 lg:grid-cols-2">
       {/* Editor */}
       <div className="space-y-6">
+        {isEdit && initial.status === 'draft' && (
+          <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+            <strong>Draft.</strong> This form is not visible to anyone yet. Use{' '}
+            <strong>Publish</strong> below to make it live.
+          </div>
+        )}
+        {isEdit && initial.status === 'published' && (
+          <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm">
+            <strong>Published.</strong> This form is live and accepting responses.
+          </div>
+        )}
+        {isEdit && initial.status === 'closed' && (
+          <div className="rounded-lg border bg-muted/40 p-3 text-sm">
+            <strong>Closed.</strong> No longer accepting responses. Re-publish to reopen.
+          </div>
+        )}
+        {!isEdit && (
+          <div className="rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">
+            Build your form, then <strong>Create</strong>. It starts as a draft; you publish it on
+            the next screen.
+          </div>
+        )}
         {isEdit && (
           <div className="flex flex-wrap items-center gap-2 rounded-lg border p-3">
             <Badge variant={initial.status === 'published' ? 'default' : 'secondary'}>
@@ -219,6 +248,12 @@ export function FormBuilder({ initial }: { initial: BuilderForm }) {
             >
               Copy link
             </Button>
+          </div>
+        )}
+        {isEdit && initial.status === 'published' && visibility === 'members' && (
+          <div className="rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">
+            Members-only: there is no public link. Members fill this from their{' '}
+            <strong>Forms</strong> page in the app.
           </div>
         )}
 

@@ -1,6 +1,6 @@
 import { requireFormsManagerPage } from '@/lib/forms-guard'
 import { PageHeader, PageTitle } from '@/components/ui/page-title'
-import { FormBuilder } from '@/components/forms/form-builder'
+import { NewFormClient } from '@/components/forms/new-form-client'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,18 +13,7 @@ export default async function NewFormPage() {
         <PageTitle>New form</PageTitle>
       </PageHeader>
       <div className="p-4 md:p-6">
-        <FormBuilder
-          initial={{
-            spaceSlug,
-            slug: '',
-            title: '',
-            description: '',
-            kind: 'form',
-            visibility: 'members',
-            legal_text: '',
-            schema: [],
-          }}
-        />
+        <NewFormClient spaceSlug={spaceSlug} />
       </div>
     </>
   )

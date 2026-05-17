@@ -4,6 +4,33 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-17 (pass 19) — Forms URL restructure + role invites + member surface + audit, LOCAL
+
+User redirected after Phases 1-5 shipped. Decisions (memory `forms-feature` updated): per-space form slug + `/f/[space]/[slug]` (reverses the original global-slug lock), space-scoped invites incl. role-granting + usage caps, member-facing forms surface, starter templates, obvious publish flow.
+
+### What shipped (local commits on top of `origin/main`)
+
+- `5a49ecb` (PUSHED, deploy triggered, NEVER VERIFIED — superseded): `/f` added to middleware PUBLIC_ROUTES so the old `/f/[slug]` was anon-reachable. P6 replaces that route; re-verify the new one post-deploy.
+- `8bbe99d` P6: migration 028 (drop global `UNIQUE(forms.slug)`, add `UNIQUE(space_id,slug)`); `getPublicForm({space,slug})`; route moved `app/f/[slug]` → `app/f/[space]/[slug]`; public client submits by `formId`; builder/list show `/f/<space>/<slug>`; forms-guard returns `spaceSlug`.
+- `df6951c` P7 + audit hardening: migration 029 `space_invites.role` (member_role, default member); `lib/invite-logic.ts` `canAssignInviteRole` (admin→any, board→non-admin); createInvite/updateInvite enforce it; `joinSpace` applies invite role; invites panel role picker + single-use; `/join/[space]` landing (+ `/join` public); `/login` honors validated `?next=` (was hardcoded); `submitForm` requires `formId` (slug ambiguous post-028).
+- P8 (this entry's commit): builder publish-flow UX (draft/published/closed banners, create→edit redirect so Publish is right there, members-only "no public link" note); member-facing `/my-forms` list + `/my-forms/[id]` fill (sidebar "Forms" for all members — fixes the long-standing members-only-forms-have-no-surface gap); starter templates picker on `/forms/new` (`lib/form-templates.ts`); forms-client relabels members-only forms (no misleading public URL).
+- Docs corrected (two background audit agents ran): DATABASE_SCHEMA / DB_SCHEMA_MAP / ARCHITECTURE / API_REFERENCE — migration list 014-029, per-space slug, `/f/[space]/[slug]`, getPublicForm signature, invite roles. `next.config` `ignoreBuildErrors` noted (pre-existing).
+
+### Audit results (parallel read-only agents + my review)
+
+- Forms/invites P0: none. RLS sound, anon cannot read submissions/drafts, snapshot immutable, public route genuinely anon, retro-link verified-email-gated (no hijack), onboarding fail-open verified, permissions surface additive/untouched.
+- Fixed this pass: `/login` `?next=` (P1), `submitForm` slug ambiguity (P1), members-only misleading public URL (P2).
+
+### Open / residual gaps (honest)
+
+- **NOTHING new deployed.** `origin/main` is at `5a49ecb` (unverified). P6/P7/P8 + doc commits are LOCAL. Migrations 026/027 deployed; 028/029 ship with the next push. Awaiting deploy approval.
+- NOT browser-verified (no live browser): the whole builder→publish→public-submit→onboarding→retro-link→member-fill→role-invite→/join chain. Smoke-test list spans pass-18 + this entry.
+- Systemic test gap: `__tests__/actions.test.ts` (49 "tests") largely asserts its own Supabase mock, not real actions. New pure logic is well covered (forms-logic, invite-logic, validateAnswers, schemas — 337 tests); action *orchestration* (visibility/RLS/retro-link IO) is NOT unit-tested (no mock harness in repo). Recommended discrete follow-up: a Supabase mock harness, then real action tests.
+- Member fill has no "already submitted" indicator (members can't read form_submissions under RLS; would need a service-client probe). Duplicate member submissions possible; acceptable (waivers re-sign), noted.
+- Production incident-filing RLS bug still open (not retried since `025`).
+
+---
+
 ## 2026-05-16 (pass 18) — Forms + waivers Phases 1-5 COMPLETE (schema/RLS + actions + builder UI + onboarding step + retro-link), LOCAL, awaiting deploy approval
 
 Branch: `main`. Migration: `026` (not yet deployed). `pnpm build` + `pnpm exec vitest run` gate pending in this entry's session.
