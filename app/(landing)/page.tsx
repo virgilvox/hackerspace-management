@@ -17,7 +17,7 @@ const MODULES = [
   { num: '08', title: 'Certifications', desc: 'Define certifications and let instructors award or revoke them. Expiry tracking and a member-facing record.' },
   { num: '09', title: 'Classes', desc: 'Schedule sessions, take signups with waitlists, mark attendance, and optionally grant a certification on completion.' },
   { num: '10', title: 'Equipment', desc: 'A tool registry with reservations. Optionally gate a tool behind a required certification.' },
-  { num: '11', title: 'Access control', desc: 'Associate member cards, connect a door controller (native HeatSync or generic HTTP), and keep an immutable access log.' },
+  { num: '11', title: 'Access control', desc: 'Associate member cards, connect a door controller (native 23b or generic HTTP), and keep an immutable access log.' },
   { num: '12', title: 'Onboarding and invites', desc: 'A configurable onboarding flow and role-granting invite links with usage caps. New members land where you want them.' },
 ]
 
@@ -94,7 +94,7 @@ export default async function LandingPage() {
         <div className="landing-container">
           <div className="landing-section-head">
             <span className="landing-section-label">What it does</span>
-            <span className="landing-section-note">06 modules</span>
+            <span className="landing-section-note">{MODULES.length} modules</span>
           </div>
           <div className="landing-grid">
             {MODULES.map(m => (
