@@ -13,6 +13,11 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getStripe } from '@/lib/stripe/client'
 import { getStripeConfig, readStripeSecret } from '@/lib/stripe/config'
 import { duesMemberStatus, graceExceeded } from '@/lib/stripe-logic'
+import {
+  renderDuesEmail,
+  duesDedupeKey,
+  type DuesNotificationType,
+} from '@/lib/notifications-logic'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -62,6 +67,76 @@ export async function POST(
   }
 
   const graceDays = cfg?.grace_days ?? 7
+
+  // Stripe sets Host to the configured webhook URL's host; fall back to the
+  // app URL. Used only to build the "manage billing" link in the email.
+  const hookHost = req.headers.get('x-forwarded-host') ?? req.headers.get('host')
+  const hookProto = req.headers.get('x-forwarded-proto') ?? 'https'
+  const manageUrl = `${
+    hookHost ? `${hookProto}://${hookHost}` : process.env.NEXT_PUBLIC_APP_URL || 'https://hackerspace.sh'
+  }/me`
+
+  let spaceNameMemo: string | null = null
+  async function getSpaceName(): Promise<string> {
+    if (spaceNameMemo !== null) return spaceNameMemo
+    const { data } = await admin.from('spaces').select('name').eq('id', spaceId).maybeSingle()
+    spaceNameMemo = (data?.name as string | null) ?? ''
+    return spaceNameMemo
+  }
+
+  // Enqueue a dues-lifecycle email into the notifications outbox. NEVER sends
+  // inline (keeps this money path fast + retry-safe); the dispatcher cron
+  // sends. ignoreDuplicates + the (space_id, dedupe_key) unique index make a
+  // Stripe event replay (new event id, same invoice/period) a no-op.
+  async function enqueueDues(
+    type: DuesNotificationType,
+    args: {
+      memberId: string | null
+      fallbackEmail?: string | null
+      amount?: number | null
+      currency?: string | null
+      periodEnd?: string | null
+      invoiceId?: string | null
+    },
+  ): Promise<void> {
+    if (!args.memberId) return
+    const { data: mem } = await admin
+      .from('space_members')
+      .select('email, display_name')
+      .eq('id', args.memberId)
+      .eq('space_id', spaceId)
+      .maybeSingle()
+    const recipient = ((mem?.email as string | null) || args.fallbackEmail || '').trim()
+    if (!recipient) return
+    const { subject, html, text } = renderDuesEmail({
+      type,
+      spaceName: await getSpaceName(),
+      memberName: (mem?.display_name as string | null) ?? null,
+      amount: args.amount ?? null,
+      currency: args.currency ?? null,
+      periodEnd: args.periodEnd ?? null,
+      manageUrl,
+    })
+    await admin.from('notifications').upsert(
+      {
+        space_id: spaceId,
+        member_id: args.memberId,
+        type,
+        channel: 'email',
+        recipient,
+        subject,
+        body_html: html,
+        body_text: text,
+        status: 'pending',
+        dedupe_key: duesDedupeKey(type, {
+          invoiceId: args.invoiceId,
+          memberId: args.memberId,
+          periodEnd: args.periodEnd,
+        }),
+      },
+      { onConflict: 'space_id,dedupe_key', ignoreDuplicates: true },
+    )
+  }
 
   // Resolve our member: prefer metadata (set on the subscription + session),
   // else map the Stripe customer id back via member_billing. Always confirm
@@ -132,6 +207,12 @@ export async function POST(
         .eq('space_id', spaceId)
         .in('status', ['current', 'late'])
     }
+
+    // Dues lapsed past grace -> one "marked late" email per lapsed period
+    // (dedupe is member + periodEnd, so next cycle can lapse again).
+    if (desired === 'late') {
+      await enqueueDues('dues_lapsed', { memberId, periodEnd })
+    }
   }
 
   try {
@@ -199,10 +280,43 @@ export async function POST(
             .eq('space_id', spaceId)
             .in('status', ['current', 'late'])
         }
+        const paidPeriodEnd = isoFromUnix(
+          (inv as unknown as {
+            lines?: { data?: Array<{ period?: { end?: number } }> }
+          }).lines?.data?.[0]?.period?.end,
+        )
+        await enqueueDues('dues_renewed', {
+          memberId,
+          fallbackEmail: inv.customer_email ?? null,
+          amount: (inv.amount_paid ?? 0) / 100,
+          currency: (inv.currency ?? 'usd').toUpperCase(),
+          periodEnd: paidPeriodEnd,
+          invoiceId: inv.id,
+        })
         break
       }
-      // invoice.payment_failed: the subsequent customer.subscription.updated
-      // (status past_due) drives the lapse logic; nothing to record here.
+      // The card failed. Send the "payment failed" notice now; the lapse-to-
+      // late email is driven separately by the later customer.subscription.
+      // updated (status past_due past grace) through applySubscription.
+      case 'invoice.payment_failed': {
+        const inv = event.data.object as Stripe.Invoice
+        const customerId = typeof inv.customer === 'string' ? inv.customer : inv.customer?.id ?? null
+        const invParent = (inv as unknown as {
+          parent?: { subscription_details?: { metadata?: Record<string, string> } }
+        }).parent
+        const memberId = await resolveMemberId(
+          invParent?.subscription_details?.metadata?.member_id || undefined,
+          customerId,
+        )
+        await enqueueDues('dues_payment_failed', {
+          memberId,
+          fallbackEmail: inv.customer_email ?? null,
+          amount: (inv.amount_due ?? 0) / 100,
+          currency: (inv.currency ?? 'usd').toUpperCase(),
+          invoiceId: inv.id,
+        })
+        break
+      }
       default:
         break
     }
