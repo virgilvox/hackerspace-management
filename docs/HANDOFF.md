@@ -4,6 +4,24 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-17 (pass 44) — Stripe Phase 1 DEPLOYED; post-deploy P0 (webhook routing) caught + fixed + redeployed
+
+Branch `main`. Phase 1 shipped (run 25988762909, HEAD 8f74307, success). Post-deploy smoke caught a P0: an unauthenticated POST to `/api/stripe/webhook/<space>` returned **307**, not 400.
+
+### Root cause
+Next 16 renamed middleware to `proxy.ts` (root). It auth-gates every non-public path and `NextResponse.redirect('/login')` (307). The webhook is called by Stripe with no session, so it was redirected. Stripe does not follow redirects → every webhook delivery would have failed silently. The earlier audit's "no auth middleware in this app" was wrong; caught only by smoke-testing the live route.
+
+### Fix (commit 37d5b04, deployed run 25988926981, success)
+- Added `/api/stripe/webhook` to `PUBLIC_ROUTES` in `proxy.ts` (scoped to the webhook path only — Stripe server actions stay auth-gated, they run from authenticated pages).
+- Corrected the route/header comments that wrongly claimed no auth middleware.
+- Gate green (479 tests, build). Re-smoke: webhook POST now **400** (route reached, signature rejected); `/` `/login` 200; `/dashboard` `/me` `/settings` 307→login; prod healthy.
+
+### State
+- **DEPLOYED & live.** Stripe dues Phase 1 is functional end to end at the code level. Inert until a space admin configures Stripe keys.
+- Next: a space admin configures Stripe in **test mode** → member "Pay dues" → confirm webhook flips `member_billing` status + records exactly one `payments` row + stores `current_period_end`. Then Phase 2 = transactional notifications (renewal / failed-payment / booking emails).
+
+---
+
 ## 2026-05-17 (pass 43) — Stripe Phase 1 deep-audited + P0/P1 fixed; LOCAL, deploy-ready (pending approval)
 
 Branch `main`. Owner asked for a deep audit before deploy. Ran an independent Stripe-focused audit (verified vs Stripe Basil 2025-03-31 changelog). Verdict was "NOT safe as-is" — 3 P0 + 1 P1 found; ALL fixed. suite 479, build clean.
