@@ -8,8 +8,9 @@ import {
   type CertStatus,
 } from '@/lib/certifications-logic'
 import { PERMISSIONS, PERMISSION_CODES } from '@/lib/permissions-catalog'
-import { getMyClassSignups } from '@/lib/actions'
+import { getMyClassSignups, getMyReservations } from '@/lib/actions'
 import { SIGNUP_STATUS_LABEL, SESSION_STATUS_LABEL } from '@/lib/classes-logic'
+import { RESERVATION_STATUS_LABEL } from '@/lib/equipment-logic'
 
 export const dynamic = 'force-dynamic'
 
@@ -90,6 +91,18 @@ export default async function MePage() {
   const classSignups: ClassSignup[] = 'data' in signupRes ? (signupRes.data as ClassSignup[]) : []
   const sessionOf = (cs: ClassSignup) =>
     Array.isArray(cs.class_sessions) ? cs.class_sessions[0] : cs.class_sessions
+
+  const reservationRes = await getMyReservations()
+  type Reservation = {
+    id: string
+    starts_at: string
+    ends_at: string
+    status: string
+    notes: string | null
+    equipment: { name: string; location: string | null } | { name: string; location: string | null }[] | null
+  }
+  const reservations: Reservation[] = 'data' in reservationRes ? (reservationRes.data as Reservation[]) : []
+  const equipOf = (r: Reservation) => (Array.isArray(r.equipment) ? r.equipment[0] : r.equipment)
   const titleOf = (cs: ClassSignup) => {
     const sess = sessionOf(cs)
     const c = sess ? (Array.isArray(sess.classes) ? sess.classes[0] : sess.classes) : null
@@ -206,6 +219,41 @@ export default async function MePage() {
                           {SESSION_STATUS_LABEL[sess.status] ?? sess.status}
                         </p>
                       )}
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </section>
+
+        <section>
+          <h2 className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-3">
+            My equipment reservations
+          </h2>
+          {reservations.length === 0 ? (
+            <p className="font-sans text-sm text-muted-foreground">
+              You have no reservations. Browse what you can reserve at{' '}
+              <a href="/equipment" className="text-primary underline">Equipment</a>.
+            </p>
+          ) : (
+            <ul className="divide-y rounded-lg border border-border">
+              {reservations.map(r => {
+                const eq = equipOf(r)
+                return (
+                  <li key={r.id} className="p-4 flex items-start justify-between gap-4 flex-wrap">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-sans text-sm font-semibold text-foreground">{eq?.name ?? 'Equipment'}</span>
+                        <Badge variant={r.status === 'reserved' ? 'default' : 'outline'}>
+                          {RESERVATION_STATUS_LABEL[r.status] ?? r.status}
+                        </Badge>
+                      </div>
+                      <p className="font-mono text-[10px] text-muted-foreground mt-1">
+                        {new Date(r.starts_at).toLocaleString()} – {new Date(r.ends_at).toLocaleString()}
+                        {eq?.location ? ` · ${eq.location}` : ''}
+                      </p>
+                      {r.notes && <p className="font-sans text-xs text-muted-foreground mt-0.5">{r.notes}</p>}
                     </div>
                   </li>
                 )

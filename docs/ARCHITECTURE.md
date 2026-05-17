@@ -420,7 +420,8 @@ Migrations 012-030 are tracked authoritatively in `docs/DATABASE_SCHEMA.md`
 customizable permissions + Ops ACLs, self-change hardening, `026`-`029` custom
 forms + waivers + onboarding form step + per-space form slug + invite roles,
 `030` certifications + Instructor capability, `031` secrets SELECT honors
-`ops.secrets.read`, `032` classes + sessions + signups).
+`ops.secrets.read`, `032` classes + sessions + signups, `033` equipment +
+reservations).
 
 ### Forms & waivers (migrations 026-029; complete Phases 1-5)
 
@@ -488,6 +489,26 @@ path, so it still requires the acting instructor to hold
 `certifications.grant`; otherwise completion succeeds and the result
 reports the certificates were skipped (no service-role bypass of the
 guarded certifications surface). No anonymous path.
+
+### Equipment (migration 033)
+
+`equipment` (registry; status available/maintenance/retired; optional
+`required_certification_id`; `is_active` archive) and
+`equipment_reservations` (member time-window reservation) back a tool
+reservation system. Pure logic in `lib/equipment-logic.ts`
+(`intervalsOverlap`, `hasConflict`, `reservationEligibility`), unit-tested.
+Server actions in `lib/actions/equipment.ts`. One additive permission,
+`equipment.manage` (registry CRUD + adjust/cancel any reservation, gates
+`/equipment/manage` via `lib/equipment-guard.ts`). Members reserve with
+only membership. `/equipment` is the member catalog (reserve), `/me` lists
+the member's own reservations. RLS is additive and default-deny: equipment
+readable by managers (all) or members (active only), reservations by
+managers (all) or the member (own) with manager-only UPDATE and **no
+INSERT/DELETE policy** so reserve/cancel funnels through one validated
+service-client action that enforces the equipment status, the no-overlap
+rule, and the required-certification gate (checked against the normal
+`member_certifications` data; an `equipment.manage` holder gets the
+override and may book on a member's behalf). No anonymous path.
 
 ---
 

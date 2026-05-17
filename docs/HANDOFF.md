@@ -4,6 +4,28 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-17 (pass 23) — Classes DEPLOYED; Equipment module (3) code-complete LOCAL
+
+Branch `main`. Classes module (pass-22) was deployed this pass (push `2096228`, Actions run 25979364584 success 1m? ; migration `032` applied; `/classes`, `/classes/manage`, `/me` smoke 307→login, not browser-verified). User then chose to continue the locked order → Equipment (module 3).
+
+### Equipment registry + reservations (locked module 3) — CODE-COMPLETE, LOCAL, 6 commits, NOT deployed
+Phase-by-phase, each gated (vitest + `pnpm build` read in-run) + own commit:
+- A: migration `033_equipment.sql` (`equipment`, `equipment_reservations`) mirrored in `schema.sql` (in-place seed fn + appended Section 20); `equipment.manage` perm (group Equipment) seeded+backfilled; types; DATABASE_SCHEMA/DB_SCHEMA_MAP. Additive default-deny RLS; reservations have SELECT (manage or own) + manager UPDATE, NO INSERT/DELETE (reserve/cancel via validated service-client action). No DB overlap constraint (no btree_gist dep) — overlap enforced in the action via pure logic.
+- B: pure `lib/equipment-logic.ts` (intervalsOverlap, hasConflict, reservationEligibility) + 9 tests (suite 391) + Zod.
+- C: `lib/actions/equipment.ts` (registry CRUD; listEquipmentForMembers w/ member_certified flag via service client; reserve/cancel validated service-client w/ status+overlap+required-cert, equipment.manage override + book-for-member; listEquipmentReservations; getMyReservations) + `lib/equipment-guard.ts` + barrel + API_REFERENCE.
+- D: `/equipment/manage` admin pages + sidebar Admin "Manage equipment".
+- E: `/equipment` member browse + reserve (cert gate shown up front) + sidebar member "Equipment".
+- F: "My equipment reservations" on `/me` + ARCHITECTURE + this entry.
+
+Cert-gate (user-approved): reserving cert-gated equipment requires an active `member_certifications` for the member; an `equipment.manage` holder overrides and may book on a member's behalf. Cert check reads `member_certifications` via the service client (boolean only) since a non-cert-permissioned equipment manager can't read it under RLS — no write/PII bypass of the guarded surface.
+
+### Open / not done
+- Equipment is LOCAL (6 commits). Awaiting deploy approval. After push: confirm `033` applied, board has `equipment.manage`, exercise add equipment (+ required cert) → member reserve (cert gate / overlap) → manager override → `/me`. NOT browser-verified.
+- Pure logic unit-tested; action orchestration (overlap/cert/override/RLS) NOT (same systemic no-mock-harness gap).
+- Roadmap remaining: module 4 Door epic (member_cards + configurable door integration + native HeatSync adapter + the universal API-call UI builder; largest/riskiest, design-first, do last). Cert/feature nav links for non-admin permission-holders still admin-block-only (known minor gap).
+
+---
+
 ## 2026-05-17 (pass 22) — Classes module (2) code-complete LOCAL; roadmap reaffirmed
 
 Branch `main`. Incident-INSERT RLS bug confirmed RESOLVED by the user (closed; see pass-21 note). User asked to continue the locked roadmap; chose Classes (module 2) next; reaffirmed the locked order (Certs done → Classes → Equipment → Door epic, which is where the "custom API-call UI builder" lives, module 4, design-first/last).
