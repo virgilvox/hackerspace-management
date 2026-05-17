@@ -4,6 +4,22 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-17 (pass 34) — BUGFIX: email linking ignored email-as-form-field; LOCAL, awaiting deploy
+
+Branch `main`. 1 commit `9f0ee18`. User report: re-link said "already linked" but submissions weren't showing under the member.
+
+Root cause: association only ever read the dedicated `submitter_email` (the public "your email" box, or the signed-in user's address). A form that collects email as an ordinary **email-type field** stored it in `answers`, so `submitter_email` stayed NULL → no match → `relinkAllSubmissions` updated 0 rows and toasted "already linked", and the submission never appeared under the member. Id plumbing was fine (all `space_members.id`); pure matching was the issue.
+
+Fix (suite 469, build clean):
+- New pure `deriveSubmitterEmail(fields, answers, explicit?)` (precedence: explicit valid email > first email-type field answer > any email-looking answer; trimmed+lowercased) + 5 tests.
+- `submitForm`: reordered so answers are validated first, then derives + persists `submitter_email` from the answers when no dedicated one — so new submissions populate it and all existing linking (addMember/updateMember/relink) works.
+- `relinkAllSubmissions`: now scans every unlinked submission, re-derives email from its `form_snapshot` + answers, matches the space email→earliest-member map, and backfills BOTH `member_id` and `submitter_email` — repairs existing broken rows.
+
+### Open
+- LOCAL & undeployed: pass-34 (1 commit). **Awaiting deploy approval** (no migration; app only). After deploy: hit "Re-link submissions" once to repair existing rows, then confirm the submission appears under the member's FORMS panel. Default remains ASK-before-deploy.
+
+---
+
 ## 2026-05-17 (pass 33) — Form/submission deletion + space-wide re-link (DEPLOYED, run 25984491717)
 
 Branch `main`. 4 commits `c4ae5d2..` (this entry). No migration, no browser verification here.
