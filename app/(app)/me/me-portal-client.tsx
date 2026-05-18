@@ -11,6 +11,7 @@ import { SIGNUP_STATUS_LABEL, SESSION_STATUS_LABEL } from '@/lib/classes-logic'
 import { RESERVATION_STATUS_LABEL } from '@/lib/equipment-logic'
 import { presenceStatus } from '@/lib/presence-logic'
 import { DuesCard } from '@/components/billing/dues-card'
+import { ProfileForm, type ProfileInitial } from './profile-form'
 
 const STATUS_VARIANT: Record<CertStatus, 'default' | 'outline'> = {
   active: 'default',
@@ -53,6 +54,7 @@ export type HeldPermission = { code: string; label: string }
 export type Billing = { status: string | null; currentPeriodEnd: string | null; hasCustomer: boolean } | null
 
 type Props = {
+  profile: ProfileInitial
   grants: Grant[]
   held: HeldPermission[]
   billing: Billing
@@ -66,6 +68,7 @@ type Props = {
 const sectionH = 'font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-3'
 
 export function MePortalClient({
+  profile,
   grants,
   held,
   billing,
@@ -94,6 +97,11 @@ export function MePortalClient({
         </TabsList>
 
         <TabsContent value="profile" className="space-y-8">
+          <section>
+            <h2 className={sectionH}>Profile</h2>
+            <ProfileForm initial={profile} />
+          </section>
+
           <section>
             <h2 className={sectionH}>My permissions</h2>
             {held.length === 0 ? (

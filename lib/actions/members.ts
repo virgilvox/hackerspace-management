@@ -166,6 +166,7 @@ export async function updateMyProfile(updates: {
   display_name?: string
   handle?: string | null
   phone?: string | null
+  bio?: string | null
   skills?: string[]
   interests?: string[]
   willing_to?: string[]

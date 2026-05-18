@@ -24,11 +24,24 @@ export default async function MePage() {
 
   const { data: member } = await supabase
     .from('space_members')
-    .select('id, space_id, role, display_name')
+    .select(
+      'id, space_id, role, display_name, handle, phone, bio, skills, interests, willing_to, affiliations',
+    )
     .eq('user_id', user.id)
     .in('status', ['current', 'unverified', 'late'])
     .maybeSingle()
   if (!member) redirect('/signup')
+
+  const profile = {
+    display_name: (member.display_name as string | null) ?? '',
+    handle: (member.handle as string | null) ?? '',
+    phone: (member.phone as string | null) ?? '',
+    bio: (member.bio as string | null) ?? '',
+    skills: (member.skills as string[] | null) ?? [],
+    interests: (member.interests as string[] | null) ?? [],
+    willing_to: (member.willing_to as string[] | null) ?? [],
+    affiliations: (member.affiliations as string[] | null) ?? [],
+  }
 
   const { data: grantsRaw } = await supabase
     .from('member_certifications')
@@ -91,6 +104,7 @@ export default async function MePage() {
       </PageHeader>
 
       <MePortalClient
+        profile={profile}
         grants={grants}
         held={held}
         billing={billing}
