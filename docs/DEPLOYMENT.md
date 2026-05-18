@@ -64,6 +64,20 @@ Transactional email is an outbox drained by `POST /api/cron/notifications`. Add 
 
 It hits the app locally (bypassing Caddy), self-throttles under Resend's rate limit, and is idempotent, so a missed or overlapping minute is harmless. Migration `041_notifications.sql` is applied automatically by `deploy.sh` like every other `scripts/0*.sql`; no manual database step.
 
+### Member email change (Supabase Auth config — required)
+
+The self-serve "change my login email" feature (`/me` Profile tab) needs Supabase project configuration that is NOT in code. Until this is set, requesting an email change will send a link that does not land correctly.
+
+1. Authentication → URL Configuration: add `{APP_URL}/auth/confirm` to the redirect allowlist (alongside the existing `/auth/callback`).
+2. Authentication → Providers → Email: keep **"Secure email change"** enabled (double confirm: both old and new address must verify).
+3. Authentication → Email Templates → "Change Email Address": point the link at the confirm route with the recovery-style token, not the OAuth code flow:
+
+```
+<a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email_change">Confirm this email change</a>
+```
+
+With Secure email change on, Supabase sends this to both the old and new address; each link hits `/auth/confirm`, which `verifyOtp`s and (post-verification only) syncs the denormalized `space_members.email`. Email delivery uses the project's configured SMTP (or Supabase built-in if none); production should use a real SMTP provider.
+
 ## Operational checklist
 
 - Monitor `/var/log/hackerspace-deploy.log` for deploy outcomes.

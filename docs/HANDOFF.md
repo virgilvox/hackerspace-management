@@ -4,6 +4,30 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-18 (pass 48) — Product spine Phase 3: member self-serve portal (LOCAL, awaiting one reviewed deploy)
+
+Branch `main`. Built Phase 3 (tabbed self-serve portal), gated per sub-phase. Suite 521, build clean. NOT deployed.
+
+### Shipped (commits 5a72832, ef210c9, 6189e20, 2c847be, 5edd778, + this docs)
+- **P3a** `/me` restructured into a 3-tab portal (Profile / Membership / Activity). Server page fetches; `me-portal-client.tsx` renders. Read-only sections moved verbatim, no behavior change.
+- **P3b** Inline profile editing (Profile tab) via existing `updateMyProfile` + `discloseAffiliations`; affiliations re-disclosed only when changed. Added `bio` to the `updateMyProfile` param type (schema/column already supported it).
+- **P3c** Self-serve Cancel for registered/waitlisted class signups + reserved equipment reservations via existing actions (`CancelAction` = AlertDialog + toast + refresh). Server-side ownership/scoping unchanged.
+- **P3d** `getMyPayments` (service-client self-view, treasurer-scoped RLS, strictly caller-scoped) + read-only list in Membership tab.
+- **P3e** Self-service email change: `requestEmailChange` -> `supabase.auth.updateUser` (Secure email change = double confirm); new `GET /auth/confirm` `verifyOtp(email_change)` + post-verification sync of denormalized `space_members.email`; `proxy.ts` whitelists `/auth/confirm` (exact). Profile-tab UI.
+- **P3f** Docs (API_REFERENCE, ARCHITECTURE Phase 3 section, DEPLOYMENT email-change config) + this entry.
+
+### Owner action required (P3e is inert until done) — Supabase project config
+- Auth → URL Configuration: add `{APP_URL}/auth/confirm` to the redirect allowlist.
+- Auth → Providers → Email: keep "Secure email change" ON.
+- Auth → Email Templates → "Change Email Address": link to `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email_change` (NOT the default code-flow link). Full steps in docs/DEPLOYMENT.md.
+
+### State
+- **Not deployed.** P3a-f committed locally; awaiting one reviewed deploy. Still unpushed before this: pass-46 + this/earlier docs. UI not browser-tested from here (typecheck/build only).
+- Behavior-preserving for existing read-only views; new: profile edit, cancels, my-payments, email change (email change needs the Supabase config above to function).
+- Deferred (from the pass-47 audit, still open): P2 polish items + P3 doc cross-ref + optional CI guards.
+
+---
+
 ## 2026-05-18 (pass 47) — Full-codebase audit + P1 remediation pass (LOCAL, awaiting one reviewed deploy)
 
 Branch `main`. Ran a 4-agent read-only audit (server actions, DB/RLS/types, security, architecture/drift). Verdict: strong codebase, zero P0, no cross-tenant leaks/RLS gaps/injection/secret-to-client. Then fixed all P1s, gated per sub-phase. Suite 521, build clean.

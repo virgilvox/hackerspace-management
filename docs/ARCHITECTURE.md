@@ -667,6 +667,10 @@ admin/board/treasurer, no client write policy; the member self-view
 (`getMyNotifications`, surfaced on `/me`) is a validated action. The
 droplet's crontab POSTs once a minute. No new permission code.
 
+### Member self-serve portal (`/me`; product spine Phase 3)
+
+`/me` is a 3-tab portal (Profile / Membership / Activity). The server page does all data fetching and passes plain data to a single client portal component (`me-portal-client.tsx`) that owns tab state and rendering; the read-only sections were moved verbatim from the prior flat page (no behavior change in the shell). Profile editing and inline cancels reuse existing server actions (`updateMyProfile`, `discloseAffiliations`, `cancelMySignup`, `cancelReservation`) — no new mutation surface, server-side ownership/space scoping unchanged. `getMyPayments` follows the established service-client self-view convention (treasurer-scoped RLS, strictly scoped to the caller). Self-service email change goes through Supabase Auth (`updateUser` + `/auth/confirm` `verifyOtp`); the denormalized `space_members.email` is synced only post-verification. The email-change flow depends on Supabase project config (template + redirect allowlist; see DEPLOYMENT) and is inert until that is set. No new permission code, no schema change.
+
 ---
 
 ## 13. Known Limitations
