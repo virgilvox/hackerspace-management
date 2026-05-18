@@ -14,7 +14,9 @@ const PUBLIC_ROUTES = [
   '/join',
   // Public anonymous-incident status lookup by reporter token.
   '/track',
-  '/auth',
+  // Only the OAuth callback is anonymous; scope to the exact route so a
+  // future /auth/* page is not silently public.
+  '/auth/callback',
   '/api/health',
   // Stripe calls this unauthenticated; it is verified by the per-space
   // webhook signature, not a session. Must NOT be redirected to /login
@@ -23,7 +25,9 @@ const PUBLIC_ROUTES = [
   '/api/stripe/webhook',
   // The notification dispatcher is hit by the droplet's crontab (no
   // session); it enforces its own CRON_SECRET shared-secret header.
-  '/api/cron',
+  // Scoped to the exact route so a future /api/cron/* without its own
+  // secret is not exposed.
+  '/api/cron/notifications',
   // Public form / waiver fill page. Only /f/[slug] lives here and must be
   // reachable anonymously (the page serves only published public forms and
   // submitForm enforces visibility). The /forms* management routes do NOT
