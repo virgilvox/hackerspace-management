@@ -22,7 +22,7 @@ Branch `main`. Built Phase 3 (tabbed self-serve portal), gated per sub-phase. Su
 - Auth → Email Templates → "Change Email Address": link to `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email_change` (NOT the default code-flow link). Full steps in docs/DEPLOYMENT.md.
 
 ### State
-- **Not deployed.** P3a-f committed locally; awaiting one reviewed deploy. Still unpushed before this: pass-46 + this/earlier docs. UI not browser-tested from here (typecheck/build only).
+- **DEPLOYED** (run 26066604148, HEAD 83ff54b, success). Smoke clean: `/` `/login` 200; `/me` `/dashboard` 307 (member-gated); `/auth/confirm` + `/auth/callback` 307 (own no-token redirects, whitelisted); Stripe webhook 400 (money path intact). Portal UI itself behind member auth — NOT browser-tested (typecheck/build only); needs a logged-in click-through.
 - Behavior-preserving for existing read-only views; new: profile edit, cancels, my-payments, email change (email change needs the Supabase config above to function).
 - Deferred (from the pass-47 audit, still open): P2 polish items + P3 doc cross-ref + optional CI guards.
 
