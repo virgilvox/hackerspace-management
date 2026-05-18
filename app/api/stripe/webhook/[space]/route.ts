@@ -14,6 +14,15 @@ import { getStripe } from '@/lib/stripe/client'
 import { getStripeConfig, readStripeSecret } from '@/lib/stripe/config'
 import { duesMemberStatus, graceExceeded } from '@/lib/stripe-logic'
 import {
+  customerIdOf,
+  subscriptionPeriodEnd,
+  invoiceMetadataMemberId,
+  invoiceLinePeriodEnd,
+  memberStatusPatch,
+  stripeInvoiceToPaymentRow,
+  minorToMajor,
+} from '@/lib/stripe/webhook-logic'
+import {
   renderDuesEmail,
   duesDedupeKey,
   type DuesNotificationType,
@@ -21,10 +30,6 @@ import {
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
-
-function isoFromUnix(s: number | null | undefined): string | null {
-  return typeof s === 'number' && s > 0 ? new Date(s * 1000).toISOString() : null
-}
 
 export async function POST(
   req: NextRequest,
@@ -182,19 +187,13 @@ export async function POST(
   }
 
   async function applySubscription(sub: Stripe.Subscription) {
-    const customerId = typeof sub.customer === 'string' ? sub.customer : sub.customer?.id ?? null
+    const customerId = customerIdOf(sub.customer)
     const memberId = await resolveMemberId(
       (sub.metadata?.member_id as string | undefined) || undefined,
       customerId,
     )
     if (!memberId) return
-    // API 2026-04-22.dahlia (Basil 2025-03-31): the billing period moved off
-    // the top-level Subscription onto each subscription item. Dues are a
-    // single-price subscription, so item 0 carries the period end.
-    const periodEnd = isoFromUnix(
-      (sub.items?.data?.[0] as unknown as { current_period_end?: number } | undefined)
-        ?.current_period_end,
-    )
+    const periodEnd = subscriptionPeriodEnd(sub)
 
     await admin.from('member_billing').upsert(
       {
@@ -210,11 +209,10 @@ export async function POST(
     )
 
     const desired = duesMemberStatus(sub.status, graceExceeded(periodEnd, graceDays))
-    if (desired) {
+    const patch = memberStatusPatch(desired, new Date().toISOString())
+    if (patch) {
       // Only move between current<->late; never resurrect inactive or
       // auto-approve unverified via billing.
-      const patch: Record<string, unknown> = { status: desired }
-      if (desired === 'current') patch.last_paid_at = new Date().toISOString()
       await admin
         .from('space_members')
         .update(patch)
@@ -251,16 +249,8 @@ export async function POST(
       // for the same invoice — handling both would double the ledger).
       case 'invoice.paid': {
         const inv = event.data.object as Stripe.Invoice
-        const customerId = typeof inv.customer === 'string' ? inv.customer : inv.customer?.id ?? null
-        // API 2026-04-22.dahlia (Basil): invoice subscription + its metadata
-        // moved under invoice.parent.subscription_details.
-        const invParent = (inv as unknown as {
-          parent?: { subscription_details?: { metadata?: Record<string, string> } }
-        }).parent
-        const memberId = await resolveMemberId(
-          invParent?.subscription_details?.metadata?.member_id || undefined,
-          customerId,
-        )
+        const customerId = customerIdOf(inv.customer)
+        const memberId = await resolveMemberId(invoiceMetadataMemberId(inv), customerId)
         // Ledger idempotency: invoice.paid + a retry are distinct event ids
         // but the same invoice; never double-record one charge.
         const { data: dupe } = await admin
@@ -271,21 +261,15 @@ export async function POST(
           .eq('external_id', inv.id)
           .maybeSingle()
         if (!dupe) {
-          await admin.from('payments').insert({
-            space_id: spaceId,
-            member_id: memberId,
-            platform: 'stripe',
-            amount: (inv.amount_paid ?? 0) / 100,
-            currency: (inv.currency ?? 'usd').toUpperCase(),
-            description: inv.description ?? 'Stripe membership dues',
-            status: memberId ? 'linked' : 'unlinked',
-            link_status: memberId ? 'linked' : 'unlinked',
-            external_id: inv.id,
-            payer_email: inv.customer_email ?? null,
-            from_identifier: inv.customer_email ?? null,
-            transaction_date: new Date().toISOString(),
-            raw_data: { event_id: event.id, invoice: inv.id },
-          })
+          await admin.from('payments').insert(
+            stripeInvoiceToPaymentRow({
+              inv,
+              spaceId,
+              memberId,
+              eventId: event.id,
+              nowIso: new Date().toISOString(),
+            }),
+          )
         }
         if (memberId) {
           await admin
@@ -295,17 +279,12 @@ export async function POST(
             .eq('space_id', spaceId)
             .in('status', ['current', 'late'])
         }
-        const paidPeriodEnd = isoFromUnix(
-          (inv as unknown as {
-            lines?: { data?: Array<{ period?: { end?: number } }> }
-          }).lines?.data?.[0]?.period?.end,
-        )
         await enqueueDues('dues_renewed', {
           memberId,
           fallbackEmail: inv.customer_email ?? null,
-          amount: (inv.amount_paid ?? 0) / 100,
+          amount: minorToMajor(inv.amount_paid),
           currency: (inv.currency ?? 'usd').toUpperCase(),
-          periodEnd: paidPeriodEnd,
+          periodEnd: invoiceLinePeriodEnd(inv),
           invoiceId: inv.id,
         })
         break
@@ -315,18 +294,14 @@ export async function POST(
       // updated (status past_due past grace) through applySubscription.
       case 'invoice.payment_failed': {
         const inv = event.data.object as Stripe.Invoice
-        const customerId = typeof inv.customer === 'string' ? inv.customer : inv.customer?.id ?? null
-        const invParent = (inv as unknown as {
-          parent?: { subscription_details?: { metadata?: Record<string, string> } }
-        }).parent
         const memberId = await resolveMemberId(
-          invParent?.subscription_details?.metadata?.member_id || undefined,
-          customerId,
+          invoiceMetadataMemberId(inv),
+          customerIdOf(inv.customer),
         )
         await enqueueDues('dues_payment_failed', {
           memberId,
           fallbackEmail: inv.customer_email ?? null,
-          amount: (inv.amount_due ?? 0) / 100,
+          amount: minorToMajor(inv.amount_due),
           currency: (inv.currency ?? 'usd').toUpperCase(),
           invoiceId: inv.id,
         })
