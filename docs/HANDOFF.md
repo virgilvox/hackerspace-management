@@ -4,6 +4,29 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-18 (pass 47) — Full-codebase audit + P1 remediation pass (LOCAL, awaiting one reviewed deploy)
+
+Branch `main`. Ran a 4-agent read-only audit (server actions, DB/RLS/types, security, architecture/drift). Verdict: strong codebase, zero P0, no cross-tenant leaks/RLS gaps/injection/secret-to-client. Then fixed all P1s, gated per sub-phase. Suite 521, build clean.
+
+### Audit summary
+- Server-action layer: ~120 actions all validate->auth->scope with universal space_id; no P0/P1.
+- DB/RLS/types: 46 tables RLS-protected, idempotent, zero schema/migration/types drift.
+- Security: defense-in-depth solid; findings were the P1s below.
+- Architecture: logic-extraction+Vitest near-universal; gap was the two payment routes.
+
+### Remediation (commits 504586f, 0306157, 75686c0, b8edd77)
+- **R1** PayPal/integration secrets -> AES-256-GCM vault. New `lib/secrets/vault.ts` (canonical generic store/read + `isSecretConfigField`); `saveIntegration` vaults secret-named fields, keeps only `*_ref`, blank submit preserves ref, legacy plaintext auto-migrates on next save; PayPal route reads from vault with transitional plaintext fallback. The lone plaintext-credential path closed.
+- **R2** Extracted the Stripe webhook's money/status logic (Basil relocations, period/customer extraction, status patch, invoice->payment row) to pure `lib/stripe/webhook-logic.ts` + 12 tests; route now I/O-only. The biggest untested critical path, now covered.
+- **R3** Extracted PayPal sync mapping/dedupe to pure `lib/paypal-logic.ts` + 7 tests; route uses `requireMemberWithRole`; fixed a latent throw on missing/invalid PayPal date.
+- **R4** Narrowed `proxy.ts` public prefixes to exact paths (`/auth/callback`, `/api/cron/notifications`).
+
+### State
+- **Not deployed.** R1-R4 + this pass committed locally; awaiting one reviewed deploy decision. Also still unpushed: pass-44 + pass-46 docs commits.
+- Behavior-preserving except R1 (PayPal secret now vaulted; existing integrations keep working via fallback and self-migrate on next Settings save) and R4 (tighter public routing).
+- Deferred (HANDOFF-tracked, from audit): P2s (members.ts self-update space_id belt-and-suspenders, ops/comms client-direct writes -> server actions, door SSRF resolve-IP recheck, pin zod/@supabase, loading/error UX convention, mutation return-shape standardization), P3 doc cross-ref, optional CI guards. Next planned feature work: Product spine Phase 3 (member self-serve portal).
+
+---
+
 ## 2026-05-17 (pass 46) — Phase 2 EXTREME AUDIT: NOT-SAFE verdict, P1s fixed (LOCAL, still awaiting deploy)
 
 Branch `main`. Owner asked for an extreme audit before deploy. Ran an independent code audit + self-audit + web re-verify of Resend idempotency semantics. Verdict was **NOT SAFE as-is**; all findings fixed. Suite 499, build clean.
