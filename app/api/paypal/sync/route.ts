@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { readSecret } from '@/lib/secrets/vault'
 
 // PayPal Transaction Search API (v1)
 // Docs: https://developer.paypal.com/docs/api/transaction-search/v1/
@@ -72,7 +74,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'PayPal not connected' }, { status: 400 })
   }
 
-  const { client_id, client_secret, sandbox } = integration.config as Record<string, string>
+  const cfg = integration.config as Record<string, string>
+  const { client_id, sandbox } = cfg
+  // client_secret lives in the AES-256-GCM vault (referenced by client_secret_ref).
+  // Legacy fallback: integrations saved before vaulting still have a plaintext
+  // client_secret; it is auto-migrated on the next save in Settings.
+  const client_secret = cfg.client_secret_ref
+    ? await readSecret(createAdminClient(), member.space_id, cfg.client_secret_ref)
+    : (cfg.client_secret ?? null)
   if (!client_id || !client_secret) {
     return NextResponse.json({ error: 'PayPal credentials incomplete' }, { status: 400 })
   }

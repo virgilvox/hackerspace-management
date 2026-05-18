@@ -396,10 +396,10 @@ The admin client (`SUPABASE_SERVICE_ROLE_KEY`) is used ONLY for:
 
 ### 10.3 Secrets Storage
 
-Integration credentials stored in `integrations.config` (JSONB):
-- Values stored with `_set` indicators
-- UI shows masked values
-- Consider encryption at rest for production
+Integration credentials:
+- Secret-named fields (`client_secret`, `*_secret`, `api_key`, `secret_key`) are encrypted at rest in the AES-256-GCM secrets vault (`lib/secrets/vault.ts`, same vault Stripe + door use); only a `<field>_ref` id is kept in `integrations.config`. Server-side decrypt only, never returned to the client.
+- Non-secret fields stored in `integrations.config` (JSONB) with `_set` indicators; UI shows connected state via the flags, never the value.
+- Legacy plaintext secrets (pre-vault) are auto-migrated into the vault on the next `saveIntegration`.
 
 ---
 

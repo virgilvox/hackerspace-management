@@ -682,6 +682,7 @@ async function saveIntegration(
 **Behavior**:
 - Upserts on `(space_id, platform)`
 - Stores config with `_set` indicators for each field
+- Secret-named fields (`client_secret`, `*_secret`, `api_key`, `secret_key`) are NEVER stored in `integrations.config` in plaintext: they go to the AES-256-GCM secrets vault and only a `<field>_ref` id is kept (same vault Stripe/door use). A blank submit preserves the existing ref (write-only, like Stripe); any legacy plaintext secret already on file is auto-migrated into the vault on the next save. The PayPal sync route reads `client_secret` from the vault (with a transitional fallback to legacy plaintext until the next save).
 
 ---
 
