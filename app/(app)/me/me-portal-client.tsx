@@ -12,6 +12,8 @@ import { RESERVATION_STATUS_LABEL } from '@/lib/equipment-logic'
 import { presenceStatus } from '@/lib/presence-logic'
 import { DuesCard } from '@/components/billing/dues-card'
 import { ProfileForm, type ProfileInitial } from './profile-form'
+import { CancelAction } from './cancel-action'
+import { cancelMySignup, cancelReservation } from '@/lib/actions'
 
 const STATUS_VARIANT: Record<CertStatus, 'default' | 'outline'> = {
   active: 'default',
@@ -35,8 +37,8 @@ export type ClassSignup = {
   attended: boolean
   signed_up_at: string
   class_sessions:
-    | { starts_at: string; ends_at: string | null; location: string | null; status: string; classes: { title: string } | { title: string }[] | null }
-    | { starts_at: string; ends_at: string | null; location: string | null; status: string; classes: { title: string } | { title: string }[] | null }[]
+    | { id: string; starts_at: string; ends_at: string | null; location: string | null; status: string; classes: { title: string } | { title: string }[] | null }
+    | { id: string; starts_at: string; ends_at: string | null; location: string | null; status: string; classes: { title: string } | { title: string }[] | null }[]
     | null
 }
 export type Reservation = {
@@ -235,6 +237,14 @@ export function MePortalClient({
                           </p>
                         )}
                       </div>
+                      {sess && (cs.status === 'registered' || cs.status === 'waitlisted') && (
+                        <CancelAction
+                          title="Cancel signup?"
+                          description={`Cancel your spot in ${titleOf(cs)}? If a seat frees up, the next waitlisted member is promoted.`}
+                          successMessage="Signup cancelled."
+                          action={() => cancelMySignup({ sessionId: sess.id })}
+                        />
+                      )}
                     </li>
                   )
                 })}
@@ -268,6 +278,14 @@ export function MePortalClient({
                         </p>
                         {r.notes && <p className="font-sans text-xs text-muted-foreground mt-0.5">{r.notes}</p>}
                       </div>
+                      {r.status === 'reserved' && (
+                        <CancelAction
+                          title="Cancel reservation?"
+                          description={`Cancel your reservation for ${eq?.name ?? 'this equipment'}? The slot will be freed for others.`}
+                          successMessage="Reservation cancelled."
+                          action={() => cancelReservation({ reservationId: r.id })}
+                        />
+                      )}
                     </li>
                   )
                 })}
