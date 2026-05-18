@@ -26,7 +26,7 @@ export default async function MePage() {
   const { data: member } = await supabase
     .from('space_members')
     .select(
-      'id, space_id, role, display_name, handle, phone, bio, skills, interests, willing_to, affiliations',
+      'id, space_id, role, email, display_name, handle, phone, bio, skills, interests, willing_to, affiliations',
     )
     .eq('user_id', user.id)
     .in('status', ['current', 'unverified', 'late'])
@@ -34,6 +34,7 @@ export default async function MePage() {
   if (!member) redirect('/signup')
 
   const profile = {
+    email: (member.email as string | null) ?? '',
     display_name: (member.display_name as string | null) ?? '',
     handle: (member.handle as string | null) ?? '',
     phone: (member.phone as string | null) ?? '',

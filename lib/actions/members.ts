@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { headers } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { linkSubmissionsByEmail } from './forms'
@@ -16,6 +17,7 @@ import {
   updateMemberSchema,
   updateMyProfileSchema,
   discloseAffiliationsSchema,
+  emailChangeSchema,
   uuidSchema,
   bulkMemberIdsSchema,
 } from '@/lib/validations'
@@ -216,6 +218,40 @@ export async function discloseAffiliations(formData: { affiliations: string[] })
   await logActivity(supabase, member, 'disclosed', 'coi', member.id)
 
   revalidatePath('/members')
+  return { success: true as const }
+}
+
+/**
+ * Member-initiated change of their own login email. Calls Supabase Auth
+ * updateUser; with "Secure email change" on (recommended) Supabase emails
+ * both the old and new address and the change only applies after both links
+ * are verified at /auth/confirm. The denormalized space_members.email is
+ * synced there, post-verification, never here.
+ *
+ * Requires Supabase project config: the "Change Email Address" template must
+ * link to {origin}/auth/confirm?token_hash={{ .TokenHash }}&type=email_change
+ * and that URL must be in the redirect allowlist (see docs/DEPLOYMENT.md).
+ */
+export async function requestEmailChange(input: { email: string }) {
+  const v = parseInput(emailChangeSchema, input)
+  if (!v.ok) return { error: v.error }
+
+  const supabase = await createClient()
+  const auth = await requireMember(supabase)
+  if (!auth.ok) return { error: auth.error }
+
+  const h = await headers()
+  const host = h.get('x-forwarded-host') ?? h.get('host')
+  const proto = h.get('x-forwarded-proto') ?? 'https'
+  const origin = host
+    ? `${proto}://${host}`
+    : process.env.NEXT_PUBLIC_APP_URL || 'https://hackerspace.sh'
+
+  const { error } = await supabase.auth.updateUser(
+    { email: v.data.email },
+    { emailRedirectTo: `${origin}/auth/confirm` },
+  )
+  if (error) return { error: error.message }
   return { success: true as const }
 }
 

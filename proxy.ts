@@ -14,9 +14,11 @@ const PUBLIC_ROUTES = [
   '/join',
   // Public anonymous-incident status lookup by reporter token.
   '/track',
-  // Only the OAuth callback is anonymous; scope to the exact route so a
+  // Only the OAuth callback + email-change confirm are anonymous (the link
+  // is clicked from an email, no session); scope to exact routes so a
   // future /auth/* page is not silently public.
   '/auth/callback',
+  '/auth/confirm',
   '/api/health',
   // Stripe calls this unauthenticated; it is verified by the per-space
   // webhook signature, not a session. Must NOT be redirected to /login

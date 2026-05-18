@@ -327,6 +327,10 @@ export const updatePolicyStatusSchema = z.object({
 
 // ─── Member self-profile and COI ─────────────────────────────────────────────
 
+export const emailChangeSchema = z.object({
+  email: z.string().email('Enter a valid email address').max(254),
+})
+
 export const updateMyProfileSchema = z.object({
   display_name: z.string().min(1).max(100).optional(),
   handle: z.string().max(50).optional().nullable(),

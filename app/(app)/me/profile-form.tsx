@@ -7,9 +7,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { updateMyProfile, discloseAffiliations } from '@/lib/actions'
+import { updateMyProfile, discloseAffiliations, requestEmailChange } from '@/lib/actions'
 
 export type ProfileInitial = {
+  email: string
   display_name: string
   handle: string
   phone: string
@@ -28,6 +29,8 @@ const sameList = (a: string[], b: string[]) =>
 export function ProfileForm({ initial }: { initial: ProfileInitial }) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
+  const [emailBusy, setEmailBusy] = useState(false)
+  const [newEmail, setNewEmail] = useState('')
   const [displayName, setDisplayName] = useState(initial.display_name)
   const [handle, setHandle] = useState(initial.handle)
   const [phone, setPhone] = useState(initial.phone)
@@ -71,7 +74,21 @@ export function ProfileForm({ initial }: { initial: ProfileInitial }) {
     router.refresh()
   }
 
+  async function changeEmail() {
+    const e = newEmail.trim()
+    if (!e) return toast.error('Enter the new email address.')
+    setEmailBusy(true)
+    const res = await requestEmailChange({ email: e })
+    setEmailBusy(false)
+    if ('error' in res && res.error) return toast.error(res.error)
+    setNewEmail('')
+    toast.success(
+      'Confirmation sent. Check BOTH your current and new email to finish the change.',
+    )
+  }
+
   return (
+   <div className="space-y-4">
     <div className="bg-card rounded border border-border p-4 space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
@@ -118,5 +135,36 @@ export function ProfileForm({ initial }: { initial: ProfileInitial }) {
         </Button>
       </div>
     </div>
+
+    <div className="bg-card rounded border border-border p-4 space-y-3">
+      <div>
+        <p className="font-sans text-sm font-medium text-foreground">Login email</p>
+        <p className="font-mono text-[10px] text-muted-foreground mt-0.5">
+          {initial.email || 'not set'}
+        </p>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label htmlFor="pf-email">New email</Label>
+          <Input
+            id="pf-email"
+            type="email"
+            value={newEmail}
+            onChange={e => setNewEmail(e.target.value)}
+            maxLength={254}
+            placeholder="new@email.com"
+          />
+        </div>
+      </div>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <p className="font-sans text-xs text-muted-foreground">
+          You must confirm via links sent to both your current and new address.
+        </p>
+        <Button size="sm" variant="outline" disabled={emailBusy} onClick={changeEmail}>
+          {emailBusy ? 'Sending…' : 'Change email'}
+        </Button>
+      </div>
+    </div>
+   </div>
   )
 }
