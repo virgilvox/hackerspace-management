@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { PageHeader, PageTitle } from '@/components/ui/page-title'
 import { PERMISSIONS, PERMISSION_CODES } from '@/lib/permissions-catalog'
-import { getMyClassSignups, getMyReservations, getMyCards, getMyVisits, getMyBilling, getMyNotifications } from '@/lib/actions'
+import { getMyClassSignups, getMyReservations, getMyCards, getMyVisits, getMyBilling, getMyNotifications, getMyPayments } from '@/lib/actions'
 import {
   MePortalClient,
   type Grant,
@@ -11,6 +11,7 @@ import {
   type MyCard,
   type MyVisit,
   type MyNotif,
+  type MyPayment,
 } from './me-portal-client'
 
 export const dynamic = 'force-dynamic'
@@ -97,6 +98,9 @@ export default async function MePage() {
   const notifsRes = await getMyNotifications()
   const notifs: MyNotif[] = 'data' in notifsRes ? (notifsRes.data as MyNotif[]) : []
 
+  const paymentsRes = await getMyPayments()
+  const payments: MyPayment[] = 'data' in paymentsRes ? (paymentsRes.data as MyPayment[]) : []
+
   return (
     <>
       <PageHeader>
@@ -108,6 +112,7 @@ export default async function MePage() {
         grants={grants}
         held={held}
         billing={billing}
+        payments={payments}
         notifs={notifs}
         classSignups={classSignups}
         reservations={reservations}

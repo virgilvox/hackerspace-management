@@ -2,7 +2,9 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import {
+  requireMember,
   requireMemberWithRole,
   logActivity,
   parseInput,
@@ -155,4 +157,38 @@ export async function importPaymentsCsv(rows: unknown) {
   revalidatePath('/payments')
   revalidatePath('/dashboard')
   return { data, count: data.length, skipped }
+}
+
+// The caller's own payment history. `payments` SELECT is treasurer-scoped
+// (RLS), so the member self-view goes through the validated service client,
+// strictly scoped to their own space_id + member_id (same convention as
+// getMyBilling / getMyNotifications).
+export async function getMyPayments() {
+  const supabase = await createClient()
+  const auth = await requireMember(supabase)
+  if (!auth.ok) return { error: auth.error }
+  const { member } = auth
+
+  const { data } = await createAdminClient()
+    .from('payments')
+    .select('id, amount, currency, platform, description, status, transaction_date, payment_date, created_at')
+    .eq('space_id', member.space_id)
+    .eq('member_id', member.id)
+    .order('transaction_date', { ascending: false, nullsFirst: false })
+    .limit(50)
+
+  return {
+    data: (data ?? []).map(p => ({
+      id: p.id as string,
+      amount: p.amount as number,
+      currency: (p.currency as string | null) ?? 'USD',
+      platform: p.platform as string,
+      description: (p.description as string | null) ?? null,
+      status: p.status as string,
+      date:
+        (p.transaction_date as string | null) ??
+        (p.payment_date as string | null) ??
+        (p.created_at as string),
+    })),
+  }
 }

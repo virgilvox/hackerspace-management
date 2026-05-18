@@ -52,6 +52,7 @@ export type Reservation = {
 export type MyCard = { id: string; card_type: string; label: string | null; is_active: boolean; last4: string }
 export type MyVisit = { id: string; checked_in_at: string; checked_out_at: string | null; is_host: boolean; check_in_note: string | null; check_out_note: string | null }
 export type MyNotif = { id: string; type: string; subject: string; status: string; createdAt: string; sentAt: string | null }
+export type MyPayment = { id: string; amount: number; currency: string; platform: string; description: string | null; status: string; date: string }
 export type HeldPermission = { code: string; label: string }
 export type Billing = { status: string | null; currentPeriodEnd: string | null; hasCustomer: boolean } | null
 
@@ -60,6 +61,7 @@ type Props = {
   grants: Grant[]
   held: HeldPermission[]
   billing: Billing
+  payments: MyPayment[]
   notifs: MyNotif[]
   classSignups: ClassSignup[]
   reservations: Reservation[]
@@ -74,6 +76,7 @@ export function MePortalClient({
   grants,
   held,
   billing,
+  payments,
   notifs,
   classSignups,
   reservations,
@@ -133,6 +136,32 @@ export function MePortalClient({
           <section>
             <h2 className={sectionH}>Dues</h2>
             <DuesCard billing={billing} />
+          </section>
+
+          <section>
+            <h2 className={sectionH}>My payments</h2>
+            {payments.length === 0 ? (
+              <p className="font-sans text-sm text-muted-foreground">
+                No payments recorded for you yet.
+              </p>
+            ) : (
+              <ul className="divide-y rounded-lg border border-border">
+                {payments.map(p => (
+                  <li key={p.id} className="p-4 flex items-start justify-between gap-4 flex-wrap">
+                    <div className="min-w-0">
+                      <span className="font-sans text-sm font-semibold text-foreground">
+                        {p.currency} {p.amount.toFixed(2)}
+                      </span>
+                      <p className="font-mono text-[10px] text-muted-foreground mt-1">
+                        {new Date(p.date).toLocaleDateString()} · {p.platform}
+                        {p.description ? ` · ${p.description}` : ''}
+                      </p>
+                    </div>
+                    <Badge variant={p.status === 'linked' ? 'default' : 'outline'}>{p.status}</Badge>
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
 
           <section>
