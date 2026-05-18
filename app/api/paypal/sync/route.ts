@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { readSecret } from '@/lib/secrets/vault'
+import { requireMemberWithRole } from '@/lib/auth-helpers'
+import {
+  mapPayPalTransactions,
+  filterUnseenByExternalId,
+  externalIdsOf,
+} from '@/lib/paypal-logic'
 
 // PayPal Transaction Search API (v1)
 // Docs: https://developer.paypal.com/docs/api/transaction-search/v1/
@@ -53,14 +59,13 @@ async function fetchPayPalTransactions(
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const { data: member } = await supabase
-    .from('space_members').select('space_id, role').eq('user_id', user.id).in('status', ['current', 'unverified', 'late']).single()
-  if (!member || !['admin', 'board', 'treasurer'].includes(member.role)) {
-    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
-  }
+  const auth = await requireMemberWithRole(
+    supabase,
+    ['admin', 'board', 'treasurer'],
+    'Insufficient permissions',
+  )
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: 403 })
+  const { member } = auth
 
   // Get PayPal integration config for this space
   const { data: integration } = await supabase
@@ -100,30 +105,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ imported: 0, message: 'No transactions found in the last 30 days' })
     }
 
-    // Map PayPal transactions to our schema
-    const rows = transactions
-      .filter(tx => {
-        const info = tx.transaction_info
-        const amount = parseFloat(info?.transaction_amount?.value ?? '0')
-        return amount > 0 // Only incoming payments
-      })
-      .map(tx => {
-        const info = tx.transaction_info
-        const payer = tx.payer_info
-        const amount = parseFloat(info.transaction_amount?.value ?? '0')
-        const txDate = info.transaction_initiation_date ?? info.transaction_updated_date
-
-        return {
-          space_id: member.space_id,
-          platform: 'paypal' as const,
-          amount,
-          from_identifier: payer?.email_address ?? payer?.payer_name?.alternate_full_name ?? 'PayPal User',
-          from_note: info.transaction_note ?? info.transaction_subject ?? null,
-          transaction_date: new Date(txDate).toISOString(),
-          link_status: 'unlinked' as const,
-          external_id: info.transaction_id,
-        }
-      })
+    const rows = mapPayPalTransactions(transactions, member.space_id, new Date().toISOString())
 
     if (rows.length === 0) {
       return NextResponse.json({ imported: 0, message: 'No incoming payments found' })
@@ -134,14 +116,14 @@ export async function POST(req: NextRequest) {
     // reliable. Instead, look up which PayPal transaction ids already exist
     // *in this space* and insert only the genuinely new ones (keeping
     // external_id so a later re-sync stays idempotent).
-    const externalIds = rows.map(r => r.external_id).filter((x): x is string => !!x)
+    const externalIds = externalIdsOf(rows)
     const { data: existing } = await supabase
       .from('payments')
       .select('external_id')
       .eq('space_id', member.space_id)
       .in('external_id', externalIds.length > 0 ? externalIds : ['__none__'])
     const seen = new Set((existing ?? []).map(e => e.external_id as string))
-    const newRows = rows.filter(r => !r.external_id || !seen.has(r.external_id))
+    const newRows = filterUnseenByExternalId(rows, seen)
 
     if (newRows.length === 0) {
       return NextResponse.json({ imported: 0, message: 'Already up to date' })
