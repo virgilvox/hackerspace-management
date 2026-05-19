@@ -137,6 +137,26 @@ export async function assignCustomRole(memberId: string, customRoleId: string) {
   const supabase = await createClient()
   const auth = await requireMemberWithRole(supabase, ROLE_ADMIN_ROLES, 'Admin or board access required')
   if (!auth.ok) return { error: auth.error }
+  const { member } = auth
+
+  // Pin BOTH the target member and the custom role to the caller's space.
+  // The RLS insert WITH CHECK only validated member_id's space, not the
+  // custom_role_id's — an admin of space A could otherwise attach space B's
+  // custom role to a member of A.
+  const { data: cr } = await supabase
+    .from('space_custom_roles')
+    .select('id')
+    .eq('id', b.data)
+    .eq('space_id', member.space_id)
+    .maybeSingle()
+  if (!cr) return { error: 'Custom role not found in this space.' }
+  const { data: tm } = await supabase
+    .from('space_members')
+    .select('id')
+    .eq('id', a.data)
+    .eq('space_id', member.space_id)
+    .maybeSingle()
+  if (!tm) return { error: 'Member not found in this space.' }
 
   const { error } = await supabase
     .from('space_member_custom_roles')
