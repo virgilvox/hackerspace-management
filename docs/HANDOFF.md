@@ -13,8 +13,8 @@ Branch `main`. The pass-52 deferral of the RLS status-gate was conditional on "n
 - Deliberately NOT changed: `get_user_space_ids`, `user_effective_roles` — gating SELECT-policy reads would break an unverified member's own /me + onboarding (the legitimate require_approval flow). Minimal blast radius: exactly the two privilege entrypoints.
 - `integration/privilege-status-gate.test.ts` (5) proves BOTH halves: (a) gap closed — unverified admin has no role/perm, cannot do a privileged RLS-gated write; (b) nothing broken — current+late fully privileged, unverified member still resolves its own space, the approval flow (current admin → approve unverified) still works. **31 integration tests green.**
 
-### State — RUNTIME change, NOT deployed
-- This is the riskiest change class (core RLS helpers back every write policy + the self-change trigger). Evidence it is safe = the integration suite, run against real Postgres. **Needs the ASK-before-deploy decision.**
+### State — DEPLOYED
+- **DEPLOYED** (run 26125372468, HEAD c00c82d, success). Deploy log confirms `applying 046_privilege_status_gate.sql`. Smoke clean: public 200 (landing renders), gated 307, Stripe webhook 400 — no regressions. Substantive safety proof was the PRE-deploy 31-test integration suite vs real Postgres (post-deploy auth-flow checks aren't curl-doable; the harness already proved current/late access + approval + unverified reads).
 - Default `pnpm test` 532/26 hermetic; build clean.
 - Commits ahead of origin (non-runtime backlog + this runtime one): F3 (42f6509), pass-53 state (b0267bb), F4 (b56ef4e), doc/HANDOFF (ee7f59f), **046 (e954b08, RUNTIME)**, this.
 
