@@ -1,7 +1,6 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { headers } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { linkSubmissionsByEmail } from './forms'
@@ -240,12 +239,10 @@ export async function requestEmailChange(input: { email: string }) {
   const auth = await requireMember(supabase)
   if (!auth.ok) return { error: auth.error }
 
-  const h = await headers()
-  const host = h.get('x-forwarded-host') ?? h.get('host')
-  const proto = h.get('x-forwarded-proto') ?? 'https'
-  const origin = host
-    ? `${proto}://${host}`
-    : process.env.NEXT_PUBLIC_APP_URL || 'https://hackerspace.sh'
+  // Origin from trusted server config ONLY — never request headers. A forged
+  // Host/X-Forwarded-Host could otherwise point the confirmation link at an
+  // attacker origin and capture the victim's token_hash.
+  const origin = process.env.NEXT_PUBLIC_APP_URL || 'https://hackerspace.sh'
 
   const { error } = await supabase.auth.updateUser(
     { email: v.data.email },

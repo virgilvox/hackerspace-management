@@ -3,13 +3,17 @@ import { isSecretConfigField } from '@/lib/secrets/vault'
 
 describe('isSecretConfigField', () => {
   it('treats credential-named fields as secrets to vault', () => {
-    for (const k of ['client_secret', 'api_key', 'secret_key', 'webhook_secret', 'signing_secret']) {
+    for (const k of [
+      'client_secret', 'api_key', 'secret_key', 'webhook_secret', 'signing_secret',
+      'password', 'token', 'private_key', 'access_token', 'refresh_token',
+      'admin_password', 'bot_token', 'CLIENT_SECRET',
+    ]) {
       expect(isSecretConfigField(k)).toBe(true)
     }
   })
 
   it('leaves non-secret config fields in plaintext config', () => {
-    for (const k of ['client_id', 'sandbox', 'mode', 'publishable_key', 'username']) {
+    for (const k of ['client_id', 'sandbox', 'mode', 'publishable_key', 'username', 'tokenize_mode']) {
       expect(isSecretConfigField(k)).toBe(false)
     }
   })

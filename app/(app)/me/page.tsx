@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { PageHeader, PageTitle } from '@/components/ui/page-title'
 import { PERMISSIONS, PERMISSION_CODES } from '@/lib/permissions-catalog'
 import { getMyClassSignups, getMyReservations, getMyCards, getMyVisits, getMyBilling, getMyNotifications, getMyPayments } from '@/lib/actions'
@@ -32,6 +33,19 @@ export default async function MePage() {
     .in('status', ['current', 'unverified', 'late'])
     .maybeSingle()
   if (!member) redirect('/signup')
+
+  // Self-heal: auth.users.email is authoritative (only changes after Supabase
+  // confirmation). If the denormalized space_members.email drifted (e.g. the
+  // /auth/confirm sync was missed because the second secure-change link was
+  // opened in a different browser), reconcile it here on the owner's own row.
+  if (user.email && member.email !== user.email) {
+    await createAdminClient()
+      .from('space_members')
+      .update({ email: user.email })
+      .eq('id', member.id)
+      .eq('space_id', member.space_id)
+    member.email = user.email
+  }
 
   const profile = {
     email: (member.email as string | null) ?? '',

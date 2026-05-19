@@ -72,10 +72,18 @@ export async function readSecret(
 // are never themselves secrets.
 export function isSecretConfigField(key: string): boolean {
   if (key.endsWith('_set') || key.endsWith('_ref')) return false
+  const k = key.toLowerCase()
   return (
-    key === 'client_secret' ||
-    key === 'api_key' ||
-    key === 'secret_key' ||
-    key.endsWith('_secret')
+    k === 'client_secret' ||
+    k === 'api_key' ||
+    k === 'secret_key' ||
+    k === 'password' ||
+    k === 'token' ||
+    k === 'private_key' ||
+    k === 'access_token' ||
+    k === 'refresh_token' ||
+    k.endsWith('_secret') ||
+    k.endsWith('_token') ||
+    k.endsWith('_password')
   )
 }
