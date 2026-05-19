@@ -4,6 +4,23 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-18 (pass 49) — Phase 3 post-deploy adversarial audit: 2 P0 fixed (LOCAL, NEEDS deploy)
+
+Branch `main`. Phase 3 shipped (pass 48) without a dedicated pre-deploy audit; ran an independent adversarial audit after the fact. Verdict was **NOT SAFE as-is** — 2 P0 + 1 P1 + 1 P2 found in the email-change surface; ALL fixed (commit f2df287). Suite 521, build clean. **Currently deployed prod has the P0s; this fix is local and should deploy ASAP.**
+
+### Findings -> fixes
+- **P0-1** `/auth/confirm` passed an attacker-controllable `type` query param into `verifyOtp` on a public route -> unintended auth entrypoint (recovery/magiclink/signup token replayed there mints a session, bypassing its real flow). Fixed: `type` pinned to literal `'email_change'`, query param ignored.
+- **P0-2** Email sync used a follow-up `supabase.auth.getUser()` after `verifyOtp` — not guaranteed to reflect the just-verified identity in the SSR route; on miss, `space_members.email` stays stale forever (breaks payment auto-link / notifications / form linking), with no reconciliation anywhere. Fixed: use the `verifyOtp` response `data.user`; `/me` now reconciles `space_members.email` against the authoritative `auth.users.email` on load (self-heals).
+- **P1-1** `requestEmailChange` derived the confirm-link origin from request `Host`/`X-Forwarded-Host` (forgeable -> token_hash capture). Fixed: origin from `NEXT_PUBLIC_APP_URL` only.
+- **P2-1** `isSecretConfigField` only matched `*_secret`/`client_secret`/`api_key`/`secret_key`; a credential named `password`/`token`/`private_key`/`*_token`/`*_password` would land in plaintext `integrations.config`. Widened (case-insensitive) + tests.
+- Audit PASS (no change): `getMyPayments` caller-scoping, the tab refactor (no data dropped), `proxy.ts` gate, R1 credential-loss/recursion paths, comma-split profile fields.
+
+### State
+- **Fix committed locally (f2df287), NOT deployed.** Prod still runs pass-48 with the 2 P0s — deploy this promptly. Commits ahead of origin: pass-48 deploy-state (c8842c3) + this (f2df287) + pass-49.
+- Email change still also needs the Supabase project config from pass-48 to function at all.
+
+---
+
 ## 2026-05-18 (pass 48) — Product spine Phase 3: member self-serve portal (LOCAL, awaiting one reviewed deploy)
 
 Branch `main`. Built Phase 3 (tabbed self-serve portal), gated per sub-phase. Suite 521, build clean. NOT deployed.
