@@ -8,6 +8,8 @@ import {
   renderDuesEmail,
   bookingDedupeKey,
   renderBookingEmail,
+  classDedupeKey,
+  renderClassEmail,
 } from '@/lib/notifications-logic'
 
 describe('isTerminalAttempt', () => {
@@ -220,5 +222,90 @@ describe('renderBookingEmail', () => {
     expect(r.html).not.toContain('<img>')
     expect(r.html).toContain('&lt;img&gt;')
     expect(r.html).toContain('a&lt;b&gt;')
+  })
+})
+
+describe('classDedupeKey', () => {
+  it('signup-keyed events use signup_id (stable across promotion)', () => {
+    expect(classDedupeKey('class_signup_registered', { signupId: 's1' })).toBe(
+      'class_signup_registered:s1',
+    )
+    expect(classDedupeKey('class_signup_waitlisted', { signupId: 's1' })).toBe(
+      'class_signup_waitlisted:s1',
+    )
+    // Same signup_id, different type after a promotion: distinct dedupe.
+    expect(classDedupeKey('class_signup_promoted', { signupId: 's1' })).not.toBe(
+      classDedupeKey('class_signup_waitlisted', { signupId: 's1' }),
+    )
+  })
+  it('session-cancelled fans out by (session, member)', () => {
+    expect(
+      classDedupeKey('class_session_cancelled', { sessionId: 'sess1', memberId: 'm1' }),
+    ).toBe('class_session_cancelled:sess1:m1')
+    expect(
+      classDedupeKey('class_session_cancelled', { sessionId: 'sess1', memberId: 'm1' }),
+    ).not.toBe(
+      classDedupeKey('class_session_cancelled', { sessionId: 'sess1', memberId: 'm2' }),
+    )
+  })
+})
+
+describe('renderClassEmail', () => {
+  const base = {
+    spaceName: 'Acme',
+    memberName: 'Ada',
+    className: 'Intro to Welding',
+    location: 'Bay 1',
+    startsAt: '2026-05-22T15:00:00Z',
+    endsAt: '2026-05-22T17:00:00Z',
+    manageUrl: 'https://x.test/me',
+  } as const
+
+  it('registered: confirmation subject + body', () => {
+    const r = renderClassEmail({ type: 'class_signup_registered', ...base })
+    expect(r.subject).toBe('Signed up for Intro to Welding at Acme')
+    expect(r.text).toContain('Hi Ada,')
+    expect(r.text).toContain('registered for Intro to Welding at Acme')
+    expect(r.text).toContain('Bay 1')
+    expect(r.text).toContain('https://x.test/me')
+  })
+
+  it('waitlisted: subject + reassurance copy about being moved up', () => {
+    const r = renderClassEmail({ type: 'class_signup_waitlisted', ...base })
+    expect(r.subject).toBe('Waitlisted for Intro to Welding at Acme')
+    expect(r.text.toLowerCase()).toContain('waitlist')
+    expect(r.text.toLowerCase()).toContain('if a spot opens up')
+  })
+
+  it('promoted: distinctive subject + "moved from the waitlist" copy', () => {
+    const r = renderClassEmail({ type: 'class_signup_promoted', ...base })
+    expect(r.subject).toBe("You're in: Intro to Welding at Acme")
+    expect(r.text.toLowerCase()).toContain('moved from the waitlist')
+  })
+
+  it('session_cancelled: cancellation subject + message', () => {
+    const r = renderClassEmail({ type: 'class_session_cancelled', ...base })
+    expect(r.subject).toBe('Cancelled: Intro to Welding at Acme')
+    expect(r.text.toLowerCase()).toContain('has been cancelled')
+  })
+
+  it('omits the location line when not provided', () => {
+    const r = renderClassEmail({ ...base, type: 'class_signup_registered', location: null })
+    expect(r.text).not.toContain('Location:')
+  })
+
+  it('falls back to a generic class label when title is missing', () => {
+    const r = renderClassEmail({ ...base, type: 'class_signup_registered', className: '' })
+    expect(r.subject).toBe('Signed up for the class at Acme')
+  })
+
+  it('escapes HTML in injected fields', () => {
+    const r = renderClassEmail({
+      ...base,
+      type: 'class_signup_registered',
+      className: '<b>x</b>',
+    })
+    expect(r.html).not.toContain('<b>x</b>')
+    expect(r.html).toContain('&lt;b&gt;x&lt;/b&gt;')
   })
 })

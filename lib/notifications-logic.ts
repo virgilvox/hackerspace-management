@@ -202,6 +202,82 @@ export function renderDuesEmail(input: DuesEmailInput): RenderedEmail {
   return { subject, html, text }
 }
 
+// ─── Class signup ────────────────────────────────────────────────────────────
+
+export type ClassNotificationType =
+  | 'class_signup_registered'
+  | 'class_signup_waitlisted'
+  | 'class_signup_promoted'
+  | 'class_session_cancelled'
+
+// Signup-keyed events use the signup_id (which is stable across a
+// waitlist→registered promotion). class_session_cancelled fans out one row
+// per (session, member) so each affected member's email is independent.
+export function classDedupeKey(
+  type: ClassNotificationType,
+  ids: { signupId?: string | null; sessionId?: string | null; memberId?: string | null },
+): string {
+  if (type === 'class_session_cancelled') {
+    return notificationDedupeKey([type, ids.sessionId, ids.memberId])
+  }
+  return notificationDedupeKey([type, ids.signupId])
+}
+
+export type ClassEmailInput = {
+  type: ClassNotificationType
+  spaceName: string
+  memberName?: string | null
+  className: string
+  location?: string | null
+  startsAt: string | null
+  endsAt?: string | null
+  manageUrl: string
+}
+
+export function renderClassEmail(input: ClassEmailInput): RenderedEmail {
+  const space = input.spaceName || 'your hackerspace'
+  const name = input.memberName?.trim() || null
+  const greeting = name ? `Hi ${name},` : 'Hi,'
+  const cls = input.className || 'the class'
+  const range = formatRange(input.startsAt, input.endsAt)
+  const location = (input.location || '').trim()
+
+  let subject: string
+  const lines: string[] = [greeting, '']
+
+  if (input.type === 'class_signup_registered') {
+    subject = `Signed up for ${cls} at ${space}`
+    lines.push(`You are registered for ${cls} at ${space}${range ? ` on ${range}` : ''}.`)
+    if (location) lines.push(`Location: ${location}.`)
+    lines.push('', `View your signups: ${input.manageUrl}`)
+  } else if (input.type === 'class_signup_waitlisted') {
+    subject = `Waitlisted for ${cls} at ${space}`
+    lines.push(
+      `You are on the waitlist for ${cls} at ${space}${range ? ` on ${range}` : ''}.`,
+      'You will be moved into the session by email if a spot opens up.',
+    )
+    if (location) lines.push(`Location: ${location}.`)
+    lines.push('', `View your signups: ${input.manageUrl}`)
+  } else if (input.type === 'class_signup_promoted') {
+    subject = `You're in: ${cls} at ${space}`
+    lines.push(
+      `A spot opened up and you have been moved from the waitlist into ${cls} at ${space}${range ? ` on ${range}` : ''}.`,
+    )
+    if (location) lines.push(`Location: ${location}.`)
+    lines.push('', `View your signups: ${input.manageUrl}`)
+  } else {
+    subject = `Cancelled: ${cls} at ${space}`
+    lines.push(
+      `The session of ${cls} at ${space}${range ? ` scheduled for ${range}` : ''} has been cancelled.`,
+      '',
+      `View your signups: ${input.manageUrl}`,
+    )
+  }
+
+  const { html, text } = renderShell(lines)
+  return { subject, html, text }
+}
+
 // ─── Booking (equipment reservation) ─────────────────────────────────────────
 
 export type BookingNotificationType = 'booking_confirmed' | 'booking_cancelled'
