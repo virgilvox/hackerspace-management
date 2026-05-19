@@ -23,11 +23,8 @@ import {
   listSessionSignupsSchema,
 } from '@/lib/validations'
 import {
-  effectiveCapacity,
-  computeSignupStatus,
   canSignUp,
   signupFormEligibility,
-  pickPromotion,
 } from '@/lib/classes-logic'
 import { grantCertification } from './certifications'
 
@@ -97,10 +94,6 @@ async function requirePermission(
     }
   }
   return { ok: true, supabase, member }
-}
-
-function isUniqueViolation(message: string): boolean {
-  return /duplicate key value|already exists|unique constraint/i.test(message)
 }
 
 // ─── Class definitions (classes.manage) ──────────────────────────────────────
@@ -515,52 +508,32 @@ export async function signUpForClass(input: unknown) {
   })
   if (!formOk.ok) return { error: formOk.reason }
 
-  // Already signed up (non-cancelled)?
-  const { data: existing } = await admin
-    .from('class_signups')
-    .select('id, status')
-    .eq('session_id', v.data.sessionId)
-    .eq('member_id', targetMemberId)
-    .neq('status', 'cancelled')
-    .maybeSingle()
-  if (existing) {
-    return { error: targetMemberId === member.id ? 'You are already signed up for this session.' : 'That member is already signed up for this session.' }
-  }
-
-  const cap = effectiveCapacity(
-    session.capacity as number | null,
-    cls?.capacity ?? null,
-  )
-  // session was fetched scoped by member.space_id above, so counting by
-  // session_id alone is space-safe (do not loosen the session lookup).
-  const { count: registered } = await admin
-    .from('class_signups')
-    .select('id', { count: 'exact', head: true })
-    .eq('session_id', v.data.sessionId)
-    .eq('status', 'registered')
-  const status = computeSignupStatus(cap, registered ?? 0)
-
-  const { data, error } = await admin
-    .from('class_signups')
-    .insert({
-      session_id: v.data.sessionId,
-      space_id: member.space_id,
-      member_id: targetMemberId,
-      status,
-    })
-    .select('id')
-    .single()
-  if (error) {
-    if (isUniqueViolation(error.message)) {
-      return { error: 'You are already signed up for this session.' }
+  // Capacity decision + dup-check + insert run atomically inside
+  // class_signup_tx under a per-session advisory lock, so concurrent signups
+  // at the capacity boundary cannot over-enroll. computeSignupStatus stays
+  // the documented rule; the RPC is the runtime authority (045).
+  const { data: rpc, error } = await admin.rpc('class_signup_tx', {
+    p_session_id: v.data.sessionId,
+    p_space_id: member.space_id,
+    p_member_id: targetMemberId,
+  })
+  if (error) return { error: error.message }
+  const row = (Array.isArray(rpc) ? rpc[0] : rpc) as
+    | { signup_id: string | null; signup_status: string | null; err: string | null }
+    | undefined
+  if (!row || row.err) {
+    if (row?.err === 'already') {
+      return { error: targetMemberId === member.id ? 'You are already signed up for this session.' : 'That member is already signed up for this session.' }
     }
-    return { error: error.message }
+    if (row?.err === 'no_session') return { error: 'Session not found' }
+    return { error: 'Could not complete signup. Please try again.' }
   }
+  const status = row.signup_status as string
 
   await logActivity(supabase, member, 'signed_up', 'class_session', v.data.sessionId)
   revalidatePath('/classes')
   revalidatePath('/me')
-  return { data: { id: data.id as string, status } }
+  return { data: { id: row.signup_id as string, status } }
 }
 
 export async function cancelMySignup(input: unknown) {
@@ -573,58 +546,28 @@ export async function cancelMySignup(input: unknown) {
   if (!v.ok) return { error: v.error }
 
   const admin = createAdminClient()
-  // All admin-client queries below are additionally scoped by member.space_id:
-  // member.id can only hold a signup in its own space, but the writes must not
-  // be reachable cross-space even if a future edit loosens the member filter.
-  const { data: signup } = await admin
-    .from('class_signups')
-    .select('id, status')
-    .eq('space_id', member.space_id)
-    .eq('session_id', v.data.sessionId)
-    .eq('member_id', member.id)
-    .neq('status', 'cancelled')
-    .maybeSingle()
-  if (!signup) return { error: 'You are not signed up for this session.' }
-
-  const wasRegistered = signup.status === 'registered'
-  const { error } = await admin
-    .from('class_signups')
-    .update({ status: 'cancelled' })
-    .eq('id', signup.id)
-    .eq('space_id', member.space_id)
+  // Cancel + waitlist promotion run atomically inside class_cancel_tx under
+  // the same per-session advisory lock, so concurrent cancels cannot double-
+  // promote. pickPromotion stays the documented rule; the RPC is the runtime
+  // authority (045). p_space_id pins every write cross-space-safe.
+  const { data: rpc, error } = await admin.rpc('class_cancel_tx', {
+    p_session_id: v.data.sessionId,
+    p_space_id: member.space_id,
+    p_member_id: member.id,
+  })
   if (error) return { error: error.message }
-
-  // If a registered seat freed up, promote the earliest waitlisted member.
-  if (wasRegistered) {
-    const { data: session } = await admin
-      .from('class_sessions')
-      .select('capacity, classes(capacity)')
-      .eq('id', v.data.sessionId)
-      .eq('space_id', member.space_id)
-      .maybeSingle()
-    const cap = effectiveCapacity(
-      (session as { capacity: number | null } | null)?.capacity ?? null,
-      (session as { classes?: { capacity: number | null } | null } | null)?.classes?.capacity ?? null,
-    )
-    const { data: all } = await admin
-      .from('class_signups')
-      .select('id, status, signed_up_at')
-      .eq('space_id', member.space_id)
-      .eq('session_id', v.data.sessionId)
-      .neq('status', 'cancelled')
-    const promoteId = pickPromotion(
-      (all ?? []) as Array<{ id: string; status: string; signed_up_at: string }>,
-      cap,
-    )
-    if (promoteId) {
-      await admin.from('class_signups').update({ status: 'registered' }).eq('id', promoteId).eq('space_id', member.space_id)
-    }
+  const row = (Array.isArray(rpc) ? rpc[0] : rpc) as
+    | { cancelled_id: string | null; promoted_id: string | null; err: string | null }
+    | undefined
+  if (!row || row.err) {
+    if (row?.err === 'not_signed_up') return { error: 'You are not signed up for this session.' }
+    return { error: 'Could not cancel. Please try again.' }
   }
 
   await logActivity(supabase, member, 'cancelled_signup', 'class_session', v.data.sessionId)
   revalidatePath('/classes')
   revalidatePath('/me')
-  return { data: { id: signup.id } }
+  return { data: { id: row.cancelled_id as string } }
 }
 
 // ─── Instructor: attendees, attendance, completion ───────────────────────────

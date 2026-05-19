@@ -410,6 +410,7 @@ Default channels created by trigger on space INSERT: `general`, `announcements`,
 | 042 | Equipment double-booking P0 fix: `btree_gist` extension + `equipment_reservations_no_overlap` GiST EXCLUDE (equipment_id =, tstzrange(starts_at,ends_at,'[)') &&) WHERE status='reserved'. DB is the concurrency arbiter; reserveEquipment maps 23P01 to a friendly message. No new table/column |
 | 043 | `members_update` RLS gains a WITH CHECK mirroring its USING (defense-in-depth: a privileged caller can't mutate a member row into a space they don't administer). No new table/column |
 | 044 | `prevent_member_self_role_change` also blocks self-change of payment_status, payment_note, dues_paid_until, last_paid_at, last_payment_at, stripe_customer_id, joined_at (member could otherwise forge a dues-good signal via PostgREST). Service-client/privileged writes still bypass. No new table/column |
+| 045 | `class_signup_tx` / `class_cancel_tx` SECURITY DEFINER functions: capacity-decision+insert and cancel+waitlist-promote run under a per-session `pg_advisory_xact_lock` (concurrent signups can't over-enroll; concurrent cancels can't double-promote). Mirrors the pure computeSignupStatus/pickPromotion rule; RPC is runtime authority. No new table/column |
 
 ---
 
