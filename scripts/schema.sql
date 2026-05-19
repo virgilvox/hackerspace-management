@@ -477,6 +477,10 @@ CREATE POLICY members_update ON public.space_members FOR UPDATE
   USING (
     user_id = auth.uid()
     OR public.user_has_role_in_space(auth.uid(), space_id, ARRAY['admin','board','treasurer'])
+  )
+  WITH CHECK (
+    user_id = auth.uid()
+    OR public.user_has_role_in_space(auth.uid(), space_id, ARRAY['admin','board','treasurer'])
   );
 CREATE POLICY members_delete ON public.space_members FOR DELETE
   USING (public.user_has_role_in_space(auth.uid(), space_id, ARRAY['admin']));
