@@ -99,3 +99,18 @@ export function stripeInvoiceToPaymentRow(args: {
 export function minorToMajor(amount: number | null | undefined): number {
   return (amount ?? 0) / 100
 }
+
+// Stripe does not guarantee webhook ordering. A stale/late
+// customer.subscription.updated carrying an OLDER period must never rewind
+// the stored current_period_end (that would make graceExceeded flip a paid
+// member to 'late' and fire a false "dues lapsed" email). Keep the later of
+// stored vs incoming. ISO-8601 UTC ('...Z') strings sort lexically ==
+// chronologically, so string compare is correct here.
+export function laterPeriodEnd(
+  stored: string | null | undefined,
+  incoming: string | null | undefined,
+): string | null {
+  if (!stored) return incoming ?? null
+  if (!incoming) return stored
+  return stored >= incoming ? stored : incoming
+}

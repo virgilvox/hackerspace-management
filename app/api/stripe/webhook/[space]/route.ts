@@ -21,6 +21,7 @@ import {
   memberStatusPatch,
   stripeInvoiceToPaymentRow,
   minorToMajor,
+  laterPeriodEnd,
 } from '@/lib/stripe/webhook-logic'
 import {
   renderDuesEmail,
@@ -193,7 +194,22 @@ export async function POST(
       customerId,
     )
     if (!memberId) return
-    const periodEnd = subscriptionPeriodEnd(sub)
+    const incomingPeriodEnd = subscriptionPeriodEnd(sub)
+
+    // Never rewind the period on a stale/out-of-order event. Status still
+    // reflects the latest sub.status, but graceExceeded is computed from the
+    // monotonic (non-rewound) period so a late event can't false-lapse a
+    // paid member.
+    const { data: existingBilling } = await admin
+      .from('member_billing')
+      .select('current_period_end')
+      .eq('space_id', spaceId)
+      .eq('member_id', memberId)
+      .maybeSingle()
+    const periodEnd = laterPeriodEnd(
+      (existingBilling?.current_period_end as string | null) ?? null,
+      incomingPeriodEnd,
+    )
 
     await admin.from('member_billing').upsert(
       {

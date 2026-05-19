@@ -8,6 +8,7 @@ import {
   memberStatusPatch,
   stripeInvoiceToPaymentRow,
   minorToMajor,
+  laterPeriodEnd,
 } from '@/lib/stripe/webhook-logic'
 
 describe('isoFromUnix', () => {
@@ -120,6 +121,22 @@ describe('stripeInvoiceToPaymentRow', () => {
     expect(row.currency).toBe('USD')
     expect(row.description).toBe('Stripe membership dues')
     expect(row.payer_email).toBeNull()
+  })
+})
+
+describe('laterPeriodEnd (never rewind on out-of-order events)', () => {
+  const older = '2026-05-01T00:00:00.000Z'
+  const newer = '2026-06-01T00:00:00.000Z'
+  it('keeps the later of stored vs incoming regardless of arrival order', () => {
+    expect(laterPeriodEnd(newer, older)).toBe(newer) // stale event arrives late
+    expect(laterPeriodEnd(older, newer)).toBe(newer) // normal advance
+    expect(laterPeriodEnd(newer, newer)).toBe(newer)
+  })
+  it('handles nulls (first event / canceled sub with no period)', () => {
+    expect(laterPeriodEnd(null, newer)).toBe(newer)
+    expect(laterPeriodEnd(newer, null)).toBe(newer)
+    expect(laterPeriodEnd(null, null)).toBeNull()
+    expect(laterPeriodEnd(undefined, undefined)).toBeNull()
   })
 })
 
