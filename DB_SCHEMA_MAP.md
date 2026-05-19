@@ -407,6 +407,7 @@ Default channels created by trigger on space INSERT: `general`, `announcements`,
 | 039 | DATA backfill only: link `form_submissions.member_id` (NULL) to earliest matching member by `(space_id, lower email = lower submitter_email)`. Idempotent; not in schema.sql |
 | 040 | Stripe dues P1: `payment_platform` += `stripe`; `member_billing` (member↔Stripe customer/sub/status; SELECT admin/board/treasurer, service-client-only writes); `stripe_webhook_events` (idempotency, PK=event id, service-only). Per-space own keys (vault + integrations.config) |
 | 041 | Notifications P2: `notifications` outbox (type, recipient, subject, body_html/text, status, attempts, dedupe_key). UNIQUE(space_id,dedupe_key) = idempotent webhook enqueue; partial idx (created_at) WHERE status='pending'. SELECT admin/board/treasurer, service-client-only writes (webhook enqueue + dispatcher cron); member self-view via validated action |
+| 042 | Equipment double-booking P0 fix: `btree_gist` extension + `equipment_reservations_no_overlap` GiST EXCLUDE (equipment_id =, tstzrange(starts_at,ends_at,'[)') &&) WHERE status='reserved'. DB is the concurrency arbiter; reserveEquipment maps 23P01 to a friendly message. No new table/column |
 
 ---
 

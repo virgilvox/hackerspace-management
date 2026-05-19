@@ -290,7 +290,15 @@ export async function reserveEquipment(input: unknown) {
     })
     .select('id')
     .single()
-  if (error) return { error: error.message }
+  if (error) {
+    // The GiST exclusion constraint is the concurrency-safe arbiter: a
+    // simultaneous request that passed the in-memory pre-check still loses
+    // here. Surface the same friendly message as the pre-check.
+    if (/exclusion constraint|equipment_reservations_no_overlap|23P01/i.test(error.message)) {
+      return { error: 'That time overlaps an existing reservation.' }
+    }
+    return { error: error.message }
+  }
 
   await logActivity(supabase, member, 'reserved', 'equipment', r.equipmentId)
   revalidatePath('/equipment')

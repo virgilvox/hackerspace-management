@@ -20,6 +20,9 @@
 -- 1. EXTENSIONS
 -- -----------------------------------------------------------------------------
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- btree_gist: provides `uuid WITH =` for the equipment_reservations overlap
+-- exclusion constraint (see section below / scripts/042).
+CREATE EXTENSION IF NOT EXISTS btree_gist;
 
 
 -- -----------------------------------------------------------------------------
@@ -2276,6 +2279,18 @@ CREATE TABLE IF NOT EXISTS public.equipment_reservations (
 CREATE INDEX IF NOT EXISTS idx_equipment_res_space     ON public.equipment_reservations (space_id);
 CREATE INDEX IF NOT EXISTS idx_equipment_res_equipment ON public.equipment_reservations (equipment_id, starts_at);
 CREATE INDEX IF NOT EXISTS idx_equipment_res_member    ON public.equipment_reservations (member_id);
+
+-- DB-enforced no-overlap (equivalent to scripts/042). Only 'reserved' rows
+-- conflict; the app-side check stays as a fast pre-check, the DB is the
+-- arbiter under concurrency. Idempotent: DROP then ADD.
+ALTER TABLE public.equipment_reservations
+  DROP CONSTRAINT IF EXISTS equipment_reservations_no_overlap;
+ALTER TABLE public.equipment_reservations
+  ADD CONSTRAINT equipment_reservations_no_overlap
+  EXCLUDE USING gist (
+    equipment_id WITH =,
+    tstzrange(starts_at, ends_at, '[)') WITH &&
+  ) WHERE (status = 'reserved');
 
 ALTER TABLE public.equipment              ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.equipment_reservations ENABLE ROW LEVEL SECURITY;
