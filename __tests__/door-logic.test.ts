@@ -3,6 +3,7 @@ import {
   last4,
   maskCardUid,
   isAlwaysBlockedHost,
+  isBlockedDoorIp,
   normalizeHost,
   validateDoorTarget,
   encodeHeatSyncGrant,
@@ -29,6 +30,29 @@ describe('maskCardUid', () => {
     expect(maskCardUid('ABCD')).toBe('••••')
     expect(maskCardUid('AB')).toBe('••')
     expect(maskCardUid('')).toBe('••••')
+  })
+})
+
+describe('isBlockedDoorIp (resolved-IP DNS-rebind guard)', () => {
+  it('blocks loopback / unspecified / link-local / metadata (v4)', () => {
+    for (const ip of ['127.0.0.1', '127.1.2.3', '0.0.0.0', '0.1.2.3', '169.254.1.2', '169.254.169.254']) {
+      expect(isBlockedDoorIp(ip)).toBe(true)
+    }
+  })
+  it('blocks v6 loopback/unspecified/link-local/AWS-IMDS + IPv4-mapped', () => {
+    for (const ip of ['::1', '::', 'fe80::1', 'fd00:ec2::254', '::ffff:127.0.0.1', '::ffff:169.254.169.254', '[::1]']) {
+      expect(isBlockedDoorIp(ip)).toBe(true)
+    }
+  })
+  it('ALLOWS RFC1918 / LAN / ULA / public (door controllers live there)', () => {
+    for (const ip of ['10.0.0.5', '172.16.4.4', '192.168.1.50', '203.0.113.7', 'fd12:3456::1', '2001:db8::1', '::ffff:192.168.1.9']) {
+      expect(isBlockedDoorIp(ip)).toBe(false)
+    }
+  })
+  it('fails closed on unrecognizable / malformed input', () => {
+    for (const ip of ['', 'not-an-ip', '999.1.1.1', '1.2.3', 'door.local']) {
+      expect(isBlockedDoorIp(ip)).toBe(true)
+    }
   })
 })
 

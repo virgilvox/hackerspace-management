@@ -59,6 +59,32 @@ export function controllerForAdapter(adapter: string): KnownController | undefin
 // allowed to be called at all.
 
 // Always-blocked, regardless of pin: IMDS / link-local and unspecified.
+// Block policy applied to a RESOLVED numeric IP (defeats DNS-rebind: the
+// executor resolves once, checks every address here, then connects to the
+// validated IP literal so fetch performs no second resolution). RFC1918/LAN
+// (10/8, 172.16/12, 192.168/16) and ULA/GUA IPv6 are intentionally ALLOWED
+// (door controllers live there); only loopback, unspecified, link-local and
+// cloud-metadata are blocked. Unrecognizable input fails closed.
+export function isBlockedDoorIp(ip: string): boolean {
+  let h = ip.trim().toLowerCase().replace(/^\[|\]$/g, '')
+  const mapped = h.match(/^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/)
+  if (mapped) h = mapped[1]
+  if (h.includes(':')) {
+    if (h === '::1' || h === '::' || h === '0:0:0:0:0:0:0:0') return true
+    if (h === 'fd00:ec2::254') return true            // AWS IPv6 IMDS
+    if (h.startsWith('fe80:') || h.startsWith('fe80::')) return true // link-local
+    return false                                       // other IPv6 (ULA/GUA/LAN) allowed
+  }
+  const m = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/)
+  if (!m) return true                                  // not a clean IPv4 -> fail closed
+  const o = m.slice(1).map(Number)
+  if (o.some(n => n > 255)) return true
+  if (o[0] === 127) return true                        // loopback 127.0.0.0/8
+  if (o[0] === 0) return true                          // 0.0.0.0/8 (incl. unspecified)
+  if (o[0] === 169 && o[1] === 254) return true        // link-local + 169.254.169.254 metadata
+  return false                                         // RFC1918 / LAN / public allowed
+}
+
 export function isAlwaysBlockedHost(host: string): boolean {
   const h = host.toLowerCase().replace(/^\[|\]$/g, '')
   if (h === '169.254.169.254' || h === 'metadata' || h === 'metadata.google.internal') return true
