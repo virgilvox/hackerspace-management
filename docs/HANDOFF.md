@@ -4,6 +4,34 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-19 (pass 55) — Doc drift fix + session closeout + new-session backlog
+
+Branch `main`. Final pass of an extraordinarily long arc. Suite 532; integration suite 31 vs real Postgres; build clean.
+
+### This pass
+Doc drift audit + fix (commit 19dc632, deployed run 26126231059, no-op runtime, prod 200): migration 046 row was missing from `docs/DATABASE_SCHEMA.md` + `DB_SCHEMA_MAP.md`; `README.md` Features list omitted the entire product spine (Stripe dues / transactional notifications / member self-serve portal); `docs/ARCHITECTURE.md` had zero mention of the D/F/G-era subsystem facts (integration harness, GiST exclusion constraint, advisory-lock RPCs, door DNS-rebind pinned-IP egress, dispatcher fair drain + per-attempt key + re-entrancy guard, zero-decimal currency, the RLS-layer status-gate, the out-of-order monotonic period guard). All fixed inline in the right existing sections.
+
+### Where the project is
+- **Production posture: strong + thoroughly audited.** Every P0/P1/P2 from every audit this session is fixed; the require_approval/unverified-admin escalation (the single most serious finding) is closed at both layers (app via D2, RLS via 046). Door SSRF DNS-rebind closed. Equipment double-booking closed by DB exclusion constraint. Stripe webhook hardened against replay, out-of-order delivery, zero-decimal currencies. Notifications dispatcher is fair across spaces with per-attempt idempotency. Anonymous form submission rate-limited.
+- **Tests: root-cause fix in place.** `pnpm test` (532, hermetic) stays the deploy gate; `pnpm test:integration` (31 tests, real Postgres) covers the SQL/RLS/money paths end to end so correctness no longer depends on post-deploy manual auditing. Self-skips without a DB.
+- **Docs: in sync** (this pass cleared the lag).
+
+### Remaining work — priority order for the new session
+1. **OWNER-GATED — end-to-end spine validation.** The single largest remaining gap: shipped vs proven-in-prod. Owner must provision (a) `RESEND_API_KEY` + `EMAIL_FROM` (Resend-verified domain with SPF+DKIM), (b) `CRON_SECRET` + the once-a-minute droplet crontab (`docs/DEPLOYMENT.md`), (c) a space's per-space Stripe test-mode keys + activated Billing Portal, (d) the Supabase "Change Email Address" template + `/auth/confirm` redirect allowlist + Secure email change toggle. Then run a real Stripe test-mode dues cycle end to end and click through the `/me` portal in a browser.
+2. **Production observability.** No error monitoring exists. Money path (Stripe webhook) + the dispatcher cron only `console.error`. Add Sentry-equivalent for the webhook, dispatcher, and server actions.
+3. **Phase 4 notifications breadth.** Outbox + dispatcher are built; add booking, class signup, form-submission notifications reusing the same outbox.
+4. **Member notification preferences.** Per-type opt-in/out; the dispatcher respects prefs.
+5. **In-app notification center.** Extend the `/me` list to a bell/inbox with unread/read state.
+6. **Extend the integration harness.** Add coverage for payments link/import, role/permission management, presence, forms `submitForm` + `linkSubmissionsByEmail`. The pattern (psql + role/jwt user simulation, route handler invocation) is proven; the cost per added test file is small.
+7. **Door epic Phases 4-5.** Inbound log ingest + the universal API-call UI builder.
+8. **Owner product question** (no code): confirm forms victim-email *attribution* (attribution only, no readback) remains acceptable in scope.
+9. Deliberate-future items (defer until product need): generic outbound webhooks epic (per-event delivery), server-side full-text search, multi-space-per-user / space switcher, Zeffy/Venmo live APIs.
+
+### Local-dev gotcha worth flagging
+- The `payment_platform` enum 'stripe' value: `scripts/schema.sql`'s wrapped `CREATE TYPE` skips on an existing local DB; only migration 040's `ALTER TYPE ADD VALUE` adds it. After `supabase db reset` + `psql -f scripts/schema.sql` the local DB may lack 'stripe', breaking any test that exercises the `invoice.paid` → `payments` insert path. Workaround: also run `psql -f scripts/040_stripe_billing.sql` (or apply each `scripts/0*.sql` in order after schema.sql).
+
+---
+
 ## 2026-05-19 (pass 54) — Lifted the deferred SECURITY DEFINER status-gate, harness-proven (LOCAL, RUNTIME — needs deploy)
 
 Branch `main`. The pass-52 deferral of the RLS status-gate was conditional on "no way to verify it breaks nothing." The pass-53 harness resolves that, so the deferral is lifted and the change made + proven.
