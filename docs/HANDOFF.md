@@ -4,6 +4,26 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-19 (pass 52) — Backlog hardening E1-E3 + evidence-based deferral (LOCAL, NEEDS deploy)
+
+Branch `main`. Worked the pass-51 small backlog. Suite 532, build clean. NOT deployed.
+
+### Done
+- **E1 (c2ba958)** Completed D10 defense-in-depth: `auth_param` added to `ConnRow` + `loadEnabledConnection` + the test/selfEntry selects and threaded into every `callDoor` (+ optional on `auditDoor`), so a generic-adapter connection's custom auth-param value is scrubbed from the operator-readable `door_access_log` regardless of param name. Native HeatSync `e=` was already covered.
+- **E2 (f11f4b3 + fix 9351969)** Rate-limited anonymous `submitForm` (20/min per IP+form — deliberately loose; hackerspace public signups share NAT/wifi so a tight limit would false-block a room; captcha remains the deferred real control). NOTE: f11f4b3 was committed before its build was verified and had a `const h` redeclaration; 9351969 fixed it forward (local-only, never deployed). Process: commits must be strictly build-gated.
+- **E3 (6b84b09)** Webhook returns generic error strings (`Invalid signature` / `Webhook processing error` / `Webhook handler error`); real detail `console.error`'d server-side. Closes raw signature-lib / Postgres text leak to the (partly unauthenticated) caller.
+
+### Deliberately deferred (evidence-based, NOT an omission) — own focused session
+- **SECURITY DEFINER status-gate.** Diagnosed all four helpers: `get_user_space_ids` backs nearly every SELECT policy, so status-gating it would strip an `unverified` (pending-approval) member's access to their own `/me` + onboarding — breaks the legitimate require_approval flow. The role/permission helpers have broad subtle blast radius (write policies + the self-change trigger's privileged-bypass + some read policies) for a defense-in-depth-only gain ALREADY closed at the app layer by D2. Per RLS-guardrail (diagnose-before-patch, presentational-when-possible) this is a deliberate deferral with a focused-session plan, not a rushed end-of-session RLS change.
+
+### Owner product question (no code)
+- Forms victim-email attribution: an anonymous submitter can type a victim's email and the submission is attributed to that member (attribution only — no data readback, grants nothing; documented locked decision). Flagging for owner re-confirm that forged-waiver-attribution is acceptable in scope.
+
+### State
+- **Not deployed.** Ahead of origin: pass-51 deploy-state (b90debb, held docs) + E1 (c2ba958) + E2 (f11f4b3, 9351969) + E3 (6b84b09) + this. No migration in this batch. Final HEAD builds clean (deploy builds HEAD, not each commit, so the intermediate f11f4b3 is moot for deploy).
+
+---
+
 ## 2026-05-19 (pass 51) — Verify D1-D10 + clear the deferred heavy P1s (LOCAL, NEEDS deploy)
 
 Branch `main`. Verified the D1-D10 batch (trust-but-verify my own fast change set) and worked the deferred deeper-audit backlog. Suite 532, build clean. NOT deployed.
