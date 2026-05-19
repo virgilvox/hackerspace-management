@@ -1775,6 +1775,12 @@ $$;
 -- user_effective_roles fallback. Used by notification fan-outs (e.g. the
 -- forms.manage admin alert) where N user_has_permission calls would be N
 -- round-trips. Equivalent to scripts/047_members_with_permission.sql.
+-- LOCKDOWN: unlike user_has_permission (a per-user boolean that is hard to
+-- enumerate without already knowing target uids), this function returns a SET
+-- of member_ids for any (space, permission) pair. Postgres grants EXECUTE on
+-- new functions to PUBLIC by default, so an explicit REVOKE is required to
+-- prevent any authenticated PostgREST caller from enumerating permission
+-- holders across spaces they are not members of. Locked to service_role.
 CREATE OR REPLACE FUNCTION public.members_with_permission(sid uuid, perm text)
   RETURNS TABLE(member_id uuid) LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
 AS $$
@@ -1791,6 +1797,8 @@ AS $$
       )
     );
 $$;
+REVOKE EXECUTE ON FUNCTION public.members_with_permission(uuid, text) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION public.members_with_permission(uuid, text) TO service_role;
 
 ALTER TABLE public.space_role_permissions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ops_acl                ENABLE ROW LEVEL SECURITY;

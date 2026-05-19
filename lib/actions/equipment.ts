@@ -311,29 +311,36 @@ export async function reserveEquipment(input: unknown) {
 
   // Booking confirmation goes to the affected member (target), not the actor.
   // A manager booking on behalf of someone else still emails the booked-for
-  // member. Best-effort: the enqueue helper never throws into this action.
-  const contact = await resolveMemberContact(admin, member.space_id, targetMemberId)
-  if (contact?.email) {
-    const { subject, html, text } = renderBookingEmail({
-      type: 'booking_confirmed',
-      spaceName: await getSpaceName(admin, member.space_id),
-      memberName: contact.displayName,
-      equipmentName: (equip.name as string | null) ?? 'equipment',
-      location: (equip.location as string | null) ?? null,
-      startsAt: r.starts_at,
-      endsAt: r.ends_at,
-      manageUrl: buildManageUrl(null),
-    })
-    await enqueueNotification(admin, {
-      spaceId: member.space_id,
-      memberId: targetMemberId,
-      type: 'booking_confirmed',
-      recipient: contact.email,
-      subject,
-      bodyHtml: html,
-      bodyText: text,
-      dedupeKey: bookingDedupeKey('booking_confirmed', data.id as string),
-    })
+  // member. Wrapped: the reservation row is already committed, so a transient
+  // DB error in the email path must NOT surface as an action error to the
+  // client. enqueueNotification is internally best-effort; the wrap covers
+  // resolveMemberContact, getSpaceName, and any other lookup that could throw.
+  try {
+    const contact = await resolveMemberContact(admin, member.space_id, targetMemberId)
+    if (contact?.email) {
+      const { subject, html, text } = renderBookingEmail({
+        type: 'booking_confirmed',
+        spaceName: await getSpaceName(admin, member.space_id),
+        memberName: contact.displayName,
+        equipmentName: (equip.name as string | null) ?? 'equipment',
+        location: (equip.location as string | null) ?? null,
+        startsAt: r.starts_at,
+        endsAt: r.ends_at,
+        manageUrl: buildManageUrl(null),
+      })
+      await enqueueNotification(admin, {
+        spaceId: member.space_id,
+        memberId: targetMemberId,
+        type: 'booking_confirmed',
+        recipient: contact.email,
+        subject,
+        bodyHtml: html,
+        bodyText: text,
+        dedupeKey: bookingDedupeKey('booking_confirmed', data.id as string),
+      })
+    }
+  } catch (e) {
+    console.error('[reserveEquipment] booking_confirmed enqueue failed:', e instanceof Error ? e.message : e)
   }
 
   revalidatePath('/equipment')
@@ -382,36 +389,42 @@ export async function cancelReservation(input: unknown) {
   // Cancel emails fire ONLY when someone other than the affected member
   // cancelled (a manager cancelling on the member's behalf). A self-cancel is
   // silent: the actor already saw the UI confirm and an email would be noise.
+  // Wrapped: cancel is committed; transient errors in the email path must not
+  // surface to the client.
   if (!ownIt) {
-    const affectedMemberId = res.member_id as string
-    const contact = await resolveMemberContact(admin, member.space_id, affectedMemberId)
-    if (contact?.email) {
-      const { data: equip } = await admin
-        .from('equipment')
-        .select('name, location')
-        .eq('id', res.equipment_id as string)
-        .eq('space_id', member.space_id)
-        .maybeSingle()
-      const { subject, html, text } = renderBookingEmail({
-        type: 'booking_cancelled',
-        spaceName: await getSpaceName(admin, member.space_id),
-        memberName: contact.displayName,
-        equipmentName: (equip?.name as string | null) ?? 'equipment',
-        location: (equip?.location as string | null) ?? null,
-        startsAt: res.starts_at as string,
-        endsAt: res.ends_at as string,
-        manageUrl: buildManageUrl(null),
-      })
-      await enqueueNotification(admin, {
-        spaceId: member.space_id,
-        memberId: affectedMemberId,
-        type: 'booking_cancelled',
-        recipient: contact.email,
-        subject,
-        bodyHtml: html,
-        bodyText: text,
-        dedupeKey: bookingDedupeKey('booking_cancelled', v.data.reservationId),
-      })
+    try {
+      const affectedMemberId = res.member_id as string
+      const contact = await resolveMemberContact(admin, member.space_id, affectedMemberId)
+      if (contact?.email) {
+        const { data: equip } = await admin
+          .from('equipment')
+          .select('name, location')
+          .eq('id', res.equipment_id as string)
+          .eq('space_id', member.space_id)
+          .maybeSingle()
+        const { subject, html, text } = renderBookingEmail({
+          type: 'booking_cancelled',
+          spaceName: await getSpaceName(admin, member.space_id),
+          memberName: contact.displayName,
+          equipmentName: (equip?.name as string | null) ?? 'equipment',
+          location: (equip?.location as string | null) ?? null,
+          startsAt: res.starts_at as string,
+          endsAt: res.ends_at as string,
+          manageUrl: buildManageUrl(null),
+        })
+        await enqueueNotification(admin, {
+          spaceId: member.space_id,
+          memberId: affectedMemberId,
+          type: 'booking_cancelled',
+          recipient: contact.email,
+          subject,
+          bodyHtml: html,
+          bodyText: text,
+          dedupeKey: bookingDedupeKey('booking_cancelled', v.data.reservationId),
+        })
+      }
+    } catch (e) {
+      console.error('[cancelReservation] booking_cancelled enqueue failed:', e instanceof Error ? e.message : e)
     }
   }
 

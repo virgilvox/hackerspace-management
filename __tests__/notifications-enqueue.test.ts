@@ -15,6 +15,7 @@ function mockAdmin(opts: {
   selectResult?: { data: Row | null; error?: { message: string } | null }
   upsertResult?: { error: { message: string } | null }
   throwOnUpsert?: boolean
+  throwOnMaybeSingle?: boolean
 }) {
   const upsert = vi.fn(async () => {
     if (opts.throwOnUpsert) throw new Error('boom')
@@ -24,9 +25,10 @@ function mockAdmin(opts: {
   const builder = {
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
-    maybeSingle: vi.fn(async () =>
-      opts.selectResult ?? { data: null, error: null },
-    ),
+    maybeSingle: vi.fn(async () => {
+      if (opts.throwOnMaybeSingle) throw new Error('network down')
+      return opts.selectResult ?? { data: null, error: null }
+    }),
     upsert,
   }
   const from = vi.fn(() => builder)
@@ -61,6 +63,14 @@ describe('resolveMemberContact', () => {
     })
     const r = await resolveMemberContact(admin as never, 'space-1', 'member-1')
     expect(r).toEqual({ email: null, displayName: null })
+  })
+
+  it('returns null and never throws when the lookup itself throws (best-effort)', async () => {
+    const admin = mockAdmin({ throwOnMaybeSingle: true })
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    await expect(resolveMemberContact(admin as never, 'space-1', 'member-1')).resolves.toBeNull()
+    expect(spy).toHaveBeenCalled()
+    spy.mockRestore()
   })
 })
 
@@ -154,5 +164,12 @@ describe('getSpaceName', () => {
   it('returns empty string on miss', async () => {
     const admin = mockAdmin({ selectResult: { data: null, error: null } })
     expect(await getSpaceName(admin as never, 'ghost')).toBe('')
+  })
+  it('returns empty string when the lookup itself throws (best-effort)', async () => {
+    const admin = mockAdmin({ throwOnMaybeSingle: true })
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    await expect(getSpaceName(admin as never, 'space-1')).resolves.toBe('')
+    expect(spy).toHaveBeenCalled()
+    spy.mockRestore()
   })
 })

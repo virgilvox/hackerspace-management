@@ -318,59 +318,65 @@ export async function updateSession(input: unknown) {
   // to 'cancelled', every signed-up member needs to know (the only other
   // place that lives is /me, and they probably aren't checking it). One
   // outbox row per (session, member); dedupe collapses a re-cancel.
+  // Wrapped: the session update is committed; transient DB errors in the
+  // fan-out must never surface to the action's result.
   if (u.status === 'cancelled') {
-    const admin = createAdminClient()
-    const { data: sessRow } = await admin
-      .from('class_sessions')
-      .select('starts_at, ends_at, location, classes(title)')
-      .eq('id', u.sessionId)
-      .eq('space_id', member.space_id)
-      .maybeSingle()
-    const sessShape = sessRow as {
-      starts_at: string | null
-      ends_at: string | null
-      location: string | null
-      classes?: { title: string | null } | null
-    } | null
-    const { data: signups } = await admin
-      .from('class_signups')
-      .select('member_id')
-      .eq('space_id', member.space_id)
-      .eq('session_id', u.sessionId)
-      .neq('status', 'cancelled')
-    const memberIds = Array.from(
-      new Set(((signups ?? []) as Array<{ member_id: string }>).map(s => s.member_id)),
-    )
-    if (memberIds.length > 0) {
-      const spaceName = await getSpaceName(admin, member.space_id)
-      const manageUrl = buildManageUrl(null)
-      for (const affectedMemberId of memberIds) {
-        const contact = await resolveMemberContact(admin, member.space_id, affectedMemberId)
-        if (!contact?.email) continue
-        const { subject, html, text } = renderClassEmail({
-          type: 'class_session_cancelled',
-          spaceName,
-          memberName: contact.displayName,
-          className: sessShape?.classes?.title ?? '',
-          location: sessShape?.location ?? null,
-          startsAt: sessShape?.starts_at ?? null,
-          endsAt: sessShape?.ends_at ?? null,
-          manageUrl,
-        })
-        await enqueueNotification(admin, {
-          spaceId: member.space_id,
-          memberId: affectedMemberId,
-          type: 'class_session_cancelled',
-          recipient: contact.email,
-          subject,
-          bodyHtml: html,
-          bodyText: text,
-          dedupeKey: classDedupeKey('class_session_cancelled', {
-            sessionId: u.sessionId,
+    try {
+      const admin = createAdminClient()
+      const { data: sessRow } = await admin
+        .from('class_sessions')
+        .select('starts_at, ends_at, location, classes(title)')
+        .eq('id', u.sessionId)
+        .eq('space_id', member.space_id)
+        .maybeSingle()
+      const sessShape = sessRow as {
+        starts_at: string | null
+        ends_at: string | null
+        location: string | null
+        classes?: { title: string | null } | null
+      } | null
+      const { data: signups } = await admin
+        .from('class_signups')
+        .select('member_id')
+        .eq('space_id', member.space_id)
+        .eq('session_id', u.sessionId)
+        .neq('status', 'cancelled')
+      const memberIds = Array.from(
+        new Set(((signups ?? []) as Array<{ member_id: string }>).map(s => s.member_id)),
+      )
+      if (memberIds.length > 0) {
+        const spaceName = await getSpaceName(admin, member.space_id)
+        const manageUrl = buildManageUrl(null)
+        for (const affectedMemberId of memberIds) {
+          const contact = await resolveMemberContact(admin, member.space_id, affectedMemberId)
+          if (!contact?.email) continue
+          const { subject, html, text } = renderClassEmail({
+            type: 'class_session_cancelled',
+            spaceName,
+            memberName: contact.displayName,
+            className: sessShape?.classes?.title ?? '',
+            location: sessShape?.location ?? null,
+            startsAt: sessShape?.starts_at ?? null,
+            endsAt: sessShape?.ends_at ?? null,
+            manageUrl,
+          })
+          await enqueueNotification(admin, {
+            spaceId: member.space_id,
             memberId: affectedMemberId,
-          }),
-        })
+            type: 'class_session_cancelled',
+            recipient: contact.email,
+            subject,
+            bodyHtml: html,
+            bodyText: text,
+            dedupeKey: classDedupeKey('class_session_cancelled', {
+              sessionId: u.sessionId,
+              memberId: affectedMemberId,
+            }),
+          })
+        }
       }
+    } catch (e) {
+      console.error('[updateSession] class_session_cancelled fan-out failed:', e instanceof Error ? e.message : e)
     }
   }
 
@@ -603,7 +609,8 @@ export async function signUpForClass(input: unknown) {
   // Signup confirmation to the affected member (target, not actor): a manager
   // signing someone else up still emails the booked-for member. Registered
   // and waitlisted use different copy; the type derives from the RPC's
-  // signup_status. Best-effort: never throws into this action.
+  // signup_status. Wrapped: the signup is already written by the RPC, so the
+  // email path must never surface an error to the action's result.
   const signupType =
     status === 'registered'
       ? ('class_signup_registered' as const)
@@ -611,28 +618,32 @@ export async function signUpForClass(input: unknown) {
         ? ('class_signup_waitlisted' as const)
         : null
   if (signupType) {
-    const contact = await resolveMemberContact(admin, member.space_id, targetMemberId)
-    if (contact?.email) {
-      const { subject, html, text } = renderClassEmail({
-        type: signupType,
-        spaceName: await getSpaceName(admin, member.space_id),
-        memberName: contact.displayName,
-        className: cls?.title ?? '',
-        location: (session.location as string | null) ?? null,
-        startsAt: session.starts_at as string,
-        endsAt: (session.ends_at as string | null) ?? null,
-        manageUrl: buildManageUrl(null),
-      })
-      await enqueueNotification(admin, {
-        spaceId: member.space_id,
-        memberId: targetMemberId,
-        type: signupType,
-        recipient: contact.email,
-        subject,
-        bodyHtml: html,
-        bodyText: text,
-        dedupeKey: classDedupeKey(signupType, { signupId: row.signup_id }),
-      })
+    try {
+      const contact = await resolveMemberContact(admin, member.space_id, targetMemberId)
+      if (contact?.email) {
+        const { subject, html, text } = renderClassEmail({
+          type: signupType,
+          spaceName: await getSpaceName(admin, member.space_id),
+          memberName: contact.displayName,
+          className: cls?.title ?? '',
+          location: (session.location as string | null) ?? null,
+          startsAt: session.starts_at as string,
+          endsAt: (session.ends_at as string | null) ?? null,
+          manageUrl: buildManageUrl(null),
+        })
+        await enqueueNotification(admin, {
+          spaceId: member.space_id,
+          memberId: targetMemberId,
+          type: signupType,
+          recipient: contact.email,
+          subject,
+          bodyHtml: html,
+          bodyText: text,
+          dedupeKey: classDedupeKey(signupType, { signupId: row.signup_id }),
+        })
+      }
+    } catch (e) {
+      console.error(`[signUpForClass] ${signupType} enqueue failed:`, e instanceof Error ? e.message : e)
     }
   }
 
@@ -673,47 +684,52 @@ export async function cancelMySignup(input: unknown) {
 
   // Waitlist promotion: someone else was bumped from waitlist into the
   // session by this cancel. Tell them, since the only place that information
-  // lives otherwise is /me. Best-effort: never throws into this action.
+  // lives otherwise is /me. Wrapped: cancel + promotion are already committed
+  // by class_cancel_tx; the email path must never surface an error.
   if (row.promoted_id) {
-    const { data: promo } = await admin
-      .from('class_signups')
-      .select(
-        'id, member_id, class_sessions(starts_at, ends_at, location, classes(title))',
-      )
-      .eq('id', row.promoted_id)
-      .eq('space_id', member.space_id)
-      .maybeSingle()
-    const promotedMemberId = (promo?.member_id as string | null) ?? null
-    const promoSession = (promo as { class_sessions?: {
-      starts_at: string | null
-      ends_at: string | null
-      location: string | null
-      classes?: { title: string | null } | null
-    } | null } | null)?.class_sessions
-    if (promotedMemberId) {
-      const contact = await resolveMemberContact(admin, member.space_id, promotedMemberId)
-      if (contact?.email) {
-        const { subject, html, text } = renderClassEmail({
-          type: 'class_signup_promoted',
-          spaceName: await getSpaceName(admin, member.space_id),
-          memberName: contact.displayName,
-          className: promoSession?.classes?.title ?? '',
-          location: promoSession?.location ?? null,
-          startsAt: promoSession?.starts_at ?? null,
-          endsAt: promoSession?.ends_at ?? null,
-          manageUrl: buildManageUrl(null),
-        })
-        await enqueueNotification(admin, {
-          spaceId: member.space_id,
-          memberId: promotedMemberId,
-          type: 'class_signup_promoted',
-          recipient: contact.email,
-          subject,
-          bodyHtml: html,
-          bodyText: text,
-          dedupeKey: classDedupeKey('class_signup_promoted', { signupId: row.promoted_id }),
-        })
+    try {
+      const { data: promo } = await admin
+        .from('class_signups')
+        .select(
+          'id, member_id, class_sessions(starts_at, ends_at, location, classes(title))',
+        )
+        .eq('id', row.promoted_id)
+        .eq('space_id', member.space_id)
+        .maybeSingle()
+      const promotedMemberId = (promo?.member_id as string | null) ?? null
+      const promoSession = (promo as { class_sessions?: {
+        starts_at: string | null
+        ends_at: string | null
+        location: string | null
+        classes?: { title: string | null } | null
+      } | null } | null)?.class_sessions
+      if (promotedMemberId) {
+        const contact = await resolveMemberContact(admin, member.space_id, promotedMemberId)
+        if (contact?.email) {
+          const { subject, html, text } = renderClassEmail({
+            type: 'class_signup_promoted',
+            spaceName: await getSpaceName(admin, member.space_id),
+            memberName: contact.displayName,
+            className: promoSession?.classes?.title ?? '',
+            location: promoSession?.location ?? null,
+            startsAt: promoSession?.starts_at ?? null,
+            endsAt: promoSession?.ends_at ?? null,
+            manageUrl: buildManageUrl(null),
+          })
+          await enqueueNotification(admin, {
+            spaceId: member.space_id,
+            memberId: promotedMemberId,
+            type: 'class_signup_promoted',
+            recipient: contact.email,
+            subject,
+            bodyHtml: html,
+            bodyText: text,
+            dedupeKey: classDedupeKey('class_signup_promoted', { signupId: row.promoted_id }),
+          })
+        }
       }
+    } catch (e) {
+      console.error('[cancelMySignup] class_signup_promoted enqueue failed:', e instanceof Error ? e.message : e)
     }
   }
 

@@ -22,22 +22,29 @@ export type MemberContact = {
 // Look up a member's email + display_name, scoped to the given space. Used
 // by every enqueue site to derive a recipient from a member id. Returns null
 // if the member is not in that space (cross-tenant safety: the (id, space_id)
-// filter pins the lookup).
+// filter pins the lookup) OR if the lookup itself fails (best-effort: never
+// throws into the calling action, so a transient DB error cannot turn a
+// successful domain mutation into a client-visible error).
 export async function resolveMemberContact(
   admin: AdminClient,
   spaceId: string,
   memberId: string,
 ): Promise<MemberContact | null> {
-  const { data } = await admin
-    .from('space_members')
-    .select('email, display_name')
-    .eq('id', memberId)
-    .eq('space_id', spaceId)
-    .maybeSingle()
-  if (!data) return null
-  return {
-    email: (data.email as string | null) ?? null,
-    displayName: (data.display_name as string | null) ?? null,
+  try {
+    const { data } = await admin
+      .from('space_members')
+      .select('email, display_name')
+      .eq('id', memberId)
+      .eq('space_id', spaceId)
+      .maybeSingle()
+    if (!data) return null
+    return {
+      email: (data.email as string | null) ?? null,
+      displayName: (data.display_name as string | null) ?? null,
+    }
+  } catch (e) {
+    console.error('[notifications] resolveMemberContact threw:', e instanceof Error ? e.message : e)
+    return null
   }
 }
 
@@ -91,10 +98,17 @@ export async function enqueueNotification(
 
 // Read the space's name once per caller. Used for brand-neutral copy that
 // injects the space name (this is a generic multi-space platform; never
-// hard-code a tenant). Returns empty string on miss so renders still work.
+// hard-code a tenant). Returns empty string on miss or on lookup failure
+// (best-effort, same rationale as resolveMemberContact); the renderers all
+// fall back to "your hackerspace" so the email still composes.
 export async function getSpaceName(admin: AdminClient, spaceId: string): Promise<string> {
-  const { data } = await admin.from('spaces').select('name').eq('id', spaceId).maybeSingle()
-  return (data?.name as string | null) ?? ''
+  try {
+    const { data } = await admin.from('spaces').select('name').eq('id', spaceId).maybeSingle()
+    return (data?.name as string | null) ?? ''
+  } catch (e) {
+    console.error('[notifications] getSpaceName threw:', e instanceof Error ? e.message : e)
+    return ''
+  }
 }
 
 // Build the member portal URL the way every enqueue site does. Header host

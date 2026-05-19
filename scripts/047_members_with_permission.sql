@@ -35,3 +35,14 @@ AS $$
       )
     );
 $$;
+
+-- LOCKDOWN: unlike user_has_permission (a per-user boolean that is hard to
+-- enumerate without already knowing target uids), members_with_permission
+-- returns a SET of member_ids for any (space, permission) pair. By default
+-- Postgres grants EXECUTE on a new function to PUBLIC, so without an explicit
+-- REVOKE this function would let any authenticated PostgREST caller enumerate
+-- "who has permission X in space Y" across spaces they are not even members
+-- of. Lock it to service_role: the notifications fan-out goes through the
+-- admin (service-role) client; no client should call this directly.
+REVOKE EXECUTE ON FUNCTION public.members_with_permission(uuid, text) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION public.members_with_permission(uuid, text) TO service_role;
