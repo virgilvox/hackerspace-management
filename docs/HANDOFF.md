@@ -18,7 +18,7 @@ Branch `main`. Verified the D1-D10 batch (trust-but-verify my own fast change se
 - **D12 (commit 42fd385)** Door SSRF DNS-rebind: executor resolves once, rejects if ANY resolved IP is blocked (`isBlockedDoorIp`: loopback/unspecified/link-local/metadata incl IPv4-mapped; RFC1918/LAN/ULA allowed), then connects to the validated IP literal (no 2nd resolution = TOCTOU closed). Dependency-free (chose this over the undocumented undici connect.lookup seam, verified via web research; fits plaintext-HTTP-LAN). redirect:'manual' retained.
 
 ### State
-- **Not deployed.** Ahead of origin: pass-50 deploy-state (6568bc9, held docs) + D6-fix (6105047) + D11 (705f03a) + D12 (42fd385) + this. Migration 045 auto-applies via deploy.sh.
+- **DEPLOYED** (run 26086312156, HEAD d5a282b, success). Deploy log confirms `applying 045_class_signup_concurrency.sql`; deploy succeeded (RPCs created cleanly). Smoke clean: public 200; `/dashboard` `/me` `/classes` `/door/manage` 307; Stripe webhook 400; cron 503. No regressions. WATCH (not curl-testable without a session): a real class signup/cancel exercising class_signup_tx/class_cancel_tx, and a live door call exercising the resolve-then-pin path. This deploy-state edit held local (docs-only, rides next deploy).
 - Remaining smaller backlog: thread conn.auth_param through the door-call selects (audit-log defense-in-depth; client leak already closed by D10); SECURITY DEFINER user_has_role_in_space/user_has_permission still ignore status (RLS defense-in-depth for unverified — app layer closed by D2); P2s (anon-form rate-limit/captcha, forms victim-email attribution owner-confirm, webhook raw PG error text post-signature).
 
 ---
