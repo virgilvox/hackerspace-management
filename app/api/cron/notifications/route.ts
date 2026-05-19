@@ -22,6 +22,11 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 const BATCH = 20
+// Per-space cap within one drain so one tenant's billing burst cannot
+// monopolize the shared global FIFO and starve every other space's email.
+const PER_SPACE = 5
+// Oldest-first candidate window we fairness-balance across spaces.
+const CANDIDATES = 200
 // ~4.5 sends/sec, under Resend's 5 req/sec team limit.
 const SPACING_MS = 220
 
@@ -46,16 +51,40 @@ export async function POST(req: NextRequest) {
   }
 
   const admin = createAdminClient()
-  const { data: rows, error } = await admin
+  const { data: candidates, error } = await admin
     .from('notifications')
-    .select('id, recipient, subject, body_html, body_text, attempts')
+    .select('id, space_id, recipient, subject, body_html, body_text, attempts')
     .eq('status', 'pending')
     .eq('channel', 'email')
     .lt('attempts', MAX_NOTIFICATION_ATTEMPTS)
     .order('created_at', { ascending: true })
-    .limit(BATCH)
+    .limit(CANDIDATES)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Fair drain: round-robin the oldest-first candidates across spaces with a
+  // per-space cap, so a single tenant's burst can't head-of-line-block every
+  // other space's notifications in the shared dispatcher.
+  const bySpace = new Map<string, typeof candidates>()
+  for (const c of candidates ?? []) {
+    const k = c.space_id as string
+    if (!bySpace.has(k)) bySpace.set(k, [])
+    const arr = bySpace.get(k)!
+    if (arr.length < PER_SPACE) arr.push(c)
+  }
+  const rows: NonNullable<typeof candidates> = []
+  let added = true
+  while (added && rows.length < BATCH) {
+    added = false
+    for (const arr of bySpace.values()) {
+      const next = arr.shift()
+      if (next) {
+        rows.push(next)
+        added = true
+        if (rows.length >= BATCH) break
+      }
+    }
+  }
 
   let sent = 0
   let failed = 0
@@ -76,11 +105,15 @@ export async function POST(req: NextRequest) {
       idempotencyKey: `${row.id}:${(row.attempts as number) ?? 0}`,
     })
 
+    // Guard every status write with `status='pending'`: if an overlapping
+    // run already advanced this row, the loser's write is a no-op (a row
+    // already 'sent' can't be flipped to 'failed', and vice versa).
     if (res.ok) {
       await admin
         .from('notifications')
         .update({ status: 'sent', sent_at: new Date().toISOString(), last_error: null })
         .eq('id', row.id)
+        .eq('status', 'pending')
       sent++
     } else {
       const attempts = (row.attempts as number) + 1
@@ -93,6 +126,7 @@ export async function POST(req: NextRequest) {
           last_error: res.error,
         })
         .eq('id', row.id)
+        .eq('status', 'pending')
       if (terminal) failed++
       else retried++
     }
