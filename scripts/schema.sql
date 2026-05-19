@@ -1769,6 +1769,29 @@ AS $$
      );
 $$;
 
+-- Inverted, set-returning form of user_has_permission: which members in this
+-- space hold the named permission? Same membership-status gate (current/late,
+-- mirrors 046), same admin-shortcut, same space_role_permissions +
+-- user_effective_roles fallback. Used by notification fan-outs (e.g. the
+-- forms.manage admin alert) where N user_has_permission calls would be N
+-- round-trips. Equivalent to scripts/047_members_with_permission.sql.
+CREATE OR REPLACE FUNCTION public.members_with_permission(sid uuid, perm text)
+  RETURNS TABLE(member_id uuid) LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $$
+  SELECT sm.id
+  FROM public.space_members sm
+  WHERE sm.space_id = sid
+    AND sm.status IN ('current','late')
+    AND (
+      sm.role = 'admin'
+      OR EXISTS (
+        SELECT 1 FROM public.space_role_permissions p
+        WHERE p.space_id = sid AND p.permission = perm
+          AND p.subject IN (SELECT public.user_effective_roles(sm.user_id, sid))
+      )
+    );
+$$;
+
 ALTER TABLE public.space_role_permissions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ops_acl                ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS role_perms_select ON public.space_role_permissions;

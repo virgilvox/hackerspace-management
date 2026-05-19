@@ -10,6 +10,8 @@ import {
   renderBookingEmail,
   classDedupeKey,
   renderClassEmail,
+  formDedupeKey,
+  renderFormEmail,
 } from '@/lib/notifications-logic'
 
 describe('isTerminalAttempt', () => {
@@ -307,5 +309,77 @@ describe('renderClassEmail', () => {
     })
     expect(r.html).not.toContain('<b>x</b>')
     expect(r.html).toContain('&lt;b&gt;x&lt;/b&gt;')
+  })
+})
+
+describe('formDedupeKey', () => {
+  it('submitter confirmation is one row per submission', () => {
+    expect(formDedupeKey('form_submission_received', { submissionId: 's1' })).toBe(
+      'form_submission_received:s1',
+    )
+  })
+  it('admin alert fans out one row per (submission, admin)', () => {
+    expect(
+      formDedupeKey('form_submission_admin', { submissionId: 's1', adminMemberId: 'a1' }),
+    ).toBe('form_submission_admin:s1:a1')
+    expect(
+      formDedupeKey('form_submission_admin', { submissionId: 's1', adminMemberId: 'a1' }),
+    ).not.toBe(
+      formDedupeKey('form_submission_admin', { submissionId: 's1', adminMemberId: 'a2' }),
+    )
+  })
+})
+
+describe('renderFormEmail', () => {
+  it('submitter received: thank-you subject + body', () => {
+    const r = renderFormEmail({
+      type: 'form_submission_received',
+      spaceName: 'Acme',
+      recipientName: 'Ada',
+      formTitle: 'Liability Waiver',
+      manageUrl: 'https://x.test/me',
+    })
+    expect(r.subject).toBe('Received: Liability Waiver at Acme')
+    expect(r.text).toContain('Hi Ada,')
+    expect(r.text).toContain('received your submission to Liability Waiver at Acme')
+    expect(r.text).toContain('https://x.test/me')
+  })
+
+  it('admin alert: subject names the form; body names the submitter and the link goes to the results URL', () => {
+    const r = renderFormEmail({
+      type: 'form_submission_admin',
+      spaceName: 'Acme',
+      recipientName: 'Boss',
+      formTitle: 'Liability Waiver',
+      manageUrl: 'https://x.test/forms/abc/results',
+      submitterLabel: 'Ada Lovelace',
+    })
+    expect(r.subject).toBe('New submission: Liability Waiver at Acme')
+    expect(r.text).toContain('Ada Lovelace submitted Liability Waiver at Acme')
+    expect(r.text).toContain('https://x.test/forms/abc/results')
+  })
+
+  it('admin alert: falls back to "someone" when submitterLabel is missing', () => {
+    const r = renderFormEmail({
+      type: 'form_submission_admin',
+      spaceName: 'Acme',
+      formTitle: 'Liability Waiver',
+      manageUrl: 'https://x.test/forms/abc/results',
+    })
+    expect(r.text.toLowerCase()).toContain('someone submitted')
+  })
+
+  it('escapes HTML in form title and submitter label', () => {
+    const r = renderFormEmail({
+      type: 'form_submission_admin',
+      spaceName: 'Acme',
+      formTitle: '<script>',
+      manageUrl: 'https://x.test/forms/abc/results',
+      submitterLabel: '<img>',
+    })
+    expect(r.html).not.toContain('<script>')
+    expect(r.html).not.toContain('<img>')
+    expect(r.html).toContain('&lt;script&gt;')
+    expect(r.html).toContain('&lt;img&gt;')
   })
 })

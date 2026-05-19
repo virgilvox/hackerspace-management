@@ -278,6 +278,65 @@ export function renderClassEmail(input: ClassEmailInput): RenderedEmail {
   return { subject, html, text }
 }
 
+// ─── Form submission ─────────────────────────────────────────────────────────
+
+export type FormNotificationType = 'form_submission_received' | 'form_submission_admin'
+
+// Submitter confirmation is one row per submission. Admin fan-out is one row
+// per (submission, admin) so each admin's email is independent.
+export function formDedupeKey(
+  type: FormNotificationType,
+  ids: { submissionId: string; adminMemberId?: string | null },
+): string {
+  if (type === 'form_submission_admin') {
+    return notificationDedupeKey([type, ids.submissionId, ids.adminMemberId])
+  }
+  return notificationDedupeKey([type, ids.submissionId])
+}
+
+export type FormEmailInput = {
+  type: FormNotificationType
+  spaceName: string
+  recipientName?: string | null
+  formTitle: string
+  // For the submitter confirmation, the link goes to /me. For admin alerts,
+  // pass the /forms/<id>/results URL so the admin lands on the result.
+  manageUrl: string
+  // Admin-only: name (or generic) of the person who submitted, to give
+  // context. For submitter confirmation this is unused. Always optional.
+  submitterLabel?: string | null
+}
+
+export function renderFormEmail(input: FormEmailInput): RenderedEmail {
+  const space = input.spaceName || 'your hackerspace'
+  const name = input.recipientName?.trim() || null
+  const greeting = name ? `Hi ${name},` : 'Hi,'
+  const form = input.formTitle || 'the form'
+
+  let subject: string
+  const lines: string[] = [greeting, '']
+
+  if (input.type === 'form_submission_received') {
+    subject = `Received: ${form} at ${space}`
+    lines.push(
+      `We received your submission to ${form} at ${space}. Thanks.`,
+      '',
+      `Manage your account: ${input.manageUrl}`,
+    )
+  } else {
+    subject = `New submission: ${form} at ${space}`
+    const who = (input.submitterLabel || '').trim() || 'someone'
+    lines.push(
+      `${who} submitted ${form} at ${space}.`,
+      '',
+      `View the submission: ${input.manageUrl}`,
+    )
+  }
+
+  const { html, text } = renderShell(lines)
+  return { subject, html, text }
+}
+
 // ─── Booking (equipment reservation) ─────────────────────────────────────────
 
 export type BookingNotificationType = 'booking_confirmed' | 'booking_cancelled'

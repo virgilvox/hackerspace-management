@@ -1674,6 +1674,10 @@ export type Database = {
         Args: { uid: string; sid: string; perm: string }
         Returns: boolean
       }
+      members_with_permission: {
+        Args: { sid: string; perm: string }
+        Returns: { member_id: string }[]
+      }
     }
     Enums: {
       area_lead_status: "active" | "vacant" | "handoff"

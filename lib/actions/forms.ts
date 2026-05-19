@@ -34,6 +34,13 @@ import {
   pickMemberForEmail,
   deriveSubmitterEmail,
 } from '@/lib/forms-logic'
+import { renderFormEmail, formDedupeKey } from '@/lib/notifications-logic'
+import {
+  enqueueNotification,
+  resolveMemberContact,
+  getSpaceName,
+  buildManageUrl,
+} from '@/lib/notifications/enqueue'
 
 // Associate prior unlinked submissions in a space with a member by email
 // (case-insensitive, ILIKE-escaped so `_`/`%` in an address are literal).
@@ -439,7 +446,7 @@ export async function submitForm(input: unknown) {
   const admin = createAdminClient()
   const { data: form } = await admin
     .from('forms')
-    .select('id, space_id, slug, kind, visibility, status, schema, legal_text, version')
+    .select('id, space_id, slug, title, kind, visibility, status, schema, legal_text, version')
     .eq('id', body.formId)
     .maybeSingle()
   if (!form) return { error: 'Form not found' }
@@ -516,19 +523,23 @@ export async function submitForm(input: unknown) {
   }
 
   const h = await headers()
-  const { error: insErr } = await admin.from('form_submissions').insert({
-    form_id: form.id,
-    space_id: form.space_id,
-    member_id: linkedMemberId,
-    submitter_email: submitterEmail,
-    answers: answers.value,
-    form_snapshot: form.schema,
-    legal_text_snapshot: form.legal_text ?? null,
-    form_version: form.version,
-    ip: parseClientIp(h.get('x-forwarded-for'), h.get('x-real-ip')),
-    user_agent: h.get('user-agent'),
-  })
-  if (insErr) return { error: insErr.message }
+  const { data: submission, error: insErr } = await admin
+    .from('form_submissions')
+    .insert({
+      form_id: form.id,
+      space_id: form.space_id,
+      member_id: linkedMemberId,
+      submitter_email: submitterEmail,
+      answers: answers.value,
+      form_snapshot: form.schema,
+      legal_text_snapshot: form.legal_text ?? null,
+      form_version: form.version,
+      ip: parseClientIp(h.get('x-forwarded-for'), h.get('x-real-ip')),
+      user_agent: h.get('user-agent'),
+    })
+    .select('id')
+    .single()
+  if (insErr || !submission) return { error: insErr?.message ?? 'Submission failed' }
 
   // Advisory audit. No member context for anon submitters, so write directly.
   await admin.from('activity_log').insert({
@@ -541,7 +552,105 @@ export async function submitForm(input: unknown) {
     details: form.slug,
   })
 
+  // Notifications (best-effort, never throws into this action):
+  // 1. Submitter confirmation: ONLY when the submitter is authenticated
+  //    (members or public_auth). Recipient is the verified auth email, not
+  //    body.email. Anonymous public submissions skip the confirmation, since
+  //    a typed email could belong to anyone and confirming to it would be a
+  //    spam vector.
+  // 2. Admin alert: one row per member who holds forms.manage in the space
+  //    (the same gate forms-guard / forms RLS use). Dedupe by (submission,
+  //    admin) so a replay is a no-op.
+  try {
+    const submissionId = submission.id as string
+    const spaceName = await getSpaceName(admin, form.space_id)
+    const formTitle = (form.title as string | null) ?? form.slug ?? ''
+
+    if (user?.email) {
+      const recipientEmail = user.email.toLowerCase()
+      const recipientName = linkedMemberId
+        ? (await resolveMemberContact(admin, form.space_id, linkedMemberId))?.displayName ?? null
+        : null
+      const { subject, html, text } = renderFormEmail({
+        type: 'form_submission_received',
+        spaceName,
+        recipientName,
+        formTitle,
+        manageUrl: buildManageUrl(null),
+      })
+      await enqueueNotification(admin, {
+        spaceId: form.space_id,
+        memberId: linkedMemberId,
+        type: 'form_submission_received',
+        recipient: recipientEmail,
+        subject,
+        bodyHtml: html,
+        bodyText: text,
+        dedupeKey: formDedupeKey('form_submission_received', { submissionId }),
+      })
+    }
+
+    const { data: admins } = await admin.rpc('members_with_permission', {
+      sid: form.space_id,
+      perm: 'forms.manage',
+    })
+    const adminMemberIds = Array.from(
+      new Set(((admins ?? []) as Array<{ member_id: string }>).map(a => a.member_id)),
+    )
+    if (adminMemberIds.length > 0) {
+      const resultsUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://hackerspace.sh'}/forms/${form.id}/results`
+      const submitterLabel = await deriveSubmitterLabel(admin, form.space_id, {
+        linkedMemberId,
+        submitterEmail,
+        userEmail: user?.email ?? null,
+      })
+      for (const adminMemberId of adminMemberIds) {
+        const contact = await resolveMemberContact(admin, form.space_id, adminMemberId)
+        if (!contact?.email) continue
+        const { subject, html, text } = renderFormEmail({
+          type: 'form_submission_admin',
+          spaceName,
+          recipientName: contact.displayName,
+          formTitle,
+          manageUrl: resultsUrl,
+          submitterLabel,
+        })
+        await enqueueNotification(admin, {
+          spaceId: form.space_id,
+          memberId: adminMemberId,
+          type: 'form_submission_admin',
+          recipient: contact.email,
+          subject,
+          bodyHtml: html,
+          bodyText: text,
+          dedupeKey: formDedupeKey('form_submission_admin', {
+            submissionId,
+            adminMemberId,
+          }),
+        })
+      }
+    }
+  } catch (e) {
+    console.error('[submitForm] notifications fan-out failed:', e instanceof Error ? e.message : e)
+  }
+
   return { success: true as const }
+}
+
+// Helper: how to label the submitter in an admin alert. Prefer the linked
+// member's display name (most informative); fall back to the typed/auth
+// email; fall back to "someone" for fully anonymous submissions where the
+// typed email is also missing. Best-effort: never throws.
+async function deriveSubmitterLabel(
+  admin: ReturnType<typeof createAdminClient>,
+  spaceId: string,
+  ids: { linkedMemberId: string | null; submitterEmail: string | null; userEmail: string | null },
+): Promise<string> {
+  if (ids.linkedMemberId) {
+    const contact = await resolveMemberContact(admin, spaceId, ids.linkedMemberId)
+    if (contact?.displayName) return contact.displayName
+  }
+  return ids.userEmail || ids.submitterEmail || 'someone'
 }
 
 /**
