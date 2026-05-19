@@ -239,7 +239,7 @@ export async function testDoorConnection(input: unknown) {
 
   const { data: conn } = await supabase
     .from('door_connections')
-    .select('id, space_id, adapter, base_url, pinned_host, secret_ref, verbs, is_enabled')
+    .select('id, space_id, adapter, base_url, pinned_host, auth_param, secret_ref, verbs, is_enabled')
     .eq('id', v.data.connectionId)
     .eq('space_id', member.space_id)
     .maybeSingle()
@@ -260,15 +260,17 @@ export async function testDoorConnection(input: unknown) {
     query = applyTemplate(tmpl, { pw: password ?? '' })
   }
 
+  const authParam = (conn.auth_param as string | null) ?? null
   const result = await callDoor({
     url: (conn.base_url as string) + query,
     pinnedHost: conn.pinned_host as string,
     password,
+    authParam,
   })
 
   const detail = result.ok
-    ? redactDoorSecrets(`status ${result.status}: ${result.snippet}`.slice(0, 1000), password)
-    : redactDoorSecrets(`failed: ${result.reason}`.slice(0, 1000), password)
+    ? redactDoorSecrets(`status ${result.status}: ${result.snippet}`.slice(0, 1000), password, authParam)
+    : redactDoorSecrets(`failed: ${result.reason}`.slice(0, 1000), password, authParam)
 
   await admin.from('door_access_log').insert({
     space_id: member.space_id,
@@ -344,6 +346,7 @@ type ConnRow = {
   adapter: string
   base_url: string
   pinned_host: string
+  auth_param: string | null
   secret_ref: string | null
   verbs: Record<string, string> | null
   is_enabled: boolean
@@ -356,7 +359,7 @@ async function loadEnabledConnection(
 ): Promise<{ ok: true; conn: ConnRow } | { ok: false; error: string }> {
   const { data } = await admin
     .from('door_connections')
-    .select('id, adapter, base_url, pinned_host, secret_ref, verbs, is_enabled')
+    .select('id, adapter, base_url, pinned_host, auth_param, secret_ref, verbs, is_enabled')
     .eq('id', connectionId)
     .eq('space_id', spaceId)
     .maybeSingle()
@@ -376,6 +379,7 @@ async function auditDoor(
     success: boolean
     detail: string
     password?: string | null
+    authParam?: string | null
   },
 ) {
   await admin.from('door_access_log').insert({
@@ -385,7 +389,7 @@ async function auditDoor(
     target_member_id: row.targetMemberId ?? null,
     action: row.action,
     success: row.success,
-    detail: redactDoorSecrets(row.detail.slice(0, 1000), row.password),
+    detail: redactDoorSecrets(row.detail.slice(0, 1000), row.password, row.authParam),
   })
 }
 
@@ -499,7 +503,7 @@ export async function grantCard(input: unknown) {
     })
   }
 
-  const result = await callDoor({ url: conn.base_url + query, pinnedHost: conn.pinned_host, password })
+  const result = await callDoor({ url: conn.base_url + query, pinnedHost: conn.pinned_host, password, authParam: conn.auth_param })
 
   if (!result.ok) {
     // Roll back the reservation so slots do not leak on a failed write.
@@ -580,7 +584,7 @@ export async function revokeCard(input: unknown) {
     query = applyTemplate(tmpl, { slot, pw: password ?? '' })
   }
 
-  const result = await callDoor({ url: conn.base_url + query, pinnedHost: conn.pinned_host, password })
+  const result = await callDoor({ url: conn.base_url + query, pinnedHost: conn.pinned_host, password, authParam: conn.auth_param })
 
   if (!result.ok) {
     // Keep the slot row so the app's map stays in sync with the device's
@@ -678,7 +682,7 @@ export async function doorControl(input: unknown) {
     query = applyTemplate(tmpl, { pw: password ?? '' })
   }
 
-  const result = await callDoor({ url: conn.base_url + query, pinnedHost: conn.pinned_host, password })
+  const result = await callDoor({ url: conn.base_url + query, pinnedHost: conn.pinned_host, password, authParam: conn.auth_param })
 
   await auditDoor(admin, {
     spaceId: member.space_id, connectionId, actorMemberId: member.id,
@@ -748,7 +752,7 @@ export async function selfEntry(input: unknown) {
 
   const { data: conn } = await admin
     .from('door_connections')
-    .select('id, adapter, base_url, pinned_host, secret_ref, verbs, is_enabled, allow_member_self_entry')
+    .select('id, adapter, base_url, pinned_host, auth_param, secret_ref, verbs, is_enabled, allow_member_self_entry')
     .eq('id', v.data.connectionId)
     .eq('space_id', member.space_id)
     .maybeSingle()
@@ -789,6 +793,7 @@ export async function selfEntry(input: unknown) {
     url: (conn.base_url as string) + query,
     pinnedHost: conn.pinned_host as string,
     password,
+    authParam: (conn.auth_param as string | null) ?? null,
   })
 
   await auditDoor(admin, {
