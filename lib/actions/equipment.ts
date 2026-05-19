@@ -20,6 +20,13 @@ import {
 } from '@/lib/validations'
 import { reservationEligibility, hasConflict } from '@/lib/equipment-logic'
 import { isCertificationActive } from '@/lib/certifications-logic'
+import { renderBookingEmail, bookingDedupeKey } from '@/lib/notifications-logic'
+import {
+  enqueueNotification,
+  resolveMemberContact,
+  getSpaceName,
+  buildManageUrl,
+} from '@/lib/notifications/enqueue'
 
 type Gate =
   | { ok: true; supabase: ServerSupabase; member: Member }
@@ -243,7 +250,7 @@ export async function reserveEquipment(input: unknown) {
 
   const { data: equip } = await supabase
     .from('equipment')
-    .select('id, space_id, status, is_active, required_certification_id')
+    .select('id, name, location, space_id, status, is_active, required_certification_id')
     .eq('id', r.equipmentId)
     .eq('space_id', member.space_id)
     .maybeSingle()
@@ -301,6 +308,34 @@ export async function reserveEquipment(input: unknown) {
   }
 
   await logActivity(supabase, member, 'reserved', 'equipment', r.equipmentId)
+
+  // Booking confirmation goes to the affected member (target), not the actor.
+  // A manager booking on behalf of someone else still emails the booked-for
+  // member. Best-effort: the enqueue helper never throws into this action.
+  const contact = await resolveMemberContact(admin, member.space_id, targetMemberId)
+  if (contact?.email) {
+    const { subject, html, text } = renderBookingEmail({
+      type: 'booking_confirmed',
+      spaceName: await getSpaceName(admin, member.space_id),
+      memberName: contact.displayName,
+      equipmentName: (equip.name as string | null) ?? 'equipment',
+      location: (equip.location as string | null) ?? null,
+      startsAt: r.starts_at,
+      endsAt: r.ends_at,
+      manageUrl: buildManageUrl(null),
+    })
+    await enqueueNotification(admin, {
+      spaceId: member.space_id,
+      memberId: targetMemberId,
+      type: 'booking_confirmed',
+      recipient: contact.email,
+      subject,
+      bodyHtml: html,
+      bodyText: text,
+      dedupeKey: bookingDedupeKey('booking_confirmed', data.id as string),
+    })
+  }
+
   revalidatePath('/equipment')
   revalidatePath('/me')
   return { data: { id: data.id as string } }
@@ -318,7 +353,7 @@ export async function cancelReservation(input: unknown) {
   const admin = createAdminClient()
   const { data: res } = await admin
     .from('equipment_reservations')
-    .select('id, space_id, member_id, status, equipment_id')
+    .select('id, space_id, member_id, status, equipment_id, starts_at, ends_at')
     .eq('id', v.data.reservationId)
     .maybeSingle()
   if (!res || res.space_id !== member.space_id) return { error: 'Reservation not found' }
@@ -343,6 +378,43 @@ export async function cancelReservation(input: unknown) {
   if (error) return { error: error.message }
 
   await logActivity(supabase, member, 'cancelled_reservation', 'equipment', res.equipment_id as string)
+
+  // Cancel emails fire ONLY when someone other than the affected member
+  // cancelled (a manager cancelling on the member's behalf). A self-cancel is
+  // silent: the actor already saw the UI confirm and an email would be noise.
+  if (!ownIt) {
+    const affectedMemberId = res.member_id as string
+    const contact = await resolveMemberContact(admin, member.space_id, affectedMemberId)
+    if (contact?.email) {
+      const { data: equip } = await admin
+        .from('equipment')
+        .select('name, location')
+        .eq('id', res.equipment_id as string)
+        .eq('space_id', member.space_id)
+        .maybeSingle()
+      const { subject, html, text } = renderBookingEmail({
+        type: 'booking_cancelled',
+        spaceName: await getSpaceName(admin, member.space_id),
+        memberName: contact.displayName,
+        equipmentName: (equip?.name as string | null) ?? 'equipment',
+        location: (equip?.location as string | null) ?? null,
+        startsAt: res.starts_at as string,
+        endsAt: res.ends_at as string,
+        manageUrl: buildManageUrl(null),
+      })
+      await enqueueNotification(admin, {
+        spaceId: member.space_id,
+        memberId: affectedMemberId,
+        type: 'booking_cancelled',
+        recipient: contact.email,
+        subject,
+        bodyHtml: html,
+        bodyText: text,
+        dedupeKey: bookingDedupeKey('booking_cancelled', v.data.reservationId),
+      })
+    }
+  }
+
   revalidatePath('/equipment')
   revalidatePath('/me')
   return { data: { id: v.data.reservationId } }

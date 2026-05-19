@@ -6,6 +6,8 @@ import {
   duesDedupeKey,
   formatMoney,
   renderDuesEmail,
+  bookingDedupeKey,
+  renderBookingEmail,
 } from '@/lib/notifications-logic'
 
 describe('isTerminalAttempt', () => {
@@ -152,5 +154,71 @@ describe('renderDuesEmail', () => {
     })
     expect(r.subject).toBe('Your your hackerspace dues renewed')
     expect(r.text).toContain('Hi,')
+  })
+})
+
+describe('bookingDedupeKey', () => {
+  it('keys by type + reservation id; per-reservation per-event', () => {
+    expect(bookingDedupeKey('booking_confirmed', 'r1')).toBe('booking_confirmed:r1')
+    expect(bookingDedupeKey('booking_cancelled', 'r1')).toBe('booking_cancelled:r1')
+    expect(bookingDedupeKey('booking_confirmed', 'r1')).not.toBe(
+      bookingDedupeKey('booking_confirmed', 'r2'),
+    )
+  })
+})
+
+describe('renderBookingEmail', () => {
+  const base = {
+    spaceName: 'Acme',
+    memberName: 'Ada',
+    equipmentName: 'Laser Cutter',
+    location: 'Bay 3',
+    startsAt: '2026-05-22T15:00:00Z',
+    endsAt: '2026-05-22T17:00:00Z',
+    manageUrl: 'https://x.test/me',
+  } as const
+
+  it('confirmed: subject names equipment + space; body has range, location, link', () => {
+    const r = renderBookingEmail({ type: 'booking_confirmed', ...base })
+    expect(r.subject).toBe('Reservation confirmed: Laser Cutter at Acme')
+    expect(r.text).toContain('Hi Ada,')
+    expect(r.text).toContain('Laser Cutter at Acme')
+    expect(r.text).toContain('Bay 3')
+    expect(r.text).toContain('https://x.test/me')
+    expect(r.html).toContain('<a href="https://x.test/me"')
+  })
+
+  it('cancelled: subject + body acknowledge the cancel', () => {
+    const r = renderBookingEmail({ type: 'booking_cancelled', ...base })
+    expect(r.subject).toBe('Reservation cancelled: Laser Cutter at Acme')
+    expect(r.text.toLowerCase()).toContain('was cancelled')
+  })
+
+  it('omits the location line when not provided', () => {
+    const r = renderBookingEmail({ ...base, type: 'booking_confirmed', location: null })
+    expect(r.text).not.toContain('Location:')
+  })
+
+  it('falls back to a generic greeting + equipment label when names missing', () => {
+    const r = renderBookingEmail({
+      ...base,
+      type: 'booking_confirmed',
+      memberName: '',
+      equipmentName: '',
+    })
+    expect(r.text).toContain('Hi,')
+    expect(r.subject).toBe('Reservation confirmed: the equipment at Acme')
+  })
+
+  it('escapes HTML in injected names', () => {
+    const r = renderBookingEmail({
+      ...base,
+      type: 'booking_confirmed',
+      memberName: 'a<b>',
+      equipmentName: '<img>',
+    })
+    expect(r.html).not.toContain('<img>')
+    expect(r.html).toContain('&lt;img&gt;')
+    expect(r.html).toContain('a&lt;b&gt;')
   })
 })

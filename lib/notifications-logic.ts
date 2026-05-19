@@ -104,6 +104,50 @@ function formatDate(iso: string | null | undefined): string {
   return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
 }
 
+function formatDateTime(iso: string | null | undefined): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+}
+
+// "Friday, May 22, 2026, 3:00 PM to 5:00 PM" if both sides parse; else best
+// effort with whichever side is available. Used by booking + class renders.
+function formatRange(
+  startIso: string | null | undefined,
+  endIso: string | null | undefined,
+): string {
+  const start = formatDateTime(startIso)
+  const end = formatDateTime(endIso)
+  if (start && end) return `${start} to ${end}`
+  return start || end || ''
+}
+
+function renderShell(lines: string[]): { html: string; text: string } {
+  const text = lines.join('\n').trim() + '\n'
+  const html =
+    `<div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;font-size:14px;line-height:1.6;color:#111">` +
+    lines
+      .map(l => {
+        if (l === '') return '<br/>'
+        const safe = escapeHtml(l)
+        const linked = safe.replace(
+          /(https?:\/\/[^\s]+)/g,
+          '<a href="$1" style="color:#2563eb">$1</a>',
+        )
+        return `<p style="margin:0 0 8px">${linked}</p>`
+      })
+      .join('') +
+    `</div>`
+  return { html, text }
+}
+
 export type DuesEmailInput = {
   type: DuesNotificationType
   spaceName: string
@@ -154,21 +198,61 @@ export function renderDuesEmail(input: DuesEmailInput): RenderedEmail {
     )
   }
 
-  const text = lines.join('\n').trim() + '\n'
-  const html =
-    `<div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;font-size:14px;line-height:1.6;color:#111">` +
-    lines
-      .map(l => {
-        if (l === '') return '<br/>'
-        const safe = escapeHtml(l)
-        const linked = safe.replace(
-          /(https?:\/\/[^\s]+)/g,
-          '<a href="$1" style="color:#2563eb">$1</a>',
-        )
-        return `<p style="margin:0 0 8px">${linked}</p>`
-      })
-      .join('') +
-    `</div>`
+  const { html, text } = renderShell(lines)
+  return { subject, html, text }
+}
 
+// ─── Booking (equipment reservation) ─────────────────────────────────────────
+
+export type BookingNotificationType = 'booking_confirmed' | 'booking_cancelled'
+
+// One row per reservation per event. A cancel-then-re-reserve produces a new
+// reservation_id, so confirmation + cancel of the same reservation each fire
+// once and never collide.
+export function bookingDedupeKey(
+  type: BookingNotificationType,
+  reservationId: string,
+): string {
+  return notificationDedupeKey([type, reservationId])
+}
+
+export type BookingEmailInput = {
+  type: BookingNotificationType
+  spaceName: string
+  memberName?: string | null
+  equipmentName: string
+  location?: string | null
+  startsAt: string
+  endsAt: string
+  manageUrl: string
+}
+
+export function renderBookingEmail(input: BookingEmailInput): RenderedEmail {
+  const space = input.spaceName || 'your hackerspace'
+  const name = input.memberName?.trim() || null
+  const greeting = name ? `Hi ${name},` : 'Hi,'
+  const equipment = input.equipmentName || 'the equipment'
+  const range = formatRange(input.startsAt, input.endsAt)
+  const location = (input.location || '').trim()
+
+  let subject: string
+  const lines: string[] = [greeting, '']
+
+  if (input.type === 'booking_confirmed') {
+    subject = `Reservation confirmed: ${equipment} at ${space}`
+    lines.push(
+      `Your reservation for ${equipment} at ${space} is confirmed${range ? ` for ${range}` : ''}.`,
+    )
+    if (location) lines.push(`Location: ${location}.`)
+    lines.push('', `View your reservations: ${input.manageUrl}`)
+  } else {
+    subject = `Reservation cancelled: ${equipment} at ${space}`
+    lines.push(
+      `Your reservation for ${equipment} at ${space}${range ? ` for ${range}` : ''} was cancelled.`,
+    )
+    lines.push('', `View your reservations: ${input.manageUrl}`)
+  }
+
+  const { html, text } = renderShell(lines)
   return { subject, html, text }
 }
