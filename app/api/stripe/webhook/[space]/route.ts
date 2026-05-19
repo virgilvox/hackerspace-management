@@ -55,10 +55,10 @@ export async function POST(
   try {
     event = stripe.webhooks.constructEvent(raw, sig, webhookSecret)
   } catch (e) {
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : 'Invalid signature' },
-      { status: 400 },
-    )
+    // Do not echo the verification library's message to an unauthenticated
+    // caller; log server-side for debugging.
+    console.error('[stripe webhook] signature verify failed:', e instanceof Error ? e.message : e)
+    return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
   }
 
   // Idempotency: the unique PK rejects a replay; treat that as already-done.
@@ -69,7 +69,8 @@ export async function POST(
     if (/duplicate key|already exists|unique/i.test(dedupe.error.message)) {
       return NextResponse.json({ received: true, duplicate: true })
     }
-    return NextResponse.json({ error: dedupe.error.message }, { status: 500 })
+    console.error('[stripe webhook] dedupe insert failed:', dedupe.error.message)
+    return NextResponse.json({ error: 'Webhook processing error' }, { status: 500 })
   }
 
   const graceDays = cfg?.grace_days ?? 7
@@ -331,10 +332,8 @@ export async function POST(
     // remove it so Stripe's retry of this same event is reprocessed rather
     // than silently short-circuited as a duplicate (no lost events).
     await admin.from('stripe_webhook_events').delete().eq('event_id', event.id)
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : 'handler error' },
-      { status: 500 },
-    )
+    console.error('[stripe webhook] handler error:', e instanceof Error ? e.message : e)
+    return NextResponse.json({ error: 'Webhook handler error' }, { status: 500 })
   }
 
   return NextResponse.json({ received: true })
