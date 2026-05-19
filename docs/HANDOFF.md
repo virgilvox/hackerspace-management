@@ -19,8 +19,9 @@ Branch `main`. Assessment chose "integration test harness" to fix the root cause
 The concrete prod risk flagged in the pass-52 assessment — signup/cancel possibly broken because the action assumes `supabase.rpc()` returns an array for a RETURNS TABLE function — is **disproven**: the shape + behavior + concurrency are correct. Correctness of the riskiest shipped SQL no longer depends on me manually auditing after deploy.
 
 ### State
-- **Non-runtime** (tests, vitest config, a package.json script, docs). No app code, no migration. Nothing to validate in prod; a push would only redeploy unchanged runtime. Held local pending the deploy decision (consistent with the docs-only hold pattern).
-- Backlog now: deferred SECURITY DEFINER status-gate (own session, rationale in pass-52); owner product question (forms attribution); ARCHITECTURE limitation #2 doc drift ("Stripe not integrated" — stale). Natural next: extend the harness to the Stripe webhook + key server actions; or owner provisioning + end-to-end spine validation.
+- **PUSHED** (run 26122719148, success, no-op runtime — prod / = 200). Harness is on origin for CI/contributors. Audited the harness itself: verified it self-skips all 21 / exits 0 with no DB (never blocks CI) and the default `pnpm test` (532/26) does not pick up `integration/`.
+- **F3 extension (commit 42f6509):** `integration/billing-idempotency.test.ts` — stripe_webhook_events PK replay protection, member_billing UNIQUE onConflict upsert, notifications UNIQUE + ON CONFLICT DO NOTHING. **21 integration tests** total, all green on real Postgres. Non-runtime; held local (rides next deploy) or push as desired.
+- Backlog now: deferred SECURITY DEFINER status-gate (own session, rationale in pass-52); owner product question (forms attribution); ARCHITECTURE limitation #2 doc drift ("Stripe not integrated" — stale). Natural next: webhook *route*-level integration (signed event → handler), more server-action paths; or owner provisioning + end-to-end spine validation.
 
 ---
 
