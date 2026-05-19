@@ -12,6 +12,7 @@ import {
   type Member,
   type ServerSupabase,
 } from '@/lib/auth-helpers'
+import { checkRateLimit } from '@/lib/security'
 import {
   createFormSchema,
   updateFormSchema,
@@ -444,6 +445,17 @@ export async function submitForm(input: unknown) {
   if (!form) return { error: 'Form not found' }
   if (form.status !== 'published') {
     return { error: 'This form is not accepting responses' }
+  }
+
+  // Anonymous endpoint with no captcha: bound the DB-bloat abuse vector.
+  // Generous per-IP+form window because legitimate public signups at a
+  // hackerspace often share one NAT/wifi IP (a captcha is the real control,
+  // intentionally deferred). Best-effort IP from the proxy header.
+  const h = await headers()
+  const ip = (h.get('x-forwarded-for')?.split(',')[0] ?? '').trim() || 'unknown'
+  const rl = checkRateLimit(`form-submit:${ip}:${form.id}`, 20, 60_000)
+  if (!rl.allowed) {
+    return { error: 'Too many submissions from your network. Please wait a moment and try again.' }
   }
 
   const supabase = await createClient()
