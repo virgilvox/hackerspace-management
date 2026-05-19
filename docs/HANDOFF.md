@@ -35,7 +35,7 @@ Branch `main`. Took item 3 from the pass-55 backlog: booking, class signup, and 
 - **No volume governor.** Every form submission fans out one row per `forms.manage` holder; a popular waiver could create N rows per submission. Acceptable today (the unique index makes it idempotent); a digest / throttle is a separate phase (lines up with member preferences and an in-app inbox).
 
 ### Backlog after this
-The pass-55 list minus item 3. Next-most-leverage items remain:
+The pass-55 list minus item 3. Highest-priority items remaining:
 1. Owner-gated end-to-end spine validation (the shipped≠proven gap).
 2. Production observability (Sentry-equivalent for the webhook + dispatcher + actions).
 3. Phase 4-adjacent: member notification preferences (per-type opt-in/out; the dispatcher checks prefs before sending; natural next pass now that breadth exists).
