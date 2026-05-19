@@ -412,6 +412,7 @@ Default channels created by trigger on space INSERT: `general`, `announcements`,
 | 044 | `prevent_member_self_role_change` also blocks self-change of payment_status, payment_note, dues_paid_until, last_paid_at, last_payment_at, stripe_customer_id, joined_at (member could otherwise forge a dues-good signal via PostgREST). Service-client/privileged writes still bypass. No new table/column |
 | 045 | `class_signup_tx` / `class_cancel_tx` SECURITY DEFINER functions: capacity-decision+insert and cancel+waitlist-promote run under a per-session `pg_advisory_xact_lock` (concurrent signups can't over-enroll; concurrent cancels can't double-promote). Mirrors the pure computeSignupStatus/pickPromotion rule; RPC is runtime authority. No new table/column |
 | 046 | `user_has_role_in_space` + `user_has_permission` gated on `status IN ('current','late')` (RLS-layer defense-in-depth for D2): unverified/inactive can no longer exercise a role/permission via direct PostgREST. `get_user_space_ids` + `user_effective_roles` intentionally NOT gated (would break unverified self-reads / onboarding). No new table/column |
+| 047 | `members_with_permission(sid, perm)` SECURITY DEFINER, set-returning inverse of `user_has_permission` (same current/late gate, same admin shortcut + `space_role_permissions`/`user_effective_roles` fallback). Lets Phase 4 fan-outs (e.g. `form_submission_admin`) resolve permission holders in one query. No new table/column/policy |
 
 ---
 
@@ -452,4 +453,4 @@ Default channels created by trigger on space INSERT: `general`, `announcements`,
 
 Column additions: `space_members.tier_id`, `onboarding_completed_at`, `onboarding_progress`; `secrets.encrypted_value`, `encryption_version`; `knowledge_base.render_markdown`, `is_meeting_minutes`, `meeting_date`; `classes.required_form_id`; `spaces.host_requires_card`. New enum `comment_entity_type`.
 
-Helper functions: `user_effective_roles(uid,sid)`, `user_has_permission(uid,sid,perm)` (both SECURITY DEFINER, search_path=public), plus governance quorum/tally/SLA functions.
+Helper functions: `user_effective_roles(uid,sid)`, `user_has_permission(uid,sid,perm)`, `members_with_permission(sid,perm)` (all SECURITY DEFINER, search_path=public), plus governance quorum/tally/SLA functions.

@@ -715,6 +715,62 @@ response. The status write is guarded with `.eq('status','pending')`
 so two overlapping dispatcher runs cannot flip a row another already
 marked sent. No new permission code.
 
+### Notification breadth: bookings, classes, forms (product spine Phase 4)
+
+Phase 2 (dues lifecycle) shipped the outbox + dispatcher. Phase 4 extends
+event coverage to bookings, class signups, and form submissions, reusing
+the same machinery unchanged (no new table, no dispatcher change, no new
+env var). The `notifications.type` column is `text`, so adding event types
+costs no migration.
+
+A shared `lib/notifications/enqueue.ts` helper centralizes member-contact
+lookup and the idempotent best-effort upsert; the Stripe webhook and every
+new call site now go through it instead of inlining the same pattern.
+
+New event types and their triggers:
+
+- **Equipment** (`lib/actions/equipment.ts`)
+    - `booking_confirmed` on `reserveEquipment` (always; a manager booking
+      on behalf still emails the target member).
+    - `booking_cancelled` on `cancelReservation` **only when the actor is
+      not the affected member** (self-cancels stay silent; the actor
+      already saw the UI confirm).
+- **Classes** (`lib/actions/classes.ts`)
+    - `class_signup_registered` / `class_signup_waitlisted` on
+      `signUpForClass`, picked from the RPC's returned signup status.
+    - `class_signup_promoted` on `cancelMySignup` when
+      `class_cancel_tx` returns a `promoted_id` (the bumped waitlist
+      member).
+    - `class_session_cancelled` on `updateSession` when status flips to
+      `cancelled`. Fans out one row per still-active signup (registered or
+      waitlisted), dedupe by `(session, member)` so a re-cancel is a no-op.
+- **Forms** (`lib/actions/forms.ts`, `submitForm`)
+    - `form_submission_received` **only when the submitter is
+      authenticated** (members or `public_auth`). Recipient is the
+      verified Supabase auth email, never the typed `body.email`. Pure
+      anonymous public submissions skip this confirmation (typed emails
+      could belong to anyone; confirming to them would be a victim-spam
+      vector).
+    - `form_submission_admin` fans out to every member who holds
+      `forms.manage`, dedupe by `(submission, admin)`. The admin link
+      goes to `/forms/<id>/results`. Finding the recipient set efficiently
+      is what migration 047 (`members_with_permission(sid, perm)`)
+      exists for: an inverted, set-returning form of `user_has_permission`
+      that respects the same current/late status gate (046) and the same
+      admin shortcut + space-role-permissions / effective-roles fallback.
+      Additive; existing `user_has_permission` callers unchanged.
+
+Dedupe-key scheme (all keyed under `(space_id, dedupe_key)`):
+`booking_*:<reservation_id>`; signup-keyed class events
+`class_signup_*:<signup_id>` (stable across promotion);
+`class_session_cancelled:<session_id>:<member_id>`;
+`form_submission_received:<submission_id>`;
+`form_submission_admin:<submission_id>:<admin_id>`.
+
+Every enqueue is best-effort and wrapped: a notifications-table or
+permission-lookup failure can never throw into the calling action, so the
+underlying domain mutation always finalizes.
+
 ### Member self-serve portal (`/me`; product spine Phase 3)
 
 `/me` is a 3-tab portal (Profile / Membership / Activity). The server page does all data fetching and passes plain data to a single client portal component (`me-portal-client.tsx`) that owns tab state and rendering; the read-only sections were moved verbatim from the prior flat page (no behavior change in the shell). Profile editing and inline cancels reuse existing server actions (`updateMyProfile`, `discloseAffiliations`, `cancelMySignup`, `cancelReservation`) — no new mutation surface, server-side ownership/space scoping unchanged. `getMyPayments` follows the established service-client self-view convention (treasurer-scoped RLS, strictly scoped to the caller). Self-service email change goes through Supabase Auth (`updateUser` + `/auth/confirm` `verifyOtp`); the denormalized `space_members.email` is synced only post-verification. The email-change flow depends on Supabase project config (template + redirect allowlist; see DEPLOYMENT) and is inert until that is set. No new permission code, no schema change.
@@ -727,6 +783,6 @@ marked sent. No new permission code.
 2. **Payment integrations** - Stripe recurring dues IS integrated (product spine Phase 1: per-space keys, hosted Checkout/Portal, the per-space signed webhook). A PayPal sync endpoint exists (`app/api/paypal/sync/route.ts`). Manual import/CSV reconciliation remains the path for ad-hoc/other-platform payments; Zeffy/Venmo live APIs are not integrated.
 3. **Social auth** - GitHub/Google sign-in is wired, gated by the `NEXT_PUBLIC_OAUTH_GITHUB`/`NEXT_PUBLIC_OAUTH_GOOGLE` env flags.
 4. **Webhooks** - The HMAC signing contract and secret rotation exist; per-event delivery is not implemented (see `docs/WEBHOOKS.md`).
-5. **Email notifications** - Dues-lifecycle transactional email is implemented (migration 041: notifications outbox + Resend transport + dispatcher cron). Other domains (bookings, forms) are not wired yet but reuse the same outbox.
+5. **Email notifications** - Dues-lifecycle (Phase 2; migration 041) plus booking, class signup, and form-submission events (Phase 4; migration 047) all reuse the same outbox + dispatcher. Member notification preferences (per-type opt-in/out) and an in-app notification center are the next planned passes; today every event is enqueued unconditionally.
 6. **Search** - Client-side filtering only, no server-side full-text search.
 7. **Single space per user** - The auth resolver assumes one active membership per user; a user in 2+ spaces is not supported (no space switcher). Fails closed.

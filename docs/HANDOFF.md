@@ -4,6 +4,42 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-19 (pass 56): Product spine Phase 4: notification breadth (LOCAL, awaiting one reviewed deploy)
+
+Branch `main`. Took item 3 from the pass-55 backlog: booking, class signup, and form-submission notifications, reusing the Phase 2 outbox + dispatcher unchanged. Built per sub-phase, gated each, small commit per sub-phase, single deploy at the end of the set. Suite 565 (was 532; +33 new tests), build clean. NOT deployed.
+
+### Design forks (locked via AskUserQuestion)
+- Anonymous form submitter confirmation: **auth-only**. Recipient is the verified Supabase `user.email`, never the typed `body.email`; anonymous public submissions skip the submitter confirmation entirely (typed emails could belong to anyone, so confirming to them is a victim-spam vector). Admin alert still fires.
+- Form admin recipient set: **`forms.manage` permission holders** (same gate the forms-guard / forms RLS use).
+- Cancel confirmations: **only when someone other than the affected member cancelled** (self-cancels stay silent; the actor already saw the UI confirm).
+- Session-cancellation: **fan out**: when an instructor flips a session to `cancelled`, every still-active signup gets an email (dedupe by `(session, member)`).
+
+### Shipped (commits 84d31ee, 64ffa4e, 105b62f, a2ea767, + this docs)
+- **P4a (84d31ee)** Shared best-effort enqueue helper `lib/notifications/enqueue.ts` (`resolveMemberContact`, `enqueueNotification`, `getSpaceName`, `buildManageUrl`). Stripe webhook's `enqueueDues` refactored to compose them; zero behavior change (same recipient resolution, same upsert shape, same idempotency via `(space_id, dedupe_key)`, same best-effort wrap). 12 new helper unit tests.
+- **P4b (64ffa4e)** Equipment: `reserveEquipment` → `booking_confirmed` (always, to the booked-for member). `cancelReservation` → `booking_cancelled` only when actor ≠ affected member. `renderBookingEmail` + `bookingDedupeKey` added; existing `renderDuesEmail` quietly refactored onto a shared `renderShell` (one place to fix the HTML wrapper across 6 templates).
+- **P4c (105b62f)** Classes: `signUpForClass` → `class_signup_registered` or `class_signup_waitlisted` from the RPC's returned status. `cancelMySignup` → `class_signup_promoted` to whoever `class_cancel_tx` returned as `promoted_id`. `updateSession` setting `status='cancelled'` → `class_session_cancelled` fanned out to every still-active signup. No `class_signup_cancelled` type: `cancelMySignup` is self-only, so under the rule it has no caller.
+- **P4d (a2ea767)** Forms: `submitForm` → `form_submission_received` only when authenticated; `form_submission_admin` fanned out to every member with `forms.manage`. Migration 047 adds `members_with_permission(sid, perm)` SECURITY DEFINER (the inverted, set-returning form of `user_has_permission`, same current/late gate as 046) so the fan-out resolves recipients in one query, not N. Additive; existing `user_has_permission` callers unchanged. `types/database.ts` + `schema.sql` + `docs/DATABASE_SCHEMA.md` + `DB_SCHEMA_MAP.md` updated same-change.
+
+### Test coverage
+33 new `__tests__/` cases (suite 565). Per-render unit tests cover subject lines, body copy, location + range formatting, the "someone" fallback in admin alerts, HTML escaping of injected names/titles. Per-dedupe-key tests pin shape and per-member fan-out distinctness. The shared enqueue helper has hit/miss/error/throw coverage. Integration suite (31 vs real Postgres) unchanged: the existing Stripe-webhook integration test already exercises the outbox semantics end to end via the same shared upsert; P4 actions enqueue through the same path so the runtime contract is the same.
+
+### State
+- **Not deployed.** Awaiting one reviewed deploy for the whole set (migration 047 runs as part of `deploy.sh`).
+- **Inert post-deploy** until owner provisions Resend (`RESEND_API_KEY` + `EMAIL_FROM` on a verified domain) and `CRON_SECRET` + the once-a-minute droplet crontab. Until then the outbox fills but nothing sends, same as Phase 2 today. New-event volume is bounded by user activity; the dispatcher's per-attempt Resend `Idempotency-Key` and the `(space_id, dedupe_key)` collapse already make replay-safe.
+- **No volume governor.** Every form submission fans out one row per `forms.manage` holder; a popular waiver could create N rows per submission. Acceptable today (the unique index makes it idempotent); a digest / throttle is a separate phase (lines up with member preferences and an in-app inbox).
+
+### Backlog after this
+The pass-55 list minus item 3. Next-most-leverage items remain:
+1. Owner-gated end-to-end spine validation (the shipped≠proven gap).
+2. Production observability (Sentry-equivalent for the webhook + dispatcher + actions).
+3. Phase 4-adjacent: member notification preferences (per-type opt-in/out; the dispatcher checks prefs before sending; natural next pass now that breadth exists).
+4. In-app notification center on `/me` (unread/read state).
+5. Extend the integration harness (payments link/import, role/permission management, presence, forms).
+6. Door epic Phases 4-5.
+7. Owner product question (forms attribution).
+
+---
+
 ## 2026-05-19 (pass 55) — Doc drift fix + session closeout + new-session backlog
 
 Branch `main`. Final pass of an extraordinarily long arc. Suite 532; integration suite 31 vs real Postgres; build clean.
