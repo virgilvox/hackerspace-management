@@ -4,6 +4,25 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-19 (pass 51) — Verify D1-D10 + clear the deferred heavy P1s (LOCAL, NEEDS deploy)
+
+Branch `main`. Verified the D1-D10 batch (trust-but-verify my own fast change set) and worked the deferred deeper-audit backlog. Suite 532, build clean. NOT deployed.
+
+### D1-D10 verification
+- **D6 regression found + fixed (commit 6105047).** The fair-drain pre-truncated each space's bucket to PER_SPACE=5 BEFORE the round-robin, so a single-space deployment (the common single-hackerspace case) drained only 5 emails/min instead of 20 (4x slowdown introduced by the fairness fix). Now per-space queues are bounded only by the CANDIDATES fetch; round-robin caps a space's share only under contention; a lone space drains the full BATCH.
+- D2 verified safe: member-facing onboarding (markOnboardingStepDone/finishOnboarding/skipOnboarding) uses permissive requireMember; only admin step-mgmt uses requireMemberWithRole. No legit unverified flow broken.
+- D1 verified safe: reservations are create+cancel only (no reschedule/time-range UPDATE), so the exclusion constraint is only hit on INSERT (already 23P01-handled).
+
+### Deferred heavy P1s cleared
+- **D11 (commit 705f03a)** Class signup/cancel concurrency: migration 045 `class_signup_tx`/`class_cancel_tx` (SECURITY DEFINER, per-session `pg_advisory_xact_lock`) — capacity decision+insert and cancel+promote now atomic. Actions call the RPCs, keep all pre-checks; removed now-unused pure-fn imports (rules still live + tested in classes-logic).
+- **D12 (commit 42fd385)** Door SSRF DNS-rebind: executor resolves once, rejects if ANY resolved IP is blocked (`isBlockedDoorIp`: loopback/unspecified/link-local/metadata incl IPv4-mapped; RFC1918/LAN/ULA allowed), then connects to the validated IP literal (no 2nd resolution = TOCTOU closed). Dependency-free (chose this over the undocumented undici connect.lookup seam, verified via web research; fits plaintext-HTTP-LAN). redirect:'manual' retained.
+
+### State
+- **Not deployed.** Ahead of origin: pass-50 deploy-state (6568bc9, held docs) + D6-fix (6105047) + D11 (705f03a) + D12 (42fd385) + this. Migration 045 auto-applies via deploy.sh.
+- Remaining smaller backlog: thread conn.auth_param through the door-call selects (audit-log defense-in-depth; client leak already closed by D10); SECURITY DEFINER user_has_role_in_space/user_has_permission still ignore status (RLS defense-in-depth for unverified — app layer closed by D2); P2s (anon-form rate-limit/captcha, forms victim-email attribution owner-confirm, webhook raw PG error text post-signature).
+
+---
+
 ## 2026-05-18 (pass 50) — Deeper audit (3 specialists) + full priority remediation D1-D10 (LOCAL, NEEDS deploy)
 
 Branch `main`. Ran 3 deep adversarial audits (concurrency+financial, privilege-escalation+RLS+trigger-verification, anonymous-surface+credentials) — the systemic classes prior structural passes missed. Owner chose "Full priority pass". 10 fixes landed, gated per-item (suite 528, build clean). NOT deployed.
