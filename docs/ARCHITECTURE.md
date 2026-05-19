@@ -231,6 +231,17 @@ Admin (full access)
 | `payments` | Treasurer/Board/Admin | Treasurer/Admin | Treasurer/Admin | Treasurer/Admin |
 | `comms_*` | Members | Members | - | Board/Admin |
 
+**Privilege-eligible status (migration 046).** `user_has_role_in_space`
+and `user_has_permission` additionally require the caller's
+`space_members.status` to be `current` or `late` (mirrors
+`lib/permissions` `PRIVILEGE_STATUSES`). An `unverified` member of a
+`require_approval` space (or an `inactive` one) cannot exercise a role
+or permission at the RLS layer even via direct PostgREST, complementing
+the same gate at the app layer in `requireMemberWithRole`. Deliberately
+NOT applied to `get_user_space_ids` / `user_effective_roles`: gating
+SELECT-policy reads would break an unverified member's own `/me` and
+onboarding, which IS the legitimate require_approval flow.
+
 ---
 
 ## 7. Server Actions Reference
@@ -531,7 +542,13 @@ session can award the class's certification, but only through the normal
 path, so it still requires the acting instructor to hold
 `certifications.grant`; otherwise completion succeeds and the result
 reports the certificates were skipped (no service-role bypass of the
-guarded certifications surface). No anonymous path.
+guarded certifications surface). No anonymous path. Concurrent
+signup/cancel is serialized per session by SECURITY DEFINER functions
+`class_signup_tx` / `class_cancel_tx` (migration 045) holding
+`pg_advisory_xact_lock(hashtext(session_id))`, so two simultaneous
+signups at the capacity boundary cannot over-enroll and two simultaneous
+cancels cannot double-promote a waitlister. The pure logic is the
+documented rule; the RPC is the runtime authority.
 
 ### Equipment (migration 033)
 
@@ -551,7 +568,12 @@ INSERT/DELETE policy** so reserve/cancel funnels through one validated
 service-client action that enforces the equipment status, the no-overlap
 rule, and the required-certification gate (checked against the normal
 `member_certifications` data; an `equipment.manage` holder gets the
-override and may book on a member's behalf). No anonymous path.
+override and may book on a member's behalf). The app-side check is a
+fast pre-check; the database is the concurrency arbiter via a GiST
+`EXCLUDE (equipment_id =, tstzrange(starts_at,ends_at,'[)') &&) WHERE
+status='reserved'` constraint (migration 042 + `btree_gist`), so two
+simultaneous requests for the same window cannot both insert. No
+anonymous path.
 
 ### Door / access control (migrations 034-036; epic in progress)
 
@@ -595,7 +617,17 @@ member `/doors` page (self-entry + masked own cards via `getMyCards` +
 the member's own recent activity via `listMyDoorActivity`, a service-client
 read after `requireMember` filtered to that member), hidden entirely for
 ineligible members. Phases 4-5 add inbound log ingest and the
-universal API-call UI builder. No anonymous path.
+universal API-call UI builder. No anonymous path. The executor is the
+single hardened egress: it resolves the controller host once via
+`dns.lookup`, rejects if any resolved IP is loopback / unspecified /
+link-local / metadata (IPv4-mapped IPv6 normalized; RFC1918 / LAN / ULA
+allowed since controllers live there), then connects to the validated
+IP literal so `fetch` performs no second resolution, closing the
+DNS-rebind TOCTOU. Redirects are refused (`redirect: 'manual'`).
+Controller errors never bubble the upstream reason to the client (a
+generic message; the redacted detail goes only to `door_access_log`);
+the redaction is auth-param-aware so a generic-adapter custom param
+value is scrubbed regardless of its name.
 
 ---
 
@@ -642,8 +674,16 @@ space's signing secret, is idempotent on Stripe's event id
 (grace → `late`, **never** auto-inactive, never auto-approves `unverified`).
 `member_billing` SELECT = admin/board/treasurer with **no client write
 policy** (webhook/service-client only); the member self-view is a validated
-action. No new permission code. Phases 2-3 (transactional notifications,
-broader self-serve) build on this.
+action. No new permission code. The webhook is hardened against three
+classes of real-world Stripe behavior: replay (Stripe retries reuse the
+event id, the unique `stripe_webhook_events` PK collapses them); out-of-
+order delivery (a stale `customer.subscription.updated` carrying an
+older period must NOT rewind `current_period_end` and false-lapse a
+paid member, so `laterPeriodEnd` keeps the monotonic max); and
+zero-decimal currencies (JPY/KRW/VND/etc. are NOT rescaled `/100`, via
+`isZeroDecimalCurrency`). Error responses to the caller are generic;
+the real cause is logged server-side. Phases 2-3 (transactional
+notifications, broader self-serve) build on this.
 
 ### Transactional notifications (migration 041; product spine Phase 2)
 
@@ -665,7 +705,15 @@ run cannot double-send; transient failures stay `pending` until the attempt
 budget is spent, permanent ones go `failed`. `notifications` SELECT =
 admin/board/treasurer, no client write policy; the member self-view
 (`getMyNotifications`, surfaced on `/me`) is a validated action. The
-droplet's crontab POSTs once a minute. No new permission code.
+droplet's crontab POSTs once a minute. The drain is fair across spaces:
+oldest-first candidates are bucketed per `space_id` and round-robined,
+so one tenant's billing burst cannot head-of-line-block another space's
+mail; a lone-tenant deployment still drains the full batch. Resend's
+`Idempotency-Key` is per-attempt (`<row.id>:<attempts>`) so a
+cross-minute retry is a deliberately fresh send, not a cached prior
+response. The status write is guarded with `.eq('status','pending')`
+so two overlapping dispatcher runs cannot flip a row another already
+marked sent. No new permission code.
 
 ### Member self-serve portal (`/me`; product spine Phase 3)
 
@@ -675,7 +723,7 @@ droplet's crontab POSTs once a minute. No new permission code.
 
 ## 13. Known Limitations
 
-1. **Test suite** - Extensive Vitest unit coverage of pure logic (`__tests__/`, run with `pnpm test`) plus Playwright smoke e2e (`e2e/`). Gap: server-action orchestration is not unit-tested (no Supabase mock harness); e2e is mostly page-render checks, not full write/RLS flows.
+1. **Test suite** - Extensive Vitest unit coverage of pure logic (`__tests__/`, run with `pnpm test`, hermetic), Playwright smoke e2e (`e2e/`), and a DB-backed integration suite (`integration/`, run with `pnpm test:integration` against a real Postgres; self-skips without one) that drives the shipped SQL through `psql` and the route handlers through their actual exports: the advisory-lock signup/cancel RPCs (045), the equipment exclusion constraint (042), the self-change trigger + `members_update` WITH CHECK (043/044), the billing/notification idempotency invariants, the Stripe webhook end to end (real signed events, vault secret resolution, replay, out-of-order period guard), and the RLS-layer privilege-status gate (046). Remaining gap: server-action orchestration beyond those critical paths still has no integration coverage, and e2e is mostly page-render checks.
 2. **Payment integrations** - Stripe recurring dues IS integrated (product spine Phase 1: per-space keys, hosted Checkout/Portal, the per-space signed webhook). A PayPal sync endpoint exists (`app/api/paypal/sync/route.ts`). Manual import/CSV reconciliation remains the path for ad-hoc/other-platform payments; Zeffy/Venmo live APIs are not integrated.
 3. **Social auth** - GitHub/Google sign-in is wired, gated by the `NEXT_PUBLIC_OAUTH_GITHUB`/`NEXT_PUBLIC_OAUTH_GOOGLE` env flags.
 4. **Webhooks** - The HMAC signing contract and secret rotation exist; per-event delivery is not implemented (see `docs/WEBHOOKS.md`).

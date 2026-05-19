@@ -411,6 +411,7 @@ Default channels created by trigger on space INSERT: `general`, `announcements`,
 | 043 | `members_update` RLS gains a WITH CHECK mirroring its USING (defense-in-depth: a privileged caller can't mutate a member row into a space they don't administer). No new table/column |
 | 044 | `prevent_member_self_role_change` also blocks self-change of payment_status, payment_note, dues_paid_until, last_paid_at, last_payment_at, stripe_customer_id, joined_at (member could otherwise forge a dues-good signal via PostgREST). Service-client/privileged writes still bypass. No new table/column |
 | 045 | `class_signup_tx` / `class_cancel_tx` SECURITY DEFINER functions: capacity-decision+insert and cancel+waitlist-promote run under a per-session `pg_advisory_xact_lock` (concurrent signups can't over-enroll; concurrent cancels can't double-promote). Mirrors the pure computeSignupStatus/pickPromotion rule; RPC is runtime authority. No new table/column |
+| 046 | `user_has_role_in_space` + `user_has_permission` gated on `status IN ('current','late')` (RLS-layer defense-in-depth for D2): unverified/inactive can no longer exercise a role/permission via direct PostgREST. `get_user_space_ids` + `user_effective_roles` intentionally NOT gated (would break unverified self-reads / onboarding). No new table/column |
 
 ---
 
