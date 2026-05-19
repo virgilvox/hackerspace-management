@@ -18,6 +18,7 @@ export async function callDoor(opts: {
   url: string
   pinnedHost: string
   password?: string | null
+  authParam?: string | null
   timeoutMs?: number
 }): Promise<DoorCallResult> {
   const guard = validateDoorTarget(opts.url, opts.pinnedHost)
@@ -57,11 +58,11 @@ export async function callDoor(opts: {
         /* ignore */
       }
     }
-    const snippet = redactDoorSecrets(received.slice(0, SNIPPET), opts.password)
+    const snippet = redactDoorSecrets(received.slice(0, SNIPPET), opts.password, opts.authParam)
     return { ok: res.ok, status: res.status, snippet }
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'request failed'
-    return { ok: false, reason: redactDoorSecrets(msg, opts.password) }
+    return { ok: false, reason: redactDoorSecrets(msg, opts.password, opts.authParam) }
   } finally {
     clearTimeout(timer)
   }

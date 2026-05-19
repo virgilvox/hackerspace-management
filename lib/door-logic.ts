@@ -211,10 +211,24 @@ export function applyTemplate(
 // the shared door password: any literal occurrence, and any e=/&e= query
 // value (the firmware auth param), become "<redacted>". The password is a
 // credential and must never land in door_access_log.
-export function redactDoorSecrets(text: string, password?: string | null): string {
+export function redactDoorSecrets(
+  text: string,
+  password?: string | null,
+  authParam?: string | null,
+): string {
   let out = text
   if (password && password.length > 0) {
     out = out.split(password).join('<redacted>')
+  }
+  // The connection's actual auth query param (generic adapters may name it
+  // anything, not just e=/pw=). Scrub its value regardless of the name so a
+  // verbose upstream error echoing the URL cannot leak the secret even when
+  // `password` is empty/unknown.
+  if (authParam && /^\w+$/.test(authParam)) {
+    out = out.replace(
+      new RegExp(`([?&]${authParam}=)[^&\\s"']*`, 'gi'),
+      '$1<redacted>',
+    )
   }
   out = out.replace(/([?&](?:e|pw|password|api[_-]?key|token)=)[^&\s"']*/gi, '$1<redacted>')
   return out

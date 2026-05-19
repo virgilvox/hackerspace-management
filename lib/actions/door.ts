@@ -282,7 +282,7 @@ export async function testDoorConnection(input: unknown) {
   revalidatePath('/door/manage')
   return result.ok
     ? { data: { ok: true, status: result.status } }
-    : { error: result.reason }
+    : { error: 'The door controller call failed. Check the door audit log for the redacted detail.' }
 }
 
 export async function listDoorAccessLog() {
@@ -511,7 +511,7 @@ export async function grantCard(input: unknown) {
       targetMemberId, action: 'grant', success: false,
       detail: `failed: ${result.reason}`, password,
     })
-    return { error: result.reason }
+    return { error: 'The door controller call failed. Check the door audit log for the redacted detail.' }
   }
 
   await auditDoor(admin, {
@@ -590,7 +590,7 @@ export async function revokeCard(input: unknown) {
       targetMemberId, action: 'revoke', success: false,
       detail: `failed (slot ${slot} kept): ${result.reason}`, password,
     })
-    return { error: result.reason }
+    return { error: 'The door controller call failed. Check the door audit log for the redacted detail.' }
   }
 
   await admin.from('door_card_slots').delete().eq('connection_id', connectionId).eq('card_id', cardId)
@@ -688,7 +688,7 @@ export async function doorControl(input: unknown) {
   })
 
   revalidatePath('/door/manage')
-  return result.ok ? { data: { ok: true, status: result.status } } : { error: result.reason }
+  return result.ok ? { data: { ok: true, status: result.status } } : { error: 'The door controller call failed. Check the door audit log for the redacted detail.' }
 }
 
 // ─── Member self-entry ("buzz me in") ────────────────────────────────────────
@@ -799,7 +799,7 @@ export async function selfEntry(input: unknown) {
   })
 
   revalidatePath('/dashboard')
-  return result.ok ? { data: { ok: true } } : { error: result.reason }
+  return result.ok ? { data: { ok: true } } : { error: 'The door controller call failed. Check the door audit log for the redacted detail.' }
 }
 
 // The signed-in member's OWN door activity (rows where they were the actor or
