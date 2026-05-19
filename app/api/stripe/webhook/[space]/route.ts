@@ -298,7 +298,7 @@ export async function POST(
         await enqueueDues('dues_renewed', {
           memberId,
           fallbackEmail: inv.customer_email ?? null,
-          amount: minorToMajor(inv.amount_paid),
+          amount: minorToMajor(inv.amount_paid, inv.currency),
           currency: (inv.currency ?? 'usd').toUpperCase(),
           periodEnd: invoiceLinePeriodEnd(inv),
           invoiceId: inv.id,
@@ -317,7 +317,7 @@ export async function POST(
         await enqueueDues('dues_payment_failed', {
           memberId,
           fallbackEmail: inv.customer_email ?? null,
-          amount: minorToMajor(inv.amount_due),
+          amount: minorToMajor(inv.amount_due, inv.currency),
           currency: (inv.currency ?? 'usd').toUpperCase(),
           invoiceId: inv.id,
         })

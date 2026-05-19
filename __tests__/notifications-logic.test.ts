@@ -85,6 +85,10 @@ describe('formatMoney', () => {
     expect(formatMoney(undefined, 'usd')).toBe('')
     expect(formatMoney(NaN, 'usd')).toBe('')
   })
+  it('renders zero-decimal currencies with no fractional part', () => {
+    expect(formatMoney(3000, 'jpy')).toBe('3000 JPY')
+    expect(formatMoney(50000, 'KRW')).toBe('50000 KRW')
+  })
 })
 
 describe('renderDuesEmail', () => {

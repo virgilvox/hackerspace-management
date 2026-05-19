@@ -7,6 +7,8 @@
 // around it, including the Stripe Basil (2025-03-31 / 2026-04-22.dahlia)
 // field relocations that are easy to get wrong and must be tested.
 
+import { isZeroDecimalCurrency } from '@/lib/notifications-logic'
+
 type CustomerRef = string | { id?: string | null } | null | undefined
 
 type SubscriptionLike = {
@@ -81,7 +83,7 @@ export function stripeInvoiceToPaymentRow(args: {
     space_id: spaceId,
     member_id: memberId,
     platform: 'stripe' as const,
-    amount: (inv.amount_paid ?? 0) / 100,
+    amount: minorToMajor(inv.amount_paid, inv.currency),
     currency: (inv.currency ?? 'usd').toUpperCase(),
     description: inv.description ?? 'Stripe membership dues',
     status: linked,
@@ -94,10 +96,15 @@ export function stripeInvoiceToPaymentRow(args: {
   }
 }
 
-// Major-units amount for the dues email (amount_paid for renewals,
-// amount_due for failed-payment notices).
-export function minorToMajor(amount: number | null | undefined): number {
-  return (amount ?? 0) / 100
+// Stripe sends most amounts in minor units (cents) but zero-decimal
+// currencies (JPY, KRW, ...) already in the major unit — dividing those by
+// 100 would understate the ledger + receipt 100x. Currency-aware.
+export function minorToMajor(
+  amount: number | null | undefined,
+  currency: string | null | undefined,
+): number {
+  const a = amount ?? 0
+  return isZeroDecimalCurrency(currency) ? a : a / 100
 }
 
 // Stripe does not guarantee webhook ordering. A stale/late

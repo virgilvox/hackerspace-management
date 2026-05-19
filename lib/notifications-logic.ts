@@ -72,8 +72,20 @@ function escapeHtml(s: string): string {
 
 const CURRENCY_SYMBOL: Record<string, string> = { USD: '$', CAD: '$', EUR: '€', GBP: '£' }
 
-// amount is in major units (dollars), matching how the payments ledger stores
-// it (Stripe minor units are divided by 100 by the caller).
+// Stripe zero-decimal currencies: the smallest unit IS the major unit, so
+// amounts are NOT scaled by 100 and have no fractional display. Source:
+// Stripe "zero-decimal currencies" list.
+export const ZERO_DECIMAL_CURRENCIES = new Set([
+  'BIF', 'CLP', 'DJF', 'GNF', 'JPY', 'KMF', 'KRW', 'MGA', 'PYG', 'RWF',
+  'UGX', 'VND', 'VUV', 'XAF', 'XOF', 'XPF',
+])
+
+export function isZeroDecimalCurrency(currency: string | null | undefined): boolean {
+  return ZERO_DECIMAL_CURRENCIES.has((currency || 'USD').toUpperCase())
+}
+
+// amount is in major units, matching how the payments ledger stores it.
+// Zero-decimal currencies render with no fractional part.
 export function formatMoney(
   amount: number | null | undefined,
   currency: string | null | undefined,
@@ -81,7 +93,7 @@ export function formatMoney(
   if (amount === null || amount === undefined || Number.isNaN(amount)) return ''
   const code = (currency || 'USD').toUpperCase()
   const sym = CURRENCY_SYMBOL[code]
-  const n = amount.toFixed(2)
+  const n = isZeroDecimalCurrency(code) ? String(Math.round(amount)) : amount.toFixed(2)
   return sym ? `${sym}${n} ${code}` : `${n} ${code}`
 }
 

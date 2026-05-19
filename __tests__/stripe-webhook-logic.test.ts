@@ -140,10 +140,16 @@ describe('laterPeriodEnd (never rewind on out-of-order events)', () => {
   })
 })
 
-describe('minorToMajor', () => {
-  it('divides by 100, treats nullish as 0', () => {
-    expect(minorToMajor(2500)).toBe(25)
-    expect(minorToMajor(null)).toBe(0)
-    expect(minorToMajor(undefined)).toBe(0)
+describe('minorToMajor (currency-aware)', () => {
+  it('divides by 100 for normal 2-decimal currencies', () => {
+    expect(minorToMajor(2500, 'usd')).toBe(25)
+    expect(minorToMajor(2500, 'EUR')).toBe(25)
+    expect(minorToMajor(null, 'usd')).toBe(0)
+    expect(minorToMajor(undefined, undefined)).toBe(0)
+  })
+  it('does NOT divide zero-decimal currencies (JPY/KRW already major)', () => {
+    expect(minorToMajor(3000, 'jpy')).toBe(3000)
+    expect(minorToMajor(50000, 'KRW')).toBe(50000)
+    expect(minorToMajor(1000, 'VND')).toBe(1000)
   })
 })
