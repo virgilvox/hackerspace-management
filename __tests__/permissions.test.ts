@@ -4,6 +4,8 @@ import {
   ADMIN_ROLES,
   TREASURER_ROLES,
   ACTIVE_STATUSES,
+  PRIVILEGE_STATUSES,
+  isPrivilegeEligible,
   hasRole,
   type Role,
 } from '@/lib/permissions'
@@ -47,6 +49,22 @@ describe('ACTIVE_STATUSES', () => {
 
   it('does NOT include inactive', () => {
     expect(ACTIVE_STATUSES.includes('inactive' as never)).toBe(false)
+  })
+})
+
+describe('isPrivilegeEligible / PRIVILEGE_STATUSES', () => {
+  it('only current + late may exercise a role/permission', () => {
+    expect([...PRIVILEGE_STATUSES].sort()).toEqual(['current', 'late'].sort())
+    expect(isPrivilegeEligible('current')).toBe(true)
+    expect(isPrivilegeEligible('late')).toBe(true)
+  })
+  it('unverified (pending approval) is NOT privilege-eligible', () => {
+    expect(isPrivilegeEligible('unverified')).toBe(false)
+  })
+  it('inactive / null / undefined are NOT privilege-eligible', () => {
+    expect(isPrivilegeEligible('inactive')).toBe(false)
+    expect(isPrivilegeEligible(null)).toBe(false)
+    expect(isPrivilegeEligible(undefined)).toBe(false)
   })
 })
 

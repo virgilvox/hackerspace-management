@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { checkRateLimit, sanitizeString, sanitizeSlug } from '@/lib/security'
+import { ACTIVE_STATUSES } from '@/lib/permissions'
 
 function generateInviteCode() {
   // Cryptographically random, and wider (8 chars) so the code space is not
@@ -156,6 +157,19 @@ export async function joinSpace(formData: {
     invite && ['admin', 'board', 'treasurer', 'member', 'associate'].includes(invite.role)
       ? invite.role
       : 'member'
+
+  // Single active membership per user (the product's locked single-space
+  // model; getAuthMember's .single() fails closed on 2+). Reject a second
+  // join rather than letting it self-DoS the user out of every action.
+  const { data: existingMembership } = await admin
+    .from('space_members')
+    .select('id')
+    .eq('user_id', user.id)
+    .in('status', ACTIVE_STATUSES as unknown as string[])
+    .maybeSingle()
+  if (existingMembership) {
+    return { error: 'You are already a member of a space.' }
+  }
 
   const { data: newMember, error: memberErr } = await admin
     .from('space_members')

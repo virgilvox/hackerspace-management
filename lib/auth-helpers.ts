@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Tables } from '@/types/database'
 import type { ZodSchema } from 'zod'
-import { ACTIVE_STATUSES, hasRole, type Role } from '@/lib/permissions'
+import { ACTIVE_STATUSES, hasRole, isPrivilegeEligible, type Role } from '@/lib/permissions'
 
 /**
  * Loose Supabase client type for shared helpers.
@@ -20,7 +20,7 @@ export type ServerSupabase = SupabaseClient<any, any, any>
 /** Projection of `space_members` that server actions consume. */
 export type Member = Pick<
   Tables<'space_members'>,
-  'id' | 'space_id' | 'user_id' | 'role' | 'display_name' | 'handle'
+  'id' | 'space_id' | 'user_id' | 'role' | 'status' | 'display_name' | 'handle'
 >
 
 /**
@@ -50,7 +50,7 @@ export async function getAuthMember(supabase: ServerSupabase): Promise<Member | 
   // explicit active-space selector before this can change.
   const { data } = await supabase
     .from('space_members')
-    .select('id, space_id, user_id, role, display_name, handle')
+    .select('id, space_id, user_id, role, status, display_name, handle')
     .eq('user_id', user.id)
     .in('status', ACTIVE_STATUSES as unknown as string[])
     .single()
@@ -79,6 +79,13 @@ export async function requireMemberWithRole(
 ): Promise<MemberResult> {
   const r = await requireMember(supabase)
   if (!r.ok) return r
+  // require_approval gate: an 'unverified' member holds NO privileged
+  // capability until an admin approves them, even if they redeemed a
+  // role-bearing invite. Without this, redeeming an admin invite into a
+  // require_approval space granted instant admin.
+  if (!isPrivilegeEligible(r.member.status)) {
+    return { ok: false, error: 'Your membership is pending approval.' }
+  }
   if (!hasRole(r.member.role, allowed)) {
     return { ok: false, error: errorLabel }
   }

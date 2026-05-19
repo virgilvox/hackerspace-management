@@ -25,6 +25,20 @@ export const ALL_ROLES = ROLES
 export const ACTIVE_STATUSES = ['current', 'unverified', 'late'] as const satisfies readonly MemberStatus[]
 
 /**
+ * Statuses that may exercise a ROLE or PERMISSION (privileged actions).
+ * Deliberately excludes 'unverified': a member of a `require_approval` space
+ * is 'unverified' until an admin approves them, and must hold NO privileged
+ * capability in that window even if they redeemed a role-bearing invite
+ * (otherwise `require_approval` is silently void). 'late' keeps its role
+ * (dues lapse is grace -> late, never an authz downgrade).
+ */
+export const PRIVILEGE_STATUSES = ['current', 'late'] as const satisfies readonly MemberStatus[]
+
+export function isPrivilegeEligible(status: MemberStatus | null | undefined): boolean {
+  return status === 'current' || status === 'late'
+}
+
+/**
  * Returns true if `role` is one of the `allowed` roles.
  * Use this everywhere instead of `role === 'admin' || role === 'board'` chains.
  */
