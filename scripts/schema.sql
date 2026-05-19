@@ -1856,9 +1856,13 @@ CREATE TRIGGER trg_seed_default_role_permissions
 
 
 -- =============================================================================
--- 16. Self-change hardening (equivalent to scripts/024_self_change_hardening.sql).
---     Adds tier_id and onboarding_completed_at to the columns a non-privileged
---     member cannot change on their own space_members row.
+-- 16. Self-change hardening (equivalent to scripts/024 + scripts/044).
+--     Columns a non-privileged member cannot change on their own
+--     space_members row: role, tier(_id), status, approved, has_card_access,
+--     onboarding_completed_at, space_id, and the payment/dues fields
+--     (payment_status, payment_note, dues_paid_until, last_paid_at,
+--     last_payment_at, stripe_customer_id, joined_at). Service-client and
+--     privileged-on-another-member writes bypass (auth.uid() guards).
 -- =============================================================================
 
 CREATE OR REPLACE FUNCTION public.prevent_member_self_role_change()
@@ -1879,8 +1883,15 @@ BEGIN
   OR NEW.approved                IS DISTINCT FROM OLD.approved
   OR NEW.has_card_access         IS DISTINCT FROM OLD.has_card_access
   OR NEW.onboarding_completed_at IS DISTINCT FROM OLD.onboarding_completed_at
-  OR NEW.space_id                IS DISTINCT FROM OLD.space_id THEN
-    RAISE EXCEPTION 'Members cannot change their own role, tier, status, approval, card access, onboarding completion, or space.'
+  OR NEW.space_id                IS DISTINCT FROM OLD.space_id
+  OR NEW.payment_status          IS DISTINCT FROM OLD.payment_status
+  OR NEW.payment_note            IS DISTINCT FROM OLD.payment_note
+  OR NEW.dues_paid_until         IS DISTINCT FROM OLD.dues_paid_until
+  OR NEW.last_paid_at            IS DISTINCT FROM OLD.last_paid_at
+  OR NEW.last_payment_at         IS DISTINCT FROM OLD.last_payment_at
+  OR NEW.stripe_customer_id      IS DISTINCT FROM OLD.stripe_customer_id
+  OR NEW.joined_at               IS DISTINCT FROM OLD.joined_at THEN
+    RAISE EXCEPTION 'Members cannot change their own role, tier, status, approval, card access, onboarding completion, space, or payment/dues fields.'
       USING ERRCODE = '42501';
   END IF;
   RETURN NEW;
