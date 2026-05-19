@@ -385,6 +385,7 @@ AS $$
     WHERE user_id = uid
       AND space_id = sid
       AND role::text = ANY(allowed_roles)
+      AND status IN ('current','late')   -- privilege-eligible only (046)
   );
 $$;
 
@@ -1753,12 +1754,19 @@ $$;
 CREATE OR REPLACE FUNCTION public.user_has_permission(uid uuid, sid uuid, perm text)
   RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
 AS $$
-  SELECT public.user_has_role_in_space(uid, sid, ARRAY['admin'])
-      OR EXISTS (
-        SELECT 1 FROM public.space_role_permissions p
-        WHERE p.space_id = sid AND p.permission = perm
-          AND p.subject IN (SELECT public.user_effective_roles(uid, sid))
-      );
+  SELECT EXISTS (
+           SELECT 1 FROM public.space_members
+           WHERE user_id = uid AND space_id = sid
+             AND status IN ('current','late')   -- no permission unless privilege-eligible (046)
+         )
+     AND (
+       public.user_has_role_in_space(uid, sid, ARRAY['admin'])
+       OR EXISTS (
+         SELECT 1 FROM public.space_role_permissions p
+         WHERE p.space_id = sid AND p.permission = perm
+           AND p.subject IN (SELECT public.user_effective_roles(uid, sid))
+       )
+     );
 $$;
 
 ALTER TABLE public.space_role_permissions ENABLE ROW LEVEL SECURITY;
