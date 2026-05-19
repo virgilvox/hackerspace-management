@@ -4,6 +4,25 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-19 (pass 54) — Lifted the deferred SECURITY DEFINER status-gate, harness-proven (LOCAL, RUNTIME — needs deploy)
+
+Branch `main`. The pass-52 deferral of the RLS status-gate was conditional on "no way to verify it breaks nothing." The pass-53 harness resolves that, so the deferral is lifted and the change made + proven.
+
+### Change (migration 046, commit e954b08)
+- `user_has_role_in_space` and `user_has_permission` gated on `status IN ('current','late')` (mirrors lib/permissions PRIVILEGE_STATUSES). Closes the require_approval/unverified privilege gap at the **RLS layer** too (defense-in-depth beyond D2's app layer): an unverified/inactive member bypassing the app via direct PostgREST still cannot exercise a role/permission.
+- Deliberately NOT changed: `get_user_space_ids`, `user_effective_roles` — gating SELECT-policy reads would break an unverified member's own /me + onboarding (the legitimate require_approval flow). Minimal blast radius: exactly the two privilege entrypoints.
+- `integration/privilege-status-gate.test.ts` (5) proves BOTH halves: (a) gap closed — unverified admin has no role/perm, cannot do a privileged RLS-gated write; (b) nothing broken — current+late fully privileged, unverified member still resolves its own space, the approval flow (current admin → approve unverified) still works. **31 integration tests green.**
+
+### State — RUNTIME change, NOT deployed
+- This is the riskiest change class (core RLS helpers back every write policy + the self-change trigger). Evidence it is safe = the integration suite, run against real Postgres. **Needs the ASK-before-deploy decision.**
+- Default `pnpm test` 532/26 hermetic; build clean.
+- Commits ahead of origin (non-runtime backlog + this runtime one): F3 (42f6509), pass-53 state (b0267bb), F4 (b56ef4e), doc/HANDOFF (ee7f59f), **046 (e954b08, RUNTIME)**, this.
+
+### Backlog after this
+- Owner product question (forms attribution). Owner-gated end-to-end spine validation (the shipped≠proven gap) — the last real gap, needs owner actions. The autonomous engineering backlog is now genuinely exhausted.
+
+---
+
 ## 2026-05-19 (pass 53) — DB-backed integration harness; shipped SQL now functionally validated (LOCAL, non-runtime)
 
 Branch `main`. Assessment chose "integration test harness" to fix the root cause (correctness depending on post-deploy manual audits). Built + RAN it against the local Supabase Postgres. Default `pnpm test` still 532/26, hermetic; build clean.
