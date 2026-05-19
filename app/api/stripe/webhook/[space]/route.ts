@@ -28,6 +28,12 @@ import {
   duesDedupeKey,
   type DuesNotificationType,
 } from '@/lib/notifications-logic'
+import {
+  enqueueNotification,
+  resolveMemberContact,
+  getSpaceName as readSpaceName,
+  buildManageUrl,
+} from '@/lib/notifications/enqueue'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -77,29 +83,23 @@ export async function POST(
 
   // Stripe sets Host to the configured webhook URL's host; fall back to the
   // app URL. Used only to build the "manage billing" link in the email.
-  const hookHost = req.headers.get('x-forwarded-host') ?? req.headers.get('host')
-  const hookProto = req.headers.get('x-forwarded-proto') ?? 'https'
-  const manageUrl = `${
-    hookHost ? `${hookProto}://${hookHost}` : process.env.NEXT_PUBLIC_APP_URL || 'https://hackerspace.sh'
-  }/me`
+  const manageUrl = buildManageUrl(
+    req.headers.get('x-forwarded-host') ?? req.headers.get('host'),
+    req.headers.get('x-forwarded-proto') ?? 'https',
+  )
 
   let spaceNameMemo: string | null = null
   async function getSpaceName(): Promise<string> {
     if (spaceNameMemo !== null) return spaceNameMemo
-    const { data } = await admin.from('spaces').select('name').eq('id', spaceId).maybeSingle()
-    spaceNameMemo = (data?.name as string | null) ?? ''
+    spaceNameMemo = await readSpaceName(admin, spaceId)
     return spaceNameMemo
   }
 
   // Enqueue a dues-lifecycle email into the notifications outbox. NEVER sends
   // inline (keeps this money path fast + retry-safe); the dispatcher cron
-  // sends. ignoreDuplicates + the (space_id, dedupe_key) unique index make a
-  // Stripe event replay (new event id, same invoice/period) a no-op.
-  //
-  // BEST-EFFORT: the entire body is wrapped so a notifications-table or
-  // render failure can NEVER throw into the money path. The Stripe ledger /
-  // member_billing / status writes must finalize even if email infra is
-  // down; a missed enqueue is acceptable, a wedged money path is not.
+  // sends. Goes through the shared outbox helper: best-effort wrapped, so a
+  // notifications-table or render failure can never throw into the money path.
+  // Idempotent via (space_id, dedupe_key) so a Stripe event replay collapses.
   async function enqueueDues(
     type: DuesNotificationType,
     args: {
@@ -112,52 +112,34 @@ export async function POST(
       subscriptionId?: string | null
     },
   ): Promise<void> {
-    try {
-      if (!args.memberId) return
-      const { data: mem } = await admin
-        .from('space_members')
-        .select('email, display_name')
-        .eq('id', args.memberId)
-        .eq('space_id', spaceId)
-        .maybeSingle()
-      const recipient = ((mem?.email as string | null) || args.fallbackEmail || '').trim()
-      if (!recipient) return
-      const { subject, html, text } = renderDuesEmail({
-        type,
-        spaceName: await getSpaceName(),
-        memberName: (mem?.display_name as string | null) ?? null,
-        amount: args.amount ?? null,
-        currency: args.currency ?? null,
-        periodEnd: args.periodEnd ?? null,
-        manageUrl,
-      })
-      const { error: enqErr } = await admin.from('notifications').upsert(
-        {
-          space_id: spaceId,
-          member_id: args.memberId,
-          type,
-          channel: 'email',
-          recipient,
-          subject,
-          body_html: html,
-          body_text: text,
-          status: 'pending',
-          dedupe_key: duesDedupeKey(type, {
-            invoiceId: args.invoiceId,
-            memberId: args.memberId,
-            periodEnd: args.periodEnd,
-            subscriptionId: args.subscriptionId,
-          }),
-        },
-        { onConflict: 'space_id,dedupe_key', ignoreDuplicates: true },
-      )
-      if (enqErr) console.error(`[stripe webhook] enqueue ${type} failed:`, enqErr.message)
-    } catch (e) {
-      console.error(
-        `[stripe webhook] enqueue ${type} threw:`,
-        e instanceof Error ? e.message : e,
-      )
-    }
+    if (!args.memberId) return
+    const contact = await resolveMemberContact(admin, spaceId, args.memberId)
+    const recipient = ((contact?.email ?? null) || args.fallbackEmail || '').trim()
+    if (!recipient) return
+    const { subject, html, text } = renderDuesEmail({
+      type,
+      spaceName: await getSpaceName(),
+      memberName: contact?.displayName ?? null,
+      amount: args.amount ?? null,
+      currency: args.currency ?? null,
+      periodEnd: args.periodEnd ?? null,
+      manageUrl,
+    })
+    await enqueueNotification(admin, {
+      spaceId,
+      memberId: args.memberId,
+      type,
+      recipient,
+      subject,
+      bodyHtml: html,
+      bodyText: text,
+      dedupeKey: duesDedupeKey(type, {
+        invoiceId: args.invoiceId,
+        memberId: args.memberId,
+        periodEnd: args.periodEnd,
+        subscriptionId: args.subscriptionId,
+      }),
+    })
   }
 
   // Resolve our member: prefer metadata (set on the subscription + session),
