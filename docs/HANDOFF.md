@@ -4,6 +4,34 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-18 (pass 50) — Deeper audit (3 specialists) + full priority remediation D1-D10 (LOCAL, NEEDS deploy)
+
+Branch `main`. Ran 3 deep adversarial audits (concurrency+financial, privilege-escalation+RLS+trigger-verification, anonymous-surface+credentials) — the systemic classes prior structural passes missed. Owner chose "Full priority pass". 10 fixes landed, gated per-item (suite 528, build clean). NOT deployed.
+
+### Fixes (commits a513ad0,2239e7a,92170e4,705a932,d2b7aa6,c9c0909,7b0948d,26e54f1,785e8e0,66cb84b)
+- **D1 (P0)** Equipment double-booking: migration 042 btree_gist + `equipment_reservations_no_overlap` GiST EXCLUDE; reserveEquipment maps 23P01.
+- **D2 (P1 sec)** `require_approval` bypass: `isPrivilegeEligible` (current|late only); `requireMemberWithRole` rejects unverified before role check; joinSpace single-active-membership guard.
+- **D3 (P1 sec)** `/auth/callback` `next` open-redirect validated (same-origin path only).
+- **D4 (P1 sec)** `assignCustomRole` pins both custom role + member to caller's space.
+- **D5 (P1)** Stripe out-of-order: `laterPeriodEnd` monotonic guard — a stale event can't rewind current_period_end / false-lapse a paid member.
+- **D6 (P1)** Dispatcher fair per-space round-robin drain + `.eq('status','pending')` re-entrancy guard.
+- **D7 (P1)** Zero-decimal currency: currency-aware `minorToMajor` + `formatMoney`.
+- **D8 (P1 dfd)** Migration 043: `members_update` RLS gains WITH CHECK mirroring USING.
+- **D9 (P1 dfd)** Migration 044: trigger also blocks self-change of payment_status/payment_note/dues_paid_until/last_paid_at/last_payment_at/stripe_customer_id/joined_at.
+- **D10 (P1 sec)** Door actions return a generic failure to the client (no raw controller reason); redactDoorSecrets/callDoor gained optional authParam (capability ready).
+
+### Deferred (deeper-audit backlog — own careful passes)
+- Class signup capacity/waitlist concurrency (needs an RPC + advisory lock per session).
+- Door SSRF DNS-rebind: `validateDoorTarget` pins the hostname string; `fetch` re-resolves — resolve-once-and-pin-IP needed (highest-risk subsystem, isolate).
+- Thread `conn.auth_param` through the door-call selects so audit-log detail is auth-param-redacted (client leak already closed by D10).
+- SECURITY DEFINER `user_has_role_in_space`/`user_has_permission` ignore `status` — RLS-layer defense-in-depth for the unverified case (D2 closed the app layer).
+- P2s: anonymous-form rate-limit/captcha; forms victim-email attribution (owner re-confirm — attribution only, no data readback); webhook echoes raw PG error text (post-signature only).
+
+### State
+- **Not deployed.** D1-D10 + pass-49 deploy-state + this committed locally. Migrations 042/043/044 auto-apply via deploy.sh. Audit explicitly cleared: anonymous tenancy derivation, /track entropy, helper-fn fail-closed, R5 reconcile, startDuesCheckout customer race.
+
+---
+
 ## 2026-05-18 (pass 49) — Phase 3 post-deploy adversarial audit: 2 P0 fixed (LOCAL, NEEDS deploy)
 
 Branch `main`. Phase 3 shipped (pass 48) without a dedicated pre-deploy audit; ran an independent adversarial audit after the fact. Verdict was **NOT SAFE as-is** — 2 P0 + 1 P1 + 1 P2 found in the email-change surface; ALL fixed (commit f2df287). Suite 521, build clean. **Currently deployed prod has the P0s; this fix is local and should deploy ASAP.**
