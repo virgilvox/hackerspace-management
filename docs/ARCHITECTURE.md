@@ -676,7 +676,7 @@ droplet's crontab POSTs once a minute. No new permission code.
 ## 13. Known Limitations
 
 1. **Test suite** - Extensive Vitest unit coverage of pure logic (`__tests__/`, run with `pnpm test`) plus Playwright smoke e2e (`e2e/`). Gap: server-action orchestration is not unit-tested (no Supabase mock harness); e2e is mostly page-render checks, not full write/RLS flows.
-2. **Payment integrations** - Manual import/CSV reconciliation is the primary path. A PayPal sync endpoint exists (`app/api/paypal/sync/route.ts`); Stripe/other live APIs are not integrated. See `docs/` and the Payments module section.
+2. **Payment integrations** - Stripe recurring dues IS integrated (product spine Phase 1: per-space keys, hosted Checkout/Portal, the per-space signed webhook). A PayPal sync endpoint exists (`app/api/paypal/sync/route.ts`). Manual import/CSV reconciliation remains the path for ad-hoc/other-platform payments; Zeffy/Venmo live APIs are not integrated.
 3. **Social auth** - GitHub/Google sign-in is wired, gated by the `NEXT_PUBLIC_OAUTH_GITHUB`/`NEXT_PUBLIC_OAUTH_GOOGLE` env flags.
 4. **Webhooks** - The HMAC signing contract and secret rotation exist; per-event delivery is not implemented (see `docs/WEBHOOKS.md`).
 5. **Email notifications** - Dues-lifecycle transactional email is implemented (migration 041: notifications outbox + Resend transport + dispatcher cron). Other domains (bookings, forms) are not wired yet but reuse the same outbox.
