@@ -20,7 +20,8 @@ Branch `main`. Worked the pass-51 small backlog. Suite 532, build clean. NOT dep
 - Forms victim-email attribution: an anonymous submitter can type a victim's email and the submission is attributed to that member (attribution only — no data readback, grants nothing; documented locked decision). Flagging for owner re-confirm that forged-waiver-attribution is acceptable in scope.
 
 ### State
-- **Not deployed.** Ahead of origin: pass-51 deploy-state (b90debb, held docs) + E1 (c2ba958) + E2 (f11f4b3, 9351969) + E3 (6b84b09) + this. No migration in this batch. Final HEAD builds clean (deploy builds HEAD, not each commit, so the intermediate f11f4b3 is moot for deploy).
+- **DEPLOYED** (run 26088940576, HEAD 099a103, success). No migration this batch. Smoke clean: public 200; `/dashboard` `/me` `/door/manage` 307; Stripe webhook 400; cron 503. No regressions. (E3's generic signature/handler error bodies need a Stripe-configured space + bad sig to exercise — verified by build/code, not curl.) This deploy-state edit held local (docs-only, rides next deploy).
+- **Backlog now essentially exhausted.** Remaining: the deliberately-deferred SECURITY DEFINER status-gate (own focused session — see rationale above) and the owner product question on forms victim-email attribution. All P0s/P1s/P2s from every audit this session are resolved or consciously deferred with documented rationale.
 
 ---
 
