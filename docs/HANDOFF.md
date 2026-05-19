@@ -28,7 +28,8 @@ Branch `main`. Ran 3 deep adversarial audits (concurrency+financial, privilege-e
 - P2s: anonymous-form rate-limit/captcha; forms victim-email attribution (owner re-confirm — attribution only, no data readback); webhook echoes raw PG error text (post-signature only).
 
 ### State
-- **Not deployed.** D1-D10 + pass-49 deploy-state + this committed locally. Migrations 042/043/044 auto-apply via deploy.sh. Audit explicitly cleared: anonymous tenancy derivation, /track entropy, helper-fn fail-closed, R5 reconcile, startDuesCheckout customer race.
+- **DEPLOYED** (run 26071186611, HEAD a7c3a08, success). Deploy log confirms migrations 042/043/044 each applied; deploy.sh succeeded (042's exclusion constraint built cleanly = no pre-existing overlapping reserved rows). Smoke clean: `/` `/login` 200; `/dashboard` `/me` 307 (gate intact, D2 fine); Stripe webhook 400; cron 503; `/auth/callback` 307. No regressions. The equipment P0 + the 2 live P1s (Stripe out-of-order, dispatcher starvation) are resolved in prod.
+- This deploy-state edit is held local (docs-only; rides the next deploy). Audit explicitly cleared: anonymous tenancy derivation, /track entropy, helper-fn fail-closed, R5 reconcile, startDuesCheckout customer race.
 
 ---
 
