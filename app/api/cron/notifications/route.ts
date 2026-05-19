@@ -22,10 +22,8 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 const BATCH = 20
-// Per-space cap within one drain so one tenant's billing burst cannot
-// monopolize the shared global FIFO and starve every other space's email.
-const PER_SPACE = 5
-// Oldest-first candidate window we fairness-balance across spaces.
+// Oldest-first candidate window we fairness-balance across spaces. Larger
+// than BATCH so a burst space cannot crowd smaller spaces out of the window.
 const CANDIDATES = 200
 // ~4.5 sends/sec, under Resend's 5 req/sec team limit.
 const SPACING_MS = 220
@@ -62,15 +60,18 @@ export async function POST(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Fair drain: round-robin the oldest-first candidates across spaces with a
-  // per-space cap, so a single tenant's burst can't head-of-line-block every
-  // other space's notifications in the shared dispatcher.
+  // Fair drain: round-robin the oldest-first candidates across spaces so one
+  // tenant's burst can't head-of-line-block others. Fairness binds only under
+  // contention: with a single space pending (the common single-hackerspace
+  // deployment) it still drains the full BATCH; the round-robin itself caps
+  // any one space's share when multiple spaces compete. Per-space queues are
+  // bounded only by the CANDIDATES fetch (oldest-first), and Map insertion
+  // order preserves that oldest-first ordering across spaces.
   const bySpace = new Map<string, typeof candidates>()
   for (const c of candidates ?? []) {
     const k = c.space_id as string
     if (!bySpace.has(k)) bySpace.set(k, [])
-    const arr = bySpace.get(k)!
-    if (arr.length < PER_SPACE) arr.push(c)
+    bySpace.get(k)!.push(c)
   }
   const rows: NonNullable<typeof candidates> = []
   let added = true
