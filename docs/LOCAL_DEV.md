@@ -170,6 +170,31 @@ SELECT public.expire_proposals();
 
 In production you'd schedule this via pg_cron (the schema's migration 019 sets this up automatically when pg_cron is available) or via a Next.js cron endpoint guarded by a `CRON_SECRET`.
 
+## Integration tests (DB-backed)
+
+`pnpm test` is hermetic (pure logic, jsdom, no DB) and is the gate. The
+separate **`pnpm test:integration`** suite (`integration/`, its own
+`vitest.integration.config.ts`) exercises the shipped SQL — the
+`class_signup_tx`/`class_cancel_tx` RPCs (045) including the advisory lock
+under real concurrency, the `equipment_reservations_no_overlap` exclusion
+constraint (042), and the self-change trigger / `members_update` WITH CHECK
+(044/043) — against a real Postgres through `psql` (no extra npm dep). It
+drives both access paths the app uses: the service path (no JWT) and a
+logged-in member (`role authenticated` + `request.jwt.claims.sub`).
+
+Prereqs: the Supabase CLI stack running (`supabase start`) with the schema
+applied (`psql "$DB_URL" -f scripts/schema.sql`). It connects to
+`INTEGRATION_DATABASE_URL` (default the local stack
+`postgresql://postgres:postgres@127.0.0.1:54322/postgres`) and **self-skips
+cleanly** when no DB is reachable, so it never blocks contributors/CI
+without one. It is intentionally NOT part of `pnpm test` or the deploy gate.
+
+```bash
+supabase start
+psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -f scripts/schema.sql
+pnpm test:integration
+```
+
 ## Troubleshooting
 
 ### `supabase start` hangs or fails

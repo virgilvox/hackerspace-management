@@ -4,6 +4,26 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-19 (pass 53) — DB-backed integration harness; shipped SQL now functionally validated (LOCAL, non-runtime)
+
+Branch `main`. Assessment chose "integration test harness" to fix the root cause (correctness depending on post-deploy manual audits). Built + RAN it against the local Supabase Postgres. Default `pnpm test` still 532/26, hermetic; build clean.
+
+### Delivered
+- **F1 foundation:** `vitest.integration.config.ts` (separate runner; `integration/` is OUTSIDE `__tests__/` so `pnpm test` never touches a DB), `integration/db.ts` psql-driven helpers (service path vs `role authenticated`+`request.jwt.claims.sub` user path; throwing seed helpers), `pnpm test:integration` script. Self-skips when no DB.
+- **F2 tests (18, all green on real Postgres):** 045 `class_signup_tx`/`class_cancel_tx` — RETURNS TABLE→array shape the actions destructure, capacity/waitlist/dedupe/no_session, and the per-session advisory lock under TWO genuinely concurrent psql connections (exactly one registered — D11 proven); 042 exclusion constraint (overlap rejected 23P01, cancelled/adjacent allowed); 044 trigger (member self-edit of role + payment columns blocked, service path bypasses) + 043 WITH CHECK (cross-space move blocked).
+- Applying `scripts/schema.sql` to the local DB also validated the "idempotent, runnable top-to-bottom" invariant in practice (it was stale at 041; applied cleanly to 045).
+- Harness bug found+fixed during bring-up: `space_members.user_id` FKs `auth.users` (my earlier FK introspection was wrong) — seeds now create the auth user first; seed helpers throw on failure.
+- Docs: LOCAL_DEV "Integration tests" section.
+
+### Significance
+The concrete prod risk flagged in the pass-52 assessment — signup/cancel possibly broken because the action assumes `supabase.rpc()` returns an array for a RETURNS TABLE function — is **disproven**: the shape + behavior + concurrency are correct. Correctness of the riskiest shipped SQL no longer depends on me manually auditing after deploy.
+
+### State
+- **Non-runtime** (tests, vitest config, a package.json script, docs). No app code, no migration. Nothing to validate in prod; a push would only redeploy unchanged runtime. Held local pending the deploy decision (consistent with the docs-only hold pattern).
+- Backlog now: deferred SECURITY DEFINER status-gate (own session, rationale in pass-52); owner product question (forms attribution); ARCHITECTURE limitation #2 doc drift ("Stripe not integrated" — stale). Natural next: extend the harness to the Stripe webhook + key server actions; or owner provisioning + end-to-end spine validation.
+
+---
+
 ## 2026-05-19 (pass 52) — Backlog hardening E1-E3 + evidence-based deferral (LOCAL, NEEDS deploy)
 
 Branch `main`. Worked the pass-51 small backlog. Suite 532, build clean. NOT deployed.
