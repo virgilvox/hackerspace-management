@@ -16,8 +16,9 @@ Branch `main`. Phase 3 shipped (pass 48) without a dedicated pre-deploy audit; r
 - Audit PASS (no change): `getMyPayments` caller-scoping, the tab refactor (no data dropped), `proxy.ts` gate, R1 credential-loss/recursion paths, comma-split profile fields.
 
 ### State
-- **Fix committed locally (f2df287), NOT deployed.** Prod still runs pass-48 with the 2 P0s — deploy this promptly. Commits ahead of origin: pass-48 deploy-state (c8842c3) + this (f2df287) + pass-49.
-- Email change still also needs the Supabase project config from pass-48 to function at all.
+- **DEPLOYED** (run 26068281306, HEAD 997e2e1, success). Smoke clean: `/auth/confirm?type=recovery&token_hash=x` -> safe 307 (invalid token rejected, query type no longer honored); `/auth/confirm` no-token 307; `/auth/callback` 307; `/me` 307; `/` `/login` 200; Stripe webhook 400 (no regression). The 2 P0s are closed in prod.
+- This deploy-state edit is the only commit ahead of origin (docs-only, held per pattern; rides the next deploy).
+- Email change still needs the Supabase project config from pass-48 (template + redirect allowlist + Secure email change) to function at all; until then the action sends a link that won't land. The P0/P1 fixes harden the path for when it is enabled.
 
 ---
 
