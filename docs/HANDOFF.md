@@ -36,15 +36,19 @@ Branch `main`. Took item 3 from the pass-55 backlog: booking, class signup, and 
 - **Inert post-deploy** until owner provisions Resend (`RESEND_API_KEY` + `EMAIL_FROM` on a verified domain) and `CRON_SECRET` + the once-a-minute droplet crontab. Until then the outbox fills but nothing sends, same as Phase 2 today. New-event volume is bounded by user activity; the dispatcher's per-attempt Resend `Idempotency-Key` and the `(space_id, dedupe_key)` collapse already make replay-safe.
 - **No volume governor.** Every form submission fans out one row per `forms.manage` holder; a popular waiver could create N rows per submission. Acceptable today (the unique index makes it idempotent); a digest / throttle is a separate phase (lines up with member preferences and an in-app inbox).
 
+### Session closeout
+Three audit passes within one phase set the new high-bar. P4a-P4d shipped the feature; the three audits then found and fixed (a) an RPC enumeration vector before any client could touch it, (b) a best-effort gap where the helpers could leak network errors into action returns after the underlying mutation already committed, and (c) a phishing vector exposed by `form_submission_admin` being the first email type to surface one user's display_name in another user's inbox. None of the three would have been caught by smoke testing the deployed code. The discipline future sessions should keep: design-first via AskUserQuestion, ship per-phase, then audit the change set BEFORE asking for the deploy, repeat the audit even when the change set "looks clean" because every repeat-audit on this work found something real.
+
 ### Backlog after this
-The pass-55 list minus item 3. Highest-priority items remaining:
-1. Owner-gated end-to-end spine validation (the shipped≠proven gap).
-2. Production observability (Sentry-equivalent for the webhook + dispatcher + actions).
-3. Phase 4-adjacent: member notification preferences (per-type opt-in/out; the dispatcher checks prefs before sending; natural next pass now that breadth exists).
-4. In-app notification center on `/me` (unread/read state).
-5. Extend the integration harness (payments link/import, role/permission management, presence, forms).
-6. Door epic Phases 4-5.
-7. Owner product question (forms attribution).
+1. **Owner-gated end-to-end spine validation.** Phase 2 (dues lifecycle) + Phase 4 (booking, classes, forms) are both deployed but proven only at the code level. Needs (a) `RESEND_API_KEY` + `EMAIL_FROM` (verified domain, SPF/DKIM), (b) `CRON_SECRET` + the once-a-minute droplet crontab (docs/DEPLOYMENT.md), (c) per-space Stripe test-mode keys + activated Billing Portal, (d) Supabase "Change Email Address" template + `/auth/confirm` allowlist. Then a real test-mode dues cycle + a booking + a class signup + a form submission, click-through the `/me` portal in a browser. Owner executes; this session produces the runbook + checklist.
+2. **Phase 5: member notification preferences.** Per-type opt-in/out; the dispatcher checks prefs before sending. Doubles as the volume governor for Phase 4 fan-outs (a popular waiver currently fans out one row per `forms.manage` holder per submission).
+3. **Phase 5: in-app notification center on `/me`.** Extend the read-only list to an inbox with unread/read state.
+4. **Production observability.** No error monitoring exists; money path + dispatcher cron + every server action only `console.error`. Add Sentry-equivalent.
+5. **Extend the integration harness.** Add real-Postgres coverage for payments link/import, role/permission management, presence, forms `submitForm` + `linkSubmissionsByEmail`. Pattern is proven; cost per new file is small.
+6. **`user_has_permission` EXECUTE-TO-PUBLIC triage.** Pre-existing exposure flagged in this pass: the helper is callable by anon/authenticated by default (narrower than the 047 case since you need to know target uids, but still a per-uid probe). Locking it down requires careful audit because RLS policies call it from anon/authenticated contexts and would break if EXECUTE were stripped.
+7. **Door epic Phases 4-5.** Inbound log ingest + the universal API-call UI builder.
+8. **Owner product question** (no code): confirm forms victim-email attribution (attribution only, no readback) remains acceptable in scope.
+9. Deferred until product need: generic outbound webhooks epic, server-side search, multi-space-per-user / space switcher, Zeffy/Venmo live APIs.
 
 ---
 
