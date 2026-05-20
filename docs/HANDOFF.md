@@ -4,7 +4,31 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
-## 2026-05-20 (pass 62): Diversified surface audit + fixes (LOCAL, NOT deployed)
+## SESSION CLOSEOUT 2026-05-20 (read this first)
+
+**What this arc shipped (passes 56-62, all DEPLOYED).** Product spine is now Phases 1-5 complete:
+1 Stripe recurring dues, 2 transactional-notification outbox+dispatcher, 3 `/me` self-serve portal (now the single member page; `/profile` deleted + consolidated in), 4 notification breadth (bookings/classes/forms), 5 member notification preferences + in-app notification inbox. Plus: admin-configured **alternate dues payment links** (PayPal/Zeffy/Venmo, https-only, manual reconcile), a `/settings` **Dues tab**, and a `/me` theme realign.
+
+**Production incident (resolved).** A migration-048 table (`notification_preferences`) with FKs to BOTH `space_members` and `spaces` made PostgREST read it as an M2M junction, so the auth layout's `space_members.select('*, spaces(*)')` embed went ambiguous (PGRST201) and bounced every logged-in user to `/signup`. Hotfixed (migration 052 dropped the redundant FK). Root rule, now understood + guarded: **PostgREST treats a 2-FK table as an ambiguous junction only when its PK covers both FK columns** (composite-PK join shape); surrogate-`id` tables are safe. Guarded by `integration/auth-embed.test.ts`. NEVER add a `spaces` FK to a `space_members`-referencing table (see DATABASE_SCHEMA 052 + the ARCHITECTURE gotcha note).
+
+**State.** `pnpm test` 594 unit (deploy gate, hermetic); `pnpm test:integration` 40 vs real Postgres (auth-embed, dispatcher-skip, dues RLS, billing/webhook/RPC/constraint invariants). Build clean. Prod healthy (auth embed returns `[]`). Migrations through 052 applied. 4 audit passes this arc (deep + diversified across public/API, XSS, authz) found no P0; the reals they did find (Stripe-card config footgun, onboarding `payment_url` XSS, forum cross-space comment, joinSpace rate limit) are fixed + deployed.
+
+**The single biggest gap: shipped != proven.** Phases 1-5 + payment links are code-proven but **INERT in prod** until the owner provisions: Resend (`RESEND_API_KEY` + `EMAIL_FROM` on a verified domain), `CRON_SECRET` + the once-a-minute droplet crontab, a space's per-space Stripe test-mode keys + activated Billing Portal, and the Supabase Change-Email template + `/auth/confirm` allowlist. Until then no email sends and no real dues cycle runs.
+
+**Backlog (priority order for the next session):**
+1. **OWNER-GATED end-to-end spine validation.** Produce a precise runbook + checklist; owner provisions the above, then runs a real test-mode dues cycle + booking + class signup + form submit and clicks through `/me` (inbox, prefs, dues card, Dues tab). Converts the whole arc into proven-working. The #1 item for many passes.
+2. **Production observability.** No error monitoring; money path (Stripe webhook) + dispatcher cron + every server action only `console.error`. Add a Sentry-equivalent (design-first on the tool).
+3. **Owner browser review** of `/me` + the `/settings` Dues tab (auth-gated; the agent cannot do it).
+4. **Extend the integration harness**: payments link/import, role/permission management, presence, forms `submitForm`/`linkSubmissionsByEmail`.
+5. **`user_has_permission` EXECUTE-TO-PUBLIC triage** (pre-existing, flagged pass 56).
+6. **Door epic Phases 4-5** (inbound log ingest + universal API-call UI builder).
+7. Defense-in-depth noted, not done: add `.eq('space_id')` to equipment-cancel / door-slot writes (parent already space-checked); the webhook signing secret is shown pre-populated to admins (retrievable by design). Deferred until product need: outbound webhooks epic, server-side search, multi-space-per-user, Zeffy/Venmo live APIs.
+
+**Locked decisions (do not relitigate without the owner):** single space per user; dues lapse is grace -> late, never auto-inactive/auto-approve; forms email-link may include anonymous typed emails (attribution only); external dues links are link-config only (no auto payment record on click); Stripe is configured in ONE place (the Dues tab).
+
+---
+
+## 2026-05-20 (pass 62): Diversified surface audit + fixes (DEPLOYED)
 
 Branch `main`. Audited surfaces I had NOT recently touched, via three parallel independent reviews: (1) anonymous/public + all `app/api/**` route handlers, (2) XSS / unsafe rendering across the whole app, (3) authorization + tenant-isolation in legacy server actions (tasks/projects/members/kb/secrets/contacts/comms/classes/equipment/door/presence/certs/invites/roles/permissions/onboarding/forms/governance). **No P0 on any surface.** Suite 594 / build green.
 
