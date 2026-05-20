@@ -26,11 +26,15 @@ export function isDuesLinkPlatform(p: string): p is DuesLinkPlatform {
 // (javascript:, data:, mailto:, etc.) are rejected so an admin-entered value
 // cannot become an XSS or a downgrade vector when shown to members.
 export function isSafeDuesUrl(url: string): boolean {
-  let u: URL
+  // Require the literal https:// prefix AND a parseable URL. The prefix check
+  // keeps this in lockstep with the DB CHECK (`url ~* '^https://'`, migration
+  // 050) so the app and data layers never disagree (e.g. `https:example.com`
+  // parses to https: but lacks `//`, which the DB rejects); the parse check
+  // rejects a bare `https://` with no host.
+  if (!/^https:\/\//i.test(url)) return false
   try {
-    u = new URL(url)
+    return new URL(url).protocol === 'https:'
   } catch {
     return false
   }
-  return u.protocol === 'https:'
 }

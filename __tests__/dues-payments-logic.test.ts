@@ -48,4 +48,12 @@ describe('isSafeDuesUrl', () => {
     expect(isSafeDuesUrl('paypal.me/x')).toBe(false)
     expect(isSafeDuesUrl('')).toBe(false)
   })
+
+  it('rejects https without // (stays in lockstep with the DB CHECK)', () => {
+    // these parse to protocol https: but lack the // the DB CHECK requires
+    expect(isSafeDuesUrl('https:example.com')).toBe(false)
+    expect(isSafeDuesUrl('https:/x')).toBe(false)
+    // bare scheme with no host
+    expect(isSafeDuesUrl('https://')).toBe(false)
+  })
 })
