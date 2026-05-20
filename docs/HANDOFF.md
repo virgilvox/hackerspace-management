@@ -4,7 +4,7 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
-## 2026-05-19 (pass 56): Product spine Phase 4: notification breadth (LOCAL, awaiting one reviewed deploy)
+## 2026-05-19 (pass 56): Product spine Phase 4: notification breadth (DEPLOYED)
 
 Branch `main`. Took item 3 from the pass-55 backlog: booking, class signup, and form-submission notifications, reusing the Phase 2 outbox + dispatcher unchanged. Built per sub-phase, gated each, small commit per sub-phase, single deploy at the end of the set. Suite 565 (was 532; +33 new tests), build clean. NOT deployed.
 
@@ -32,7 +32,7 @@ Branch `main`. Took item 3 from the pass-55 backlog: booking, class signup, and 
 40 new `__tests__/` cases (suite 572). Per-render unit tests cover subject lines, body copy, location + range formatting, the "someone" fallback in admin alerts, HTML escaping of injected names/titles, and (post-P4g) URL-strip defense across every renderer. Per-dedupe-key tests pin shape and per-member fan-out distinctness. The shared enqueue helper has hit/miss/error/throw coverage and (post-P4f) the resolveMemberContact / getSpaceName best-effort no-throw paths. Integration suite (31 vs real Postgres) unchanged: the existing Stripe-webhook integration test already exercises the outbox semantics end to end via the same shared upsert; P4 actions enqueue through the same path so the runtime contract is the same.
 
 ### State
-- **Not deployed.** Awaiting one reviewed deploy for the whole set (migration 047 runs as part of `deploy.sh`).
+- **DEPLOYED** (run 26135623172, HEAD a61e34d, 1m14s success). Deploy log confirms `applying 047_members_with_permission.sql` then `REVOKE` then `GRANT`. Smoke clean: public 200 (landing, login render); gated 307 (`/dashboard`, `/me`); Stripe webhook 400 (signature rejected with no body); cron 503 (CRON_SECRET unset, fails safe). No regressions.
 - **Inert post-deploy** until owner provisions Resend (`RESEND_API_KEY` + `EMAIL_FROM` on a verified domain) and `CRON_SECRET` + the once-a-minute droplet crontab. Until then the outbox fills but nothing sends, same as Phase 2 today. New-event volume is bounded by user activity; the dispatcher's per-attempt Resend `Idempotency-Key` and the `(space_id, dedupe_key)` collapse already make replay-safe.
 - **No volume governor.** Every form submission fans out one row per `forms.manage` holder; a popular waiver could create N rows per submission. Acceptable today (the unique index makes it idempotent); a digest / throttle is a separate phase (lines up with member preferences and an in-app inbox).
 
