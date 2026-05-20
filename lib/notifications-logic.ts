@@ -70,6 +70,20 @@ function escapeHtml(s: string): string {
     .replace(/'/g, '&#39;')
 }
 
+// renderShell auto-linkifies any https?:// in the body so the manageUrl line
+// becomes a clickable link. That same regex turns ANY URL embedded in a
+// user-controlled input (member display_name, equipment/class title, form
+// title, submitter label, space name) into a clickable link too, opening a
+// phishing vector wherever those fields land in an email to a different user
+// (notably form_submission_admin, which surfaces a submitter's display_name
+// to an admin). Scrub URL patterns from every user-controlled input before
+// rendering. Only manageUrl, which is server-built from NEXT_PUBLIC_APP_URL,
+// is allowed to reach the linkify regex.
+function stripUrls(s: string | null | undefined): string {
+  if (!s) return ''
+  return s.replace(/https?:\/\/\S+/gi, '[link]')
+}
+
 const CURRENCY_SYMBOL: Record<string, string> = { USD: '$', CAD: '$', EUR: '€', GBP: '£' }
 
 // Stripe zero-decimal currencies: the smallest unit IS the major unit, so
@@ -164,8 +178,8 @@ export type RenderedEmail = { subject: string; html: string; text: string }
 // is injected, never hard-coded. Returns both an HTML and a plain-text body
 // (Resend will also auto-generate text, but we send an explicit one).
 export function renderDuesEmail(input: DuesEmailInput): RenderedEmail {
-  const space = input.spaceName || 'your hackerspace'
-  const name = input.memberName?.trim() || null
+  const space = stripUrls(input.spaceName) || 'your hackerspace'
+  const name = stripUrls(input.memberName).trim() || null
   const greeting = name ? `Hi ${name},` : 'Hi,'
   const money = formatMoney(input.amount, input.currency)
   const renews = formatDate(input.periodEnd)
@@ -235,12 +249,12 @@ export type ClassEmailInput = {
 }
 
 export function renderClassEmail(input: ClassEmailInput): RenderedEmail {
-  const space = input.spaceName || 'your hackerspace'
-  const name = input.memberName?.trim() || null
+  const space = stripUrls(input.spaceName) || 'your hackerspace'
+  const name = stripUrls(input.memberName).trim() || null
   const greeting = name ? `Hi ${name},` : 'Hi,'
-  const cls = input.className || 'the class'
+  const cls = stripUrls(input.className) || 'the class'
   const range = formatRange(input.startsAt, input.endsAt)
-  const location = (input.location || '').trim()
+  const location = stripUrls(input.location).trim()
 
   let subject: string
   const lines: string[] = [greeting, '']
@@ -308,10 +322,10 @@ export type FormEmailInput = {
 }
 
 export function renderFormEmail(input: FormEmailInput): RenderedEmail {
-  const space = input.spaceName || 'your hackerspace'
-  const name = input.recipientName?.trim() || null
+  const space = stripUrls(input.spaceName) || 'your hackerspace'
+  const name = stripUrls(input.recipientName).trim() || null
   const greeting = name ? `Hi ${name},` : 'Hi,'
-  const form = input.formTitle || 'the form'
+  const form = stripUrls(input.formTitle) || 'the form'
 
   let subject: string
   const lines: string[] = [greeting, '']
@@ -325,7 +339,7 @@ export function renderFormEmail(input: FormEmailInput): RenderedEmail {
     )
   } else {
     subject = `New submission: ${form} at ${space}`
-    const who = (input.submitterLabel || '').trim() || 'someone'
+    const who = stripUrls(input.submitterLabel).trim() || 'someone'
     lines.push(
       `${who} submitted ${form} at ${space}.`,
       '',
@@ -363,12 +377,12 @@ export type BookingEmailInput = {
 }
 
 export function renderBookingEmail(input: BookingEmailInput): RenderedEmail {
-  const space = input.spaceName || 'your hackerspace'
-  const name = input.memberName?.trim() || null
+  const space = stripUrls(input.spaceName) || 'your hackerspace'
+  const name = stripUrls(input.memberName).trim() || null
   const greeting = name ? `Hi ${name},` : 'Hi,'
-  const equipment = input.equipmentName || 'the equipment'
+  const equipment = stripUrls(input.equipmentName) || 'the equipment'
   const range = formatRange(input.startsAt, input.endsAt)
-  const location = (input.location || '').trim()
+  const location = stripUrls(input.location).trim()
 
   let subject: string
   const lines: string[] = [greeting, '']

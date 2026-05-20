@@ -383,3 +383,87 @@ describe('renderFormEmail', () => {
     expect(r.html).toContain('&lt;img&gt;')
   })
 })
+
+describe('URL stripping in user-controlled fields (phishing defense)', () => {
+  // renderShell auto-linkifies https?:// in body lines so the manageUrl line
+  // becomes clickable. That same regex would happily turn a malicious URL in
+  // an injected user-controlled field into a clickable link, which is a
+  // phishing vector wherever those fields land in an email read by someone
+  // OTHER than the field's owner (notably form_submission_admin, which
+  // embeds the submitter's display_name in an admin's inbox). The fix is to
+  // strip URLs from user-controlled inputs before render; manageUrl stays
+  // untouched and remains the only linkified URL.
+
+  it('form_submission_admin scrubs a URL embedded in the submitter label', () => {
+    const r = renderFormEmail({
+      type: 'form_submission_admin',
+      spaceName: 'Acme',
+      recipientName: 'Boss',
+      formTitle: 'Liability Waiver',
+      manageUrl: 'https://x.test/forms/abc/results',
+      submitterLabel: 'Click https://evil.com for free stuff',
+    })
+    // The malicious URL is stripped, replaced with [link].
+    expect(r.text).not.toContain('https://evil.com')
+    expect(r.html).not.toContain('href="https://evil.com"')
+    expect(r.text).toContain('[link]')
+    // The legitimate results URL is still linkified.
+    expect(r.html).toContain('href="https://x.test/forms/abc/results"')
+  })
+
+  it('form_submission_admin scrubs a URL embedded in the form title', () => {
+    const r = renderFormEmail({
+      type: 'form_submission_admin',
+      spaceName: 'Acme',
+      formTitle: 'Visit https://evil.com',
+      manageUrl: 'https://x.test/forms/abc/results',
+      submitterLabel: 'Ada',
+    })
+    expect(r.html).not.toContain('href="https://evil.com"')
+    expect(r.text).toContain('[link]')
+  })
+
+  it('renderBookingEmail scrubs URLs in member name, equipment name, and location (defense in depth)', () => {
+    const r = renderBookingEmail({
+      type: 'booking_confirmed',
+      spaceName: 'Visit https://x.evil',
+      memberName: 'Look https://x.evil',
+      equipmentName: 'Buy https://x.evil',
+      location: 'Bay https://x.evil',
+      startsAt: '2026-05-22T15:00:00Z',
+      endsAt: '2026-05-22T17:00:00Z',
+      manageUrl: 'https://x.test/me',
+    })
+    expect(r.html).not.toContain('href="https://x.evil"')
+    expect(r.html).toContain('href="https://x.test/me"')
+  })
+
+  it('renderClassEmail scrubs URLs in class title and location', () => {
+    const r = renderClassEmail({
+      type: 'class_signup_registered',
+      spaceName: 'Acme',
+      memberName: 'Ada',
+      className: 'Welding https://evil.test',
+      location: 'Bay 1',
+      startsAt: '2026-05-22T15:00:00Z',
+      endsAt: '2026-05-22T17:00:00Z',
+      manageUrl: 'https://x.test/me',
+    })
+    expect(r.html).not.toContain('href="https://evil.test"')
+    expect(r.html).toContain('href="https://x.test/me"')
+  })
+
+  it('renderDuesEmail scrubs URLs in member name and space name (defense in depth)', () => {
+    const r = renderDuesEmail({
+      type: 'dues_renewed',
+      spaceName: 'Acme https://evil.test',
+      memberName: 'Bad https://evil.test',
+      amount: 25,
+      currency: 'USD',
+      periodEnd: '2026-06-15',
+      manageUrl: 'https://x.test/me',
+    })
+    expect(r.html).not.toContain('href="https://evil.test"')
+    expect(r.html).toContain('href="https://x.test/me"')
+  })
+})
