@@ -21,6 +21,11 @@ export type ProfileInitial = {
   interests: string[]
   willing_to: string[]
   affiliations: string[]
+  // Conflict-of-interest disclosure (ported from the former /profile page):
+  // privileged roles are nudged to disclose; the last-disclosed date is shown
+  // when set.
+  isPrivileged: boolean
+  coiLastDisclosed: string | null
 }
 
 const sameList = (a: string[], b: string[]) =>
@@ -90,7 +95,7 @@ export function ProfileForm({ initial }: { initial: ProfileInitial }) {
 
   return (
     <div className="space-y-4">
-      <div className="bg-card rounded-lg border border-border p-5 space-y-5">
+      <div className="bg-card rounded border border-border p-5 space-y-5">
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="pf-name">Display name</Label>
@@ -138,7 +143,20 @@ export function ProfileForm({ initial }: { initial: ProfileInitial }) {
 
         <div className="space-y-1.5">
           <span className={fieldLabel}>Affiliations (conflict-of-interest)</span>
+          {initial.isPrivileged && !initial.coiLastDisclosed && (
+            <div className="rounded border border-orange-200 bg-orange-50 dark:border-orange-900/50 dark:bg-orange-950/30 p-3">
+              <p className="font-sans text-xs text-orange-900 dark:text-orange-200">
+                You hold a privileged role. Please disclose any outside affiliations that could
+                conflict with space governance. Your disclosure is visible to other members.
+              </p>
+            </div>
+          )}
           <ChipInput values={affiliations} onChange={setAffiliations} placeholder="add an affiliation and press enter" maxLength={200} maxItems={50} />
+          {initial.coiLastDisclosed && (
+            <p className="font-mono text-[10px] text-muted-foreground">
+              last disclosed {new Date(initial.coiLastDisclosed).toLocaleDateString()}
+            </p>
+          )}
         </div>
 
         <div className="flex justify-end">
@@ -148,7 +166,7 @@ export function ProfileForm({ initial }: { initial: ProfileInitial }) {
         </div>
       </div>
 
-      <div className="bg-card rounded-lg border border-border p-5 space-y-3">
+      <div className="bg-card rounded border border-border p-5 space-y-3">
         <div>
           <p className="font-sans text-sm font-medium text-foreground">Login email</p>
           <p className="font-mono text-[10px] text-muted-foreground mt-0.5">

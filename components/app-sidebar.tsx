@@ -13,7 +13,7 @@ type Space = Tables<'spaces'>
 import {
   Menu, X, LayoutDashboard, ListChecks, FolderKanban, Settings2, Wrench,
   MessageSquare, Users, CreditCard, BookUser, Download, LogOut,
-  Vote, ShieldAlert, ScrollText, LineChart, UserCircle, UserSearch,
+  Vote, ShieldAlert, ScrollText, LineChart, UserSearch,
   MessagesSquare, SlidersHorizontal, ClipboardList, FileText, Award, BadgeCheck, GraduationCap, Hammer,
   ChevronDown, DoorClosed, CalendarCheck,
 } from 'lucide-react'
@@ -219,8 +219,7 @@ export function AppSidebar({ member, roleName, taskBadge = 0, commsBadge = 0, pa
         </NavSection>
 
         <NavSection id="account" title="Account">
-          <NavLink href="/profile" label="My profile" icon={UserCircle} active={isActive('/profile')} onClick={onNav} />
-          <NavLink href="/me" label="My access" icon={BadgeCheck} active={isActive('/me')} onClick={onNav} />
+          <NavLink href="/me" label="My membership" icon={BadgeCheck} active={isActive('/me')} onClick={onNav} />
         </NavSection>
 
         {showAdminSection && (

@@ -42,7 +42,7 @@ export function DuesCard({ billing, methods = [] }: { billing: Billing; methods?
   }
 
   return (
-    <div className="bg-card rounded-lg border border-border p-5 space-y-4">
+    <div className="bg-card rounded border border-border p-5 space-y-4">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <p className="font-sans text-sm font-medium text-foreground">Membership dues</p>

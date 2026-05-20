@@ -75,7 +75,7 @@ export default async function RecruitmentPage() {
               <EmptyMedia variant="icon"><Users /></EmptyMedia>
               <EmptyTitle>No members have declared willingness or skills yet</EmptyTitle>
               <EmptyDescription>
-                Members opt in from their <Link href="/profile">profile</Link> page.
+                Members opt in from their <Link href="/me">membership</Link> page.
               </EmptyDescription>
             </EmptyHeader>
           </Empty>

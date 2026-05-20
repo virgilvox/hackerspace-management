@@ -60,8 +60,7 @@ const NAV: { group: string; items: Dest[] }[] = [
   {
     group: 'Account',
     items: [
-      { label: 'My profile', href: '/profile' },
-      { label: 'My access', href: '/me' },
+      { label: 'My membership', href: '/me' },
     ],
   },
   {

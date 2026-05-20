@@ -29,7 +29,7 @@ export default async function MePage() {
   const { data: member } = await supabase
     .from('space_members')
     .select(
-      'id, space_id, role, email, display_name, handle, phone, bio, skills, interests, willing_to, affiliations',
+      'id, space_id, role, email, display_name, handle, phone, bio, skills, interests, willing_to, affiliations, coi_last_disclosed_at',
     )
     .eq('user_id', user.id)
     .in('status', ['current', 'unverified', 'late'])
@@ -59,6 +59,8 @@ export default async function MePage() {
     interests: (member.interests as string[] | null) ?? [],
     willing_to: (member.willing_to as string[] | null) ?? [],
     affiliations: (member.affiliations as string[] | null) ?? [],
+    isPrivileged: ['admin', 'board', 'treasurer'].includes(member.role as string),
+    coiLastDisclosed: (member.coi_last_disclosed_at as string | null) ?? null,
   }
 
   const { data: grantsRaw } = await supabase
@@ -119,6 +121,7 @@ export default async function MePage() {
 
   const notifsRes = await getMyNotifications()
   const notifs: MyNotif[] = 'data' in notifsRes ? (notifsRes.data as MyNotif[]) : []
+  const unreadNotifs = 'unreadCount' in notifsRes ? notifsRes.unreadCount : 0
 
   const notifPrefsRes = await getMyNotificationPreferences()
   const notifPrefs: PrefMap = 'data' in notifPrefsRes ? notifPrefsRes.data : {}
@@ -140,6 +143,7 @@ export default async function MePage() {
         duesMethods={duesMethods}
         payments={payments}
         notifs={notifs}
+        unreadNotifs={unreadNotifs}
         notifPrefs={notifPrefs}
         classSignups={classSignups}
         reservations={reservations}

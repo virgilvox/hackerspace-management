@@ -191,9 +191,9 @@ export type Database = {
         Relationships: []
       }
       notifications: {
-        Row: { id: string; space_id: string; member_id: string | null; type: string; channel: string; recipient: string; subject: string; body_html: string; body_text: string; status: string; attempts: number; last_error: string | null; dedupe_key: string; sent_at: string | null; created_at: string; updated_at: string }
-        Insert: { id?: string; space_id: string; member_id?: string | null; type: string; channel?: string; recipient: string; subject: string; body_html: string; body_text: string; status?: string; attempts?: number; last_error?: string | null; dedupe_key: string; sent_at?: string | null; created_at?: string; updated_at?: string }
-        Update: { id?: string; space_id?: string; member_id?: string | null; type?: string; channel?: string; recipient?: string; subject?: string; body_html?: string; body_text?: string; status?: string; attempts?: number; last_error?: string | null; dedupe_key?: string; sent_at?: string | null; created_at?: string; updated_at?: string }
+        Row: { id: string; space_id: string; member_id: string | null; type: string; channel: string; recipient: string; subject: string; body_html: string; body_text: string; status: string; attempts: number; last_error: string | null; dedupe_key: string; sent_at: string | null; read_at: string | null; created_at: string; updated_at: string }
+        Insert: { id?: string; space_id: string; member_id?: string | null; type: string; channel?: string; recipient: string; subject: string; body_html: string; body_text: string; status?: string; attempts?: number; last_error?: string | null; dedupe_key: string; sent_at?: string | null; read_at?: string | null; created_at?: string; updated_at?: string }
+        Update: { id?: string; space_id?: string; member_id?: string | null; type?: string; channel?: string; recipient?: string; subject?: string; body_html?: string; body_text?: string; status?: string; attempts?: number; last_error?: string | null; dedupe_key?: string; sent_at?: string | null; read_at?: string | null; created_at?: string; updated_at?: string }
         Relationships: []
       }
       notification_preferences: {

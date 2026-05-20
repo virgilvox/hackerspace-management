@@ -4,6 +4,24 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-20 (pass 59): PROD OUTAGE fix + in-app inbox + /me consolidation + style
+
+Branch `main`. Suite 594 unit, 40 integration, build clean.
+
+### PROD OUTAGE (fixed + deployed, migration 052)
+Migration 048 (`notification_preferences`) had FKs to BOTH `space_members` and `spaces`. PostgREST read it as a junction, so the auth layout's `space_members.select('*, spaces(*)')` embed went ambiguous (`PGRST201`) -> `member` null -> EVERY logged-in user bounced to `/signup` (anon landing was fine). Live from the pass-58 `ab8c22a` deploy until the hotfix. Fix: migration 052 drops the redundant `space_id -> spaces` FK (space still reachable + cascades via `member_id -> space_members`). Verified by reproducing `PGRST201` on local PostgREST, then confirming `[]` after the drop; confirmed on PROD (run 26142626745, `a7d880d`) by testing the embed against `supabase.hackerspace.sh` with the anon key. **Regression guard added:** `integration/auth-embed.test.ts` runs the exact embed through PostgREST and fails on `PGRST201`. Root lesson: build/unit/psql-integration never exercised the PostgREST embed, so the schema-level ambiguity slipped through.
+
+### Shipped in this pass (LOCAL, NOT yet deployed beyond the 052 hotfix)
+- **In-app notification center (Phase 5; migration 051).** `notifications.read_at` + partial unread index; `/me` Notifications becomes an inbox (unread dot/bold, click to expand `body_text` + mark read, "Mark all as read", unread count). `getMyNotifications` returns read state + body + unread count; `markNotificationsRead({ids?})` is a service-client write scoped to the caller's `member_id`. Always-on channel: email-muted (`skipped`) rows still show. NOT deployed yet.
+- **/me <- /profile consolidation.** Deleted `app/(app)/profile/*`; `/me` is the single member page. Ported the COI privileged-role nudge + last-disclosed date into `/me`'s profile editor. Removed the "My profile" sidebar + command-palette entries; renamed the `/me` nav label "My access" -> "My membership" (matches the page title). Repointed the recruitment empty-state link to `/me`.
+- **Style: realigned `/me` to the central theme.** Reverted the `rounded-lg` cards I introduced in the pass-58 visual pass back to `rounded` (the app norm: 519 `rounded` vs 53 `rounded-lg`, and what `/profile` used). Routed `/me` section headers through the `SectionTitle` primitive instead of an inline `sectionH` const. (Self-critique: the pass-58 "visual pass" introduced the `rounded-lg` drift the user flagged.)
+
+### Open / next
+- **NOT deployed:** the inbox (051), the consolidation, and the style fixes are committed locally pending a deploy (migration 051 applies on deploy). Awaiting user go.
+- Browser review of `/me` still pending (auth-gated; can't curl).
+
+---
+
 ## 2026-05-19 (pass 58): Dues payment options + /me visual pass (DEPLOYED)
 
 > DEPLOY STATE: pass-57 + pass-58 shipped together in commit `ab8c22a`

@@ -29,7 +29,7 @@ export function NotificationPrefs({ initial }: { initial: PrefMap }) {
   }
 
   return (
-    <ul className="divide-y rounded-lg border border-border">
+    <ul className="divide-y rounded border border-border">
       {CATEGORY_META.map(meta => {
         const enabled = prefs[meta.category] ?? true
         return (

@@ -2,6 +2,7 @@
 
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { SectionTitle } from '@/components/ui/page-title'
 import {
   certificationStatus,
   CERT_STATUS_LABEL,
@@ -14,6 +15,7 @@ import { DuesCard, type DuesMethod } from '@/components/billing/dues-card'
 import { ProfileForm, type ProfileInitial } from './profile-form'
 import { CancelAction } from './cancel-action'
 import { NotificationPrefs } from './notification-prefs'
+import { NotificationsInbox } from './notifications-inbox'
 import type { PrefMap } from '@/lib/notifications-prefs-logic'
 import { cancelMySignup, cancelReservation } from '@/lib/actions'
 
@@ -53,7 +55,7 @@ export type Reservation = {
 }
 export type MyCard = { id: string; card_type: string; label: string | null; is_active: boolean; last4: string }
 export type MyVisit = { id: string; checked_in_at: string; checked_out_at: string | null; is_host: boolean; check_in_note: string | null; check_out_note: string | null }
-export type MyNotif = { id: string; type: string; subject: string; status: string; createdAt: string; sentAt: string | null }
+export type MyNotif = { id: string; type: string; subject: string; bodyText: string; status: string; createdAt: string; sentAt: string | null; readAt: string | null }
 export type MyPayment = { id: string; amount: number; currency: string; platform: string; description: string | null; status: string; date: string }
 export type HeldPermission = { code: string; label: string }
 export type Billing = { status: string | null; currentPeriodEnd: string | null; hasCustomer: boolean; configured: boolean } | null
@@ -66,14 +68,13 @@ type Props = {
   duesMethods: DuesMethod[]
   payments: MyPayment[]
   notifs: MyNotif[]
+  unreadNotifs: number
   notifPrefs: PrefMap
   classSignups: ClassSignup[]
   reservations: Reservation[]
   myCards: MyCard[]
   myVisits: MyVisit[]
 }
-
-const sectionH = 'font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-3'
 
 export function MePortalClient({
   profile,
@@ -83,6 +84,7 @@ export function MePortalClient({
   duesMethods,
   payments,
   notifs,
+  unreadNotifs,
   notifPrefs,
   classSignups,
   reservations,
@@ -109,12 +111,12 @@ export function MePortalClient({
 
         <TabsContent value="profile" className="space-y-8">
           <section>
-            <h2 className={sectionH}>Profile</h2>
+            <SectionTitle className="mb-3">Profile</SectionTitle>
             <ProfileForm initial={profile} />
           </section>
 
           <section>
-            <h2 className={sectionH}>My permissions</h2>
+            <SectionTitle className="mb-3">My permissions</SectionTitle>
             {held.length === 0 ? (
               <p className="font-sans text-sm text-muted-foreground">
                 You have the standard member access for this space. No extra permissions are granted to your role.
@@ -140,18 +142,18 @@ export function MePortalClient({
 
         <TabsContent value="membership" className="space-y-8">
           <section>
-            <h2 className={sectionH}>Dues</h2>
+            <SectionTitle className="mb-3">Dues</SectionTitle>
             <DuesCard billing={billing} methods={duesMethods} />
           </section>
 
           <section>
-            <h2 className={sectionH}>My payments</h2>
+            <SectionTitle className="mb-3">My payments</SectionTitle>
             {payments.length === 0 ? (
               <p className="font-sans text-sm text-muted-foreground">
                 No payments recorded for you yet.
               </p>
             ) : (
-              <ul className="divide-y rounded-lg border border-border">
+              <ul className="divide-y rounded border border-border">
                 {payments.map(p => (
                   <li key={p.id} className="p-4 flex items-start justify-between gap-4 flex-wrap">
                     <div className="min-w-0">
@@ -171,13 +173,13 @@ export function MePortalClient({
           </section>
 
           <section>
-            <h2 className={sectionH}>Certifications</h2>
+            <SectionTitle className="mb-3">Certifications</SectionTitle>
             {grants.length === 0 ? (
               <p className="font-sans text-sm text-muted-foreground">
                 You have no certifications yet. An instructor can award one to you.
               </p>
             ) : (
-              <ul className="divide-y rounded-lg border border-border">
+              <ul className="divide-y rounded border border-border">
                 {grants.map(g => {
                   const status = certificationStatus(g)
                   return (
@@ -217,7 +219,7 @@ export function MePortalClient({
 
         <TabsContent value="activity" className="space-y-8">
           <section>
-            <h2 className={sectionH}>Email preferences</h2>
+            <SectionTitle className="mb-3">Email preferences</SectionTitle>
             <NotificationPrefs initial={notifPrefs} />
             <p className="font-sans text-xs text-muted-foreground mt-3">
               Billing emails (dues receipts, payment alerts) are always sent.
@@ -225,46 +227,19 @@ export function MePortalClient({
           </section>
 
           <section>
-            <h2 className={sectionH}>Notifications</h2>
-            {notifs.length === 0 ? (
-              <p className="font-sans text-sm text-muted-foreground">
-                No notifications yet. Dues receipts and payment alerts will show up here.
-              </p>
-            ) : (
-              <ul className="divide-y rounded-lg border border-border">
-                {notifs.map(n => (
-                  <li key={n.id} className="p-4 flex items-start justify-between gap-4 flex-wrap">
-                    <div className="min-w-0">
-                      <span className="font-sans text-sm text-foreground">{n.subject}</span>
-                      <p className="font-mono text-[10px] text-muted-foreground mt-1">
-                        {new Date(n.createdAt).toLocaleString()}
-                        {n.sentAt ? ` · sent ${new Date(n.sentAt).toLocaleDateString()}` : ''}
-                      </p>
-                    </div>
-                    <Badge variant={n.status === 'sent' ? 'default' : 'outline'}>
-                      {n.status === 'sent'
-                        ? 'Sent'
-                        : n.status === 'failed'
-                          ? 'Failed'
-                          : n.status === 'skipped'
-                            ? 'Muted'
-                            : 'Queued'}
-                    </Badge>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <SectionTitle className="mb-3">Notifications</SectionTitle>
+            <NotificationsInbox items={notifs} unreadCount={unreadNotifs} />
           </section>
 
           <section>
-            <h2 className={sectionH}>My classes</h2>
+            <SectionTitle className="mb-3">My classes</SectionTitle>
             {classSignups.length === 0 ? (
               <p className="font-sans text-sm text-muted-foreground">
                 You have not signed up for any classes. Browse what&rsquo;s on at{' '}
                 <a href="/classes" className="text-primary underline">Classes</a>.
               </p>
             ) : (
-              <ul className="divide-y rounded-lg border border-border">
+              <ul className="divide-y rounded border border-border">
                 {classSignups.map(cs => {
                   const sess = sessionOf(cs)
                   return (
@@ -302,14 +277,14 @@ export function MePortalClient({
           </section>
 
           <section>
-            <h2 className={sectionH}>My equipment reservations</h2>
+            <SectionTitle className="mb-3">My equipment reservations</SectionTitle>
             {reservations.length === 0 ? (
               <p className="font-sans text-sm text-muted-foreground">
                 You have no reservations. Browse what you can reserve at{' '}
                 <a href="/equipment" className="text-primary underline">Equipment</a>.
               </p>
             ) : (
-              <ul className="divide-y rounded-lg border border-border">
+              <ul className="divide-y rounded border border-border">
                 {reservations.map(r => {
                   const eq = equipOf(r)
                   return (
@@ -343,13 +318,13 @@ export function MePortalClient({
           </section>
 
           <section>
-            <h2 className={sectionH}>My access cards</h2>
+            <SectionTitle className="mb-3">My access cards</SectionTitle>
             {myCards.length === 0 ? (
               <p className="font-sans text-sm text-muted-foreground">
                 No access cards are registered to you. A door manager can add one.
               </p>
             ) : (
-              <ul className="divide-y rounded-lg border border-border">
+              <ul className="divide-y rounded border border-border">
                 {myCards.map(c => (
                   <li key={c.id} className="p-4 flex items-center justify-between gap-4">
                     <div>
@@ -370,13 +345,13 @@ export function MePortalClient({
           </section>
 
           <section>
-            <h2 className={sectionH}>My recent visits</h2>
+            <SectionTitle className="mb-3">My recent visits</SectionTitle>
             {myVisits.length === 0 ? (
               <p className="font-sans text-sm text-muted-foreground">
                 No visits yet. Check in from the dashboard when you are at the space.
               </p>
             ) : (
-              <ul className="divide-y rounded-lg border border-border">
+              <ul className="divide-y rounded border border-border">
                 {myVisits.map(v => {
                   const st = presenceStatus(v.checked_in_at, v.checked_out_at)
                   return (
