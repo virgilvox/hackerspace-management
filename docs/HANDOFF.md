@@ -30,7 +30,13 @@ Branch `main`. Same session as pass-57; addressed three follow-up requests the u
 ### Audit (one pass)
 - Made `isSafeDuesUrl` load-bearing (the Zod url field now refines on it, removing the duplicate inline https check). Verified ChipInput limits match the profile Zod schema (skills/interests 40×60, willing_to 20×60, affiliations 50×200). Confirmed `getMyBilling`'s only real caller is `/me` (shape change from `null` to always-object is safe). External links render `target=_blank rel=noopener noreferrer`; url validated absolute-https so no javascript:/data: scheme.
 
-### Post-deploy audit follow-up (LOCAL, NOT yet deployed)
+### Post-deploy audit follow-up (DEPLOYED, run 26141570221)
+
+> Shipped in commits 897ff99 + 5ce6b29 + f253432 (run 26141570221, success).
+> Deploy log confirms `applying 050_dues_payment_methods_https.sql`. Smoke
+> clean: public 200; webhook 400; cron 503. Integration suite 38 green
+> (local). The /me visual pass browser review by the owner is still the one
+> open item.
 
 **Third ultrathink-audit finding (migration 050): stored-XSS defense gap on the dues url.** `dues_payment_methods.url` is rendered to members as a clickable `<a href>`. The https requirement was enforced ONLY in the admin Zod action, but RLS lets an admin/board write the row directly via PostgREST (public anon key + their JWT), bypassing Zod, and the table had no url constraint. A malicious admin could store `javascript:...` and XSS any member who clicks. Fixed two ways: (a) migration 050 adds a CHECK `url ~* '^https://'` (the DB is now the source of truth; integration-tested that the service path can't store `javascript:`/`http:`), and (b) the member-read action filters with `isSafeDuesUrl` (defense-in-depth, immediate protection for current prod). Admin-gated and prod has no rows yet, so no live exploitation window, but it escalated "space admin" to "XSS any member" and is closed now.
 
@@ -40,8 +46,8 @@ Second ultrathink audit after the `ab8c22a` deploy found NO deploy-blocking bug.
 - **Dues-card copy polish.** Suppressed the "No active dues subscription" line for spaces with no Stripe (it read as confusing alongside the contact-admin note for external-only / unconfigured spaces).
 
 ### Still open
-- **Browser click-through not done.** Verified type-check + build + 593 unit + 37 integration only; `/me` and `/settings` are auth-gated and need a live Supabase session to render. The /me visual pass is staged for the owner to review in a browser. Flagging per the working agreement (do not claim UI success without rendering it).
-- The audit follow-up above (integration tests + harness fix + dues-card copy) is committed locally but NOT yet deployed; the integration tests are non-runtime (CI/dev only). The dues-card copy is the only prod-affecting line and rides the next deploy unless deployed sooner.
+- **Browser click-through not done.** Verified type-check + build + 593 unit + 38 integration only; `/me` and `/settings` are auth-gated and need a live Supabase session to render. The /me visual pass is staged for the owner to review in a browser. Flagging per the working agreement (do not claim UI success without rendering it).
+- Features remain inert until the owner provisions Resend + CRON_SECRET (notifications) and adds dues payment links (external pay options). Same posture as the prior phases.
 
 ---
 
