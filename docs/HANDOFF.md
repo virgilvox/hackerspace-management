@@ -16,9 +16,11 @@ Migration 048 (`notification_preferences`) had FKs to BOTH `space_members` and `
 - **/me <- /profile consolidation.** Deleted `app/(app)/profile/*`; `/me` is the single member page. Ported the COI privileged-role nudge + last-disclosed date into `/me`'s profile editor. Removed the "My profile" sidebar + command-palette entries; renamed the `/me` nav label "My access" -> "My membership" (matches the page title). Repointed the recruitment empty-state link to `/me`.
 - **Style: realigned `/me` to the central theme.** Reverted the `rounded-lg` cards I introduced in the pass-58 visual pass back to `rounded` (the app norm: 519 `rounded` vs 53 `rounded-lg`, and what `/profile` used). Routed `/me` section headers through the `SectionTitle` primitive instead of an inline `sectionH` const. (Self-critique: the pass-58 "visual pass" introduced the `rounded-lg` drift the user flagged.)
 
+### Deploy state (DEPLOYED)
+- Shipped in `5d153b4` (run 26144230714, success). Deploy log confirms `applying 051_notification_read_state.sql`. **Auth re-verified on prod**: `space_members?select=*,spaces(*)` returns `[]` (NOT PGRST201) via the anon key, so the outage class stays fixed; `notifications.read_at` is live. Smoke: `/` 200, `/dashboard` 307->login, `/profile` 307 (route deleted, no longer linked anywhere).
+
 ### Open / next
-- **NOT deployed:** the inbox (051), the consolidation, and the style fixes are committed locally pending a deploy (migration 051 applies on deploy). Awaiting user go.
-- Browser review of `/me` still pending (auth-gated; can't curl).
+- Browser review of `/me` still pending (auth-gated; can't curl). Worth a click-through of the inbox (read/unread, mark-all) and the consolidated profile editor.
 
 ---
 
