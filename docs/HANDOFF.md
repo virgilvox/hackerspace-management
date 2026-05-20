@@ -30,11 +30,15 @@ Branch `main`. Same session as pass-57; addressed three follow-up requests the u
 ### Audit (one pass)
 - Made `isSafeDuesUrl` load-bearing (the Zod url field now refines on it, removing the duplicate inline https check). Verified ChipInput limits match the profile Zod schema (skills/interests 40×60, willing_to 20×60, affiliations 50×200). Confirmed `getMyBilling`'s only real caller is `/me` (shape change from `null` to always-object is safe). External links render `target=_blank rel=noopener noreferrer`; url validated absolute-https so no javascript:/data: scheme.
 
-### NOT done / open
-- **NOT deployed, NOT committed.** Migrations 048 (notification_preferences, pass-57) + 049 (dues_payment_methods) both apply on deploy. No new env var; DEPLOYMENT unchanged.
-- **Browser click-through not done.** Verified type-check + build + 593 unit tests only; `/me` and `/settings` are auth-gated and need a live Supabase session + a space (and Stripe/links data) to render. The /me visual pass is explicitly staged for the user to review in a browser. Flagging per the working agreement (do not claim UI success without rendering it).
-- **No integration test** for dues_payment_methods RLS or the dispatcher skip (pass-57). Pure logic for both is unit-covered. Recommended follow-up (harness exists).
-- **Deploy bundling decision pending:** pass-57 (notification prefs) + pass-58 can ship together (one deploy, migrations 048+049) or separately. Awaiting user go.
+### Post-deploy audit follow-up (LOCAL, NOT yet deployed)
+Second ultrathink audit after the `ab8c22a` deploy found NO deploy-blocking bug. Re-read the dispatcher, dues actions, and dues card with fresh eyes: URL is Zod-validated absolute-https; the `delete` platform flows through a parameterized `.eq` filter (double-gated by the space pin + RLS); writes/reads are scoped to the authenticated member; billing is never muted (logic + test). Then hardened + polished (all local, post-`ab8c22a`):
+- **Integration coverage added (now 37, was 31).** `integration/dues-payment-methods.test.ts` (4: admin insert + member read + non-admin write denied + cross-space read denied + cross-space write denied + 046 unverified-admin gate) and `integration/notification-prefs-dispatch.test.ts` (2: muted category -> `skipped` while billing always sends; no-pref-row -> sends). The dispatcher skip was unexercised in prod (cron gated off), so this is its first real exercise. All 37 pass vs local Postgres.
+- **Harness bug fixed.** `integration/db.ts` `rowsAsUser` ran `begin; set; select; commit;` in one `psql -c`, which prints only the LAST statement's result, so the SELECT output was swallowed (returned `[]`). It was never used before; now the SELECT is the last statement (session `set`, no trailing `commit`).
+- **Dues-card copy polish.** Suppressed the "No active dues subscription" line for spaces with no Stripe (it read as confusing alongside the contact-admin note for external-only / unconfigured spaces).
+
+### Still open
+- **Browser click-through not done.** Verified type-check + build + 593 unit + 37 integration only; `/me` and `/settings` are auth-gated and need a live Supabase session to render. The /me visual pass is staged for the owner to review in a browser. Flagging per the working agreement (do not claim UI success without rendering it).
+- The audit follow-up above (integration tests + harness fix + dues-card copy) is committed locally but NOT yet deployed; the integration tests are non-runtime (CI/dev only). The dues-card copy is the only prod-affecting line and rides the next deploy unless deployed sooner.
 
 ---
 

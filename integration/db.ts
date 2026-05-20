@@ -58,14 +58,25 @@ export function rows<T = Record<string, unknown>>(selectSql: string): T[] {
 
 export function rowsAsUser<T = Record<string, unknown>>(uid: string, selectSql: string): T[] {
   const claims = JSON.stringify({ sub: uid }).replace(/'/g, "''")
+  // The SELECT must be the LAST statement: psql -c with several statements
+  // only prints the final command's result, so a trailing `commit` would
+  // swallow the SELECT output. Use session-level `set` (the one-shot psql
+  // connection exits afterward) and end on the SELECT.
   const r = run([
     '-tAc',
-    `begin; set local role authenticated; set local "request.jwt.claims" = '${claims}';` +
-      `select coalesce(json_agg(t),'[]'::json)::text from (${selectSql}) t; commit;`,
+    `set role authenticated; set "request.jwt.claims" = '${claims}'; ` +
+      `select coalesce(json_agg(t),'[]'::json)::text from (${selectSql}) t;`,
   ])
   if (!r.ok) throw new Error(r.err)
-  // last non-empty line is the json (BEGIN/SET/COMMIT print nothing with -tA)
-  const line = r.out.trim().split('\n').filter(Boolean).pop() ?? '[]'
+  // json_agg(coalesce(...,'[]')) yields a line starting with '['; pick it and
+  // ignore any psql command tags (SET) that may print around it.
+  const line =
+    r.out
+      .trim()
+      .split('\n')
+      .map(l => l.trim())
+      .filter(l => l.startsWith('['))
+      .pop() ?? '[]'
   return JSON.parse(line) as T[]
 }
 

@@ -53,9 +53,9 @@ export function DuesCard({ billing, methods = [] }: { billing: Billing; methods?
                 ? ` · renews ${new Date(billing.currentPeriodEnd).toLocaleDateString()}`
                 : ''}
             </p>
-          ) : (
+          ) : stripeReady ? (
             <p className="font-mono text-[10px] text-muted-foreground mt-0.5">No active dues subscription.</p>
-          )}
+          ) : null}
         </div>
         {billing?.status && (
           <Badge variant={paid ? 'default' : 'outline'}>{paid ? 'Current' : 'Action needed'}</Badge>
