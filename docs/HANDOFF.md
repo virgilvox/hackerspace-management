@@ -4,6 +4,26 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-20 (pass 61): Deep audit + fixes (LOCAL, NOT deployed)
+
+Branch `main`. Deep audit of the app + the recent change set (passes 56-60), an independent subagent review of the new code, and fixes for what was real. Suite 594 unit / 40 integration / build green.
+
+### Systemic PGRST201 finding (root cause fully characterized, class contained)
+The outage class is now precisely understood. PostgREST treats a 2-foreign-key table as an ambiguous many-to-many **junction only when its PRIMARY KEY covers both FK columns** (the classic join-table shape). That is why `notification_preferences` (PK `space_id, member_id, category`) broke the `space_members <-> spaces` embed, while the **23 other tables that FK to both** `space_members` and `spaces` (notifications, payments, member_billing, classes, equipment, ...) do **not** — they have surrogate `id` PKs. Verified by querying `pg_constraint`/`pg_index`: the only remaining composite-PK 2-FK junction is `space_member_custom_roles` (space_members <-> space_custom_roles), which is a **legitimate** M2M (no competing direct relationship, so no ambiguity). The auth embed is guarded by `integration/auth-embed.test.ts`. Conclusion: the class is contained; the rule to remember is in DATABASE_SCHEMA 052 and the ARCHITECTURE gotcha note.
+
+### Fixed
+- **Stripe config footgun (real bug).** The Integrations tab had a generic "Stripe" card writing via `saveIntegration`, which **overwrites** `integrations.config` wholesale -- it would clobber the dues config's `mode`/`prices`/`grace_days` (managed by the Dues-tab `saveStripeSettings`) and could not actually configure dues. Removed the Stripe entry from `INTEGRATIONS_CONFIG`; Stripe is now configured in exactly one place (the Dues tab). Integrations keeps PayPal/Zeffy/Venmo (separate sync surface).
+- **Boundary validation** (subagent P1/P2): `deleteDuesPaymentMethod` now validates `platform` against `DUES_LINK_PLATFORMS` (was passing a raw client string into the enum column); `markNotificationsRead` uses a strict uuid regex for the optional id filter.
+
+### Reviewed, no change needed
+- Independent subagent review of notifications/dues/inbox/me/settings: **no P0**. Self-views correctly scoped to the caller's own `member_id`; no cross-member/cross-space path; inbox renders `body_text` (never `body_html`) so no XSS; dues links double-validated https before render; cron auth constant-time; cron prefs fail open (correct for a billing-critical mailer).
+- Webhook signing secret is shown pre-populated to admins on `/settings` (subagent P2): left as-is -- webhook secrets are meant to be retrievable, the page is admin-only.
+
+### Open / next
+- NOT deployed: the Stripe-card removal + the two validation fixes are prod code, committed locally. Awaiting user go. (No migration.)
+
+---
+
 ## 2026-05-20 (pass 60): /settings "Dues" tab (LOCAL, NOT deployed)
 
 Branch `main`. The Stripe-dues config + external-payment-links panels were floating below the settings tab bar (rendered by page.tsx outside SettingsClient, shown regardless of the active tab). Moved both into a new **Dues** tab inside SettingsClient (tabs are now Space / Integrations / Dues / Webhooks); the panels render as standard `bg-card rounded border` tab cards instead of `border-t` page sections. page.tsx now renders only SettingsClient. UI-only, no schema/actions change. Build + 594 unit green. NOT deployed.

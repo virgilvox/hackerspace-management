@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { requireMember, requireMemberWithRole, parseInput } from '@/lib/auth-helpers'
 import { ADMIN_ROLES } from '@/lib/permissions'
 import { duesPaymentMethodSchema } from '@/lib/validations'
-import { isSafeDuesUrl } from '@/lib/dues-payments-logic'
+import { isSafeDuesUrl, isDuesLinkPlatform } from '@/lib/dues-payments-logic'
 
 export type DuesPaymentMethod = {
   platform: string
@@ -99,6 +99,10 @@ export async function deleteDuesPaymentMethod(input: {
   const auth = await requireMemberWithRole(supabase, ADMIN_ROLES, 'Admin access required')
   if (!auth.ok) return { error: auth.error }
   const { member } = auth
+
+  // Validate at the boundary (same as the upsert path) instead of passing a
+  // raw client string into the enum column.
+  if (!isDuesLinkPlatform(input.platform)) return { error: 'Invalid platform' }
 
   const { error } = await supabase
     .from('dues_payment_methods')

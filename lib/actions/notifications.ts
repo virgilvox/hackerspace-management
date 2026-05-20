@@ -77,7 +77,9 @@ export async function markNotificationsRead(
   if (input.ids && input.ids.length > 0) {
     // Defend the uuid column against a malformed client id (a non-uuid would
     // error the cast). Only well-formed ids pass; an empty result is a no-op.
-    const ids = input.ids.filter(id => /^[0-9a-f-]{36}$/i.test(id))
+    const ids = input.ids.filter(id =>
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id),
+    )
     if (ids.length === 0) return { ok: true }
     q = q.in('id', ids)
   }
