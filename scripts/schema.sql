@@ -2774,3 +2774,74 @@ DROP TRIGGER IF EXISTS trg_notifications_touch ON public.notifications;
 CREATE TRIGGER trg_notifications_touch
   BEFORE UPDATE ON public.notifications
   FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
+
+-- 26b. Member notification preferences (Product spine Phase 5)
+--      (equivalent to scripts/048_notification_preferences.sql.)
+-- Per-member opt-out of muteable categories (bookings, classes, forms,
+-- admin_alerts). Billing is membership-critical and never muteable, so it is
+-- never stored here. Opt-out model: absence of a row means enabled. The
+-- dispatcher reads these (service client) and marks a muted outbox row
+-- 'skipped' instead of sending; the /me toggle writes through a validated
+-- service-client action. No client policy: default-deny, same convention as
+-- notifications / member_billing.
+CREATE TABLE IF NOT EXISTS public.notification_preferences (
+  space_id    uuid        NOT NULL REFERENCES public.spaces(id) ON DELETE CASCADE,
+  member_id   uuid        NOT NULL REFERENCES public.space_members(id) ON DELETE CASCADE,
+  category    text        NOT NULL,
+  enabled     boolean     NOT NULL DEFAULT true,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  updated_at  timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (space_id, member_id, category)
+);
+
+ALTER TABLE public.notification_preferences ENABLE ROW LEVEL SECURITY;
+-- No client policy: member self-view + toggle write both go through validated
+-- service-client actions; the dispatcher reads via the service client.
+
+DROP TRIGGER IF EXISTS trg_notification_prefs_touch ON public.notification_preferences;
+CREATE TRIGGER trg_notification_prefs_touch
+  BEFORE UPDATE ON public.notification_preferences
+  FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
+
+-- 26c. Alternate dues payment methods (admin-configured external links)
+--      (equivalent to scripts/049_dues_payment_methods.sql.)
+-- One external pay-here URL per (space, payment_platform): PayPal/Zeffy/Venmo.
+-- Members click out to pay dues off-platform; a treasurer reconciles manually
+-- via the existing payments flow (the platform tag pre-types that reconcile).
+-- Link configuration only, no automated payment record. RLS: SELECT = any
+-- space member (they render the buttons); writes admin/board. url is validated
+-- https-only at the server-action boundary.
+CREATE TABLE IF NOT EXISTS public.dues_payment_methods (
+  id           uuid                   PRIMARY KEY DEFAULT uuid_generate_v4(),
+  space_id     uuid                   NOT NULL REFERENCES public.spaces(id) ON DELETE CASCADE,
+  platform     public.payment_platform NOT NULL,
+  url          text                   NOT NULL,
+  instructions text,
+  is_active    boolean                NOT NULL DEFAULT true,
+  sort_order   integer                NOT NULL DEFAULT 0,
+  created_at   timestamptz            NOT NULL DEFAULT now(),
+  updated_at   timestamptz            NOT NULL DEFAULT now(),
+  UNIQUE (space_id, platform)
+);
+CREATE INDEX IF NOT EXISTS idx_dues_payment_methods_space
+  ON public.dues_payment_methods (space_id);
+
+ALTER TABLE public.dues_payment_methods ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS dues_payment_methods_select ON public.dues_payment_methods;
+DROP POLICY IF EXISTS dues_payment_methods_insert ON public.dues_payment_methods;
+DROP POLICY IF EXISTS dues_payment_methods_update ON public.dues_payment_methods;
+DROP POLICY IF EXISTS dues_payment_methods_delete ON public.dues_payment_methods;
+CREATE POLICY dues_payment_methods_select ON public.dues_payment_methods FOR SELECT
+  USING (space_id IN (SELECT public.get_user_space_ids(auth.uid())));
+CREATE POLICY dues_payment_methods_insert ON public.dues_payment_methods FOR INSERT
+  WITH CHECK (public.user_has_role_in_space(auth.uid(), space_id, ARRAY['admin','board']));
+CREATE POLICY dues_payment_methods_update ON public.dues_payment_methods FOR UPDATE
+  USING (public.user_has_role_in_space(auth.uid(), space_id, ARRAY['admin','board']))
+  WITH CHECK (public.user_has_role_in_space(auth.uid(), space_id, ARRAY['admin','board']));
+CREATE POLICY dues_payment_methods_delete ON public.dues_payment_methods FOR DELETE
+  USING (public.user_has_role_in_space(auth.uid(), space_id, ARRAY['admin','board']));
+
+DROP TRIGGER IF EXISTS trg_dues_payment_methods_touch ON public.dues_payment_methods;
+CREATE TRIGGER trg_dues_payment_methods_touch
+  BEFORE UPDATE ON public.dues_payment_methods
+  FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();

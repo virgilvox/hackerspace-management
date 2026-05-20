@@ -220,20 +220,25 @@ export async function getMyBilling() {
   if (!auth.ok) return { error: auth.error }
   const { member } = auth
 
-  const { data } = await createAdminClient()
+  const admin = createAdminClient()
+  // Whether the space has Stripe dues set up at all, so the /me UI can hide the
+  // "Pay dues" (Stripe Checkout) button when there is no Stripe to check out to.
+  const cfg = await getStripeConfig(admin, member.space_id)
+  const configured = isStripeConfigured(cfg ?? {})
+
+  const { data } = await admin
     .from('member_billing')
     .select('subscription_status, current_period_end, stripe_customer_id')
     .eq('space_id', member.space_id)
     .eq('member_id', member.id)
     .maybeSingle()
   return {
-    data: data
-      ? {
-          status: (data.subscription_status as string | null) ?? null,
-          currentPeriodEnd: (data.current_period_end as string | null) ?? null,
-          hasCustomer: !!data.stripe_customer_id,
-        }
-      : null,
+    data: {
+      status: (data?.subscription_status as string | null) ?? null,
+      currentPeriodEnd: (data?.current_period_end as string | null) ?? null,
+      hasCustomer: !!data?.stripe_customer_id,
+      configured,
+    },
   }
 }
 

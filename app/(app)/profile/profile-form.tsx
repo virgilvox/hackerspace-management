@@ -3,7 +3,8 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { updateMyProfile } from '@/lib/actions'
-import { ChipInput } from './chip-input'
+import { ChipInput } from '@/components/chip-input'
+import { WILLING_TO_SUGGESTIONS } from '@/lib/profile-presets'
 
 type Props = {
   initial: {
@@ -15,16 +16,6 @@ type Props = {
     willing_to: string[]
   }
 }
-
-const WILLING_TO_SUGGESTIONS = [
-  'board_candidate',
-  'treasurer_candidate',
-  'host_volunteer',
-  'area_lead_candidate',
-  'event_organizer',
-  'safety_committee',
-  'docs_steward',
-]
 
 export function ProfileForm({ initial }: Props) {
   const router = useRouter()

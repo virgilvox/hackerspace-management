@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { discloseAffiliations } from '@/lib/actions'
-import { ChipInput } from './chip-input'
+import { ChipInput } from '@/components/chip-input'
 
 export function AffiliationsForm({ initial }: { initial: { affiliations: string[] } }) {
   const router = useRouter()

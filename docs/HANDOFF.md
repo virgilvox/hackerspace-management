@@ -4,6 +4,62 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-19 (pass 58): Dues payment options + /me visual pass (LOCAL, NOT deployed)
+
+Branch `main`. Same session as pass-57; addressed three follow-up requests the user raised after the notification-prefs work. Suite 593 (was 585; +8 dues-payments tests), build clean. NOT deployed. Stacks on top of the uncommitted pass-57 changes.
+
+### Design forks (locked via AskUserQuestion)
+- /me polish scope: **full visual pass** (chips/presets restored AND broader tightening), staged for user review.
+- Alternate payment model: **platform-typed** (tied to the `payment_platform` enum, one URL per platform, pre-tagged for manual reconcile), not free-form.
+
+### Shipped (local, uncommitted)
+- **Alternate dues payment methods (migration 049).** New `dues_payment_methods` table (one row per `(space_id, platform)`, PayPal/Zeffy/Venmo), RLS SELECT = space member / write = admin/board. Pure logic `lib/dues-payments-logic.ts` (`DUES_LINK_PLATFORMS`, labels, `isSafeDuesUrl` = absolute-https only; the Zod schema reuses it). Actions `lib/actions/dues-payments.ts` (member `listActiveDuesPaymentMethods`; admin `listDuesPaymentMethods` / `upsertDuesPaymentMethod` / `deleteDuesPaymentMethod`). Admin UI `components/settings/dues-payment-methods-panel.tsx` appended to `/settings`. Member UI = the reworked dues card. Link configuration only: no payment record on click, treasurer reconciles manually via the existing payments flow (platform pre-typed). schema.sql + types + DATABASE_SCHEMA + DB_SCHEMA_MAP updated same-change.
+- **Stripe dues UI gated on configuration.** `getMyBilling` now returns a `configured` flag (`isStripeConfigured`); the dues card shows the Stripe "Pay dues with card" button only when the space has Stripe set up. With no Stripe + no external links it shows a "contact an admin" note instead of a dead Checkout button.
+- **/me full visual pass.** The Phase-3 `/me` profile editor had regressed to plain comma-separated text inputs; restored the chip/preset editor. Promoted `ChipInput` to a shared `components/chip-input.tsx` and `WILLING_TO_SUGGESTIONS` to `lib/profile-presets.ts`; both `/me` and `/profile` now use them (deduped; deleted `app/(app)/profile/chip-input.tsx`). `/me` profile-form: skills/interests/willing-to/affiliations are now chips (willing-to with the recruitment-role suggestions); cards use `rounded-lg`, consistent field labels. Dues card restyled.
+
+### Audit (one pass)
+- Made `isSafeDuesUrl` load-bearing (the Zod url field now refines on it, removing the duplicate inline https check). Verified ChipInput limits match the profile Zod schema (skills/interests 40×60, willing_to 20×60, affiliations 50×200). Confirmed `getMyBilling`'s only real caller is `/me` (shape change from `null` to always-object is safe). External links render `target=_blank rel=noopener noreferrer`; url validated absolute-https so no javascript:/data: scheme.
+
+### NOT done / open
+- **NOT deployed, NOT committed.** Migrations 048 (notification_preferences, pass-57) + 049 (dues_payment_methods) both apply on deploy. No new env var; DEPLOYMENT unchanged.
+- **Browser click-through not done.** Verified type-check + build + 593 unit tests only; `/me` and `/settings` are auth-gated and need a live Supabase session + a space (and Stripe/links data) to render. The /me visual pass is explicitly staged for the user to review in a browser. Flagging per the working agreement (do not claim UI success without rendering it).
+- **No integration test** for dues_payment_methods RLS or the dispatcher skip (pass-57). Pure logic for both is unit-covered. Recommended follow-up (harness exists).
+- **Deploy bundling decision pending:** pass-57 (notification prefs) + pass-58 can ship together (one deploy, migrations 048+049) or separately. Awaiting user go.
+
+---
+
+## 2026-05-19 (pass 57): Product spine Phase 5: member notification preferences (LOCAL, NOT deployed)
+
+Branch `main`. Took backlog item 2: per-member opt-out of muteable notification categories, doubling as the volume governor for the Phase 4 fan-outs. Design-first via AskUserQuestion. Suite 585 (was 572; +13 prefs tests), build clean. NOT deployed.
+
+### Design forks (locked via AskUserQuestion)
+- Granularity: **per-category** (4 toggles: bookings, classes, forms, admin_alerts), not per-type or global.
+- Critical email: **billing always-on** (dues renewed/failed/lapsed never muteable; a muted lapse notice would let a member silently lose access).
+- Enforcement point: **dispatch-time skip** (rows still enqueue; dispatcher marks muted rows `skipped`), not enqueue-time suppression. Keeps pref logic in one place; the 5 enqueue call sites + the money-path webhook are untouched.
+- Asserted (not asked): opt-out / default-on (opt-in would silently break transactional delivery).
+
+### Shipped (local, uncommitted)
+- **Pure logic** `lib/notifications-prefs-logic.ts`: 5 categories, `TYPE_CATEGORY` map (all 11 types), `categoryForType`, `isMuted` (billing + unmapped types never mute), `CATEGORY_META` for the UI. 13 unit tests.
+- **Migration 048** + schema.sql: `notification_preferences` (PK `(space_id, member_id, category)`), RLS on, NO client policy (default-deny, same convention as notifications/member_billing). types/database.ts + DATABASE_SCHEMA.md + DB_SCHEMA_MAP.md updated same-change.
+- **Dispatcher** (`app/api/cron/notifications/route.ts`): selects member_id + type, batch-loads prefs for the drain set (keyed by member_id, a globally-unique PK), marks muted rows `skipped` (terminal, leaves pending pool, no send/Resend/spacing). Prefs lookup fails open (send everything) on error so a blip can't drop a wanted email. Response gains a `skipped` count.
+- **Actions** (`lib/actions/notifications.ts`): `getMyNotificationPreferences` (defaults all muteable on, overlays stored rows) + `setMyNotificationPreference` (Zod enum excludes billing, upsert scoped to caller's own member row). Both service-client, requireMember-gated.
+- **UI**: `/me` Activity tab gains an "Email preferences" section (4 Switch toggles, optimistic + revert-on-error); the notification history badge now renders `skipped` as "Muted".
+
+### Audit (one pass)
+No deploy-blocking bug found. Verified: write/read both scoped to the authenticated member (no cross-member write — member_id comes from session, not input); billing not settable (Zod) and never muted (logic + test); `skipped` is terminal so muted rows clear the pending pool in one run and never re-scan; overlapping dispatcher runs can't double-act (the existing `.eq('status','pending')` guard); member_id-keyed prefs map is unambiguous (space_members PK is global). Made one improvement during audit: explicit fail-open + log on the prefs-query error.
+
+### Open / not done
+- **NOT deployed.** Awaiting user go (push to main = prod; migration 048 applies on deploy). Same-as-Phase-4: inert until Resend + CRON_SECRET + crontab are provisioned, but the skip logic is exercised the moment a member toggles + the dispatcher runs.
+- **No integration test yet** for the dispatcher skip path. Pure `isMuted` is unit-covered; the dispatcher wiring (prefs query + skip write) is not. Flagged as a recommended follow-up (the harness exists; pattern is stripe-webhook.test.ts). Deliberate, not an omission.
+- **API_REFERENCE.md** still predates the whole notification subsystem (Phases 2-5 self-view actions absent). Pre-existing drift, not introduced here; documented in ARCHITECTURE prose subsections instead (matches Phases 2-4).
+
+### NEW user requests this session (queued, address next, NOT started)
+1. **/me UI degradation.** `willing_to` (likely also skills/interests) renders as a raw comma-separated list instead of the preset chip selector it used to have. Restore the preset editor. Own commit (separate from the prefs toggles even though same file).
+2. **Gate the Stripe dues UI on configuration.** If a space hasn't set up Stripe, the pay-dues-via-Stripe UI on `/me` should not show (dead path today).
+3. **Admin-configurable alternate dues payment links.** Admin sets payment URLs per method (PayPal/Zeffy/Venmo/etc); members see them as dues-payment options, click through to the external page, admin reconciles manually later. Money-adjacent new subsystem: design-first via AskUserQuestion before building. Separate deploy.
+
+---
+
 ## 2026-05-19 (pass 56): Product spine Phase 4: notification breadth (DEPLOYED)
 
 Branch `main`. Took item 3 from the pass-55 backlog: booking, class signup, and form-submission notifications, reusing the Phase 2 outbox + dispatcher unchanged. Built per sub-phase, gated each, small commit per sub-phase, single deploy at the end of the set. Suite 565 (was 532; +33 new tests), build clean. NOT deployed.

@@ -196,6 +196,18 @@ export type Database = {
         Update: { id?: string; space_id?: string; member_id?: string | null; type?: string; channel?: string; recipient?: string; subject?: string; body_html?: string; body_text?: string; status?: string; attempts?: number; last_error?: string | null; dedupe_key?: string; sent_at?: string | null; created_at?: string; updated_at?: string }
         Relationships: []
       }
+      notification_preferences: {
+        Row: { space_id: string; member_id: string; category: string; enabled: boolean; created_at: string; updated_at: string }
+        Insert: { space_id: string; member_id: string; category: string; enabled?: boolean; created_at?: string; updated_at?: string }
+        Update: { space_id?: string; member_id?: string; category?: string; enabled?: boolean; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
+      dues_payment_methods: {
+        Row: { id: string; space_id: string; platform: string; url: string; instructions: string | null; is_active: boolean; sort_order: number; created_at: string; updated_at: string }
+        Insert: { id?: string; space_id: string; platform: string; url: string; instructions?: string | null; is_active?: boolean; sort_order?: number; created_at?: string; updated_at?: string }
+        Update: { id?: string; space_id?: string; platform?: string; url?: string; instructions?: string | null; is_active?: boolean; sort_order?: number; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
       activity_log: {
         Row: {
           action: string

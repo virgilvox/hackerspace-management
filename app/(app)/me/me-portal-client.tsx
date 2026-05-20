@@ -10,9 +10,11 @@ import {
 import { SIGNUP_STATUS_LABEL, SESSION_STATUS_LABEL } from '@/lib/classes-logic'
 import { RESERVATION_STATUS_LABEL } from '@/lib/equipment-logic'
 import { presenceStatus } from '@/lib/presence-logic'
-import { DuesCard } from '@/components/billing/dues-card'
+import { DuesCard, type DuesMethod } from '@/components/billing/dues-card'
 import { ProfileForm, type ProfileInitial } from './profile-form'
 import { CancelAction } from './cancel-action'
+import { NotificationPrefs } from './notification-prefs'
+import type { PrefMap } from '@/lib/notifications-prefs-logic'
 import { cancelMySignup, cancelReservation } from '@/lib/actions'
 
 const STATUS_VARIANT: Record<CertStatus, 'default' | 'outline'> = {
@@ -54,15 +56,17 @@ export type MyVisit = { id: string; checked_in_at: string; checked_out_at: strin
 export type MyNotif = { id: string; type: string; subject: string; status: string; createdAt: string; sentAt: string | null }
 export type MyPayment = { id: string; amount: number; currency: string; platform: string; description: string | null; status: string; date: string }
 export type HeldPermission = { code: string; label: string }
-export type Billing = { status: string | null; currentPeriodEnd: string | null; hasCustomer: boolean } | null
+export type Billing = { status: string | null; currentPeriodEnd: string | null; hasCustomer: boolean; configured: boolean } | null
 
 type Props = {
   profile: ProfileInitial
   grants: Grant[]
   held: HeldPermission[]
   billing: Billing
+  duesMethods: DuesMethod[]
   payments: MyPayment[]
   notifs: MyNotif[]
+  notifPrefs: PrefMap
   classSignups: ClassSignup[]
   reservations: Reservation[]
   myCards: MyCard[]
@@ -76,8 +80,10 @@ export function MePortalClient({
   grants,
   held,
   billing,
+  duesMethods,
   payments,
   notifs,
+  notifPrefs,
   classSignups,
   reservations,
   myCards,
@@ -135,7 +141,7 @@ export function MePortalClient({
         <TabsContent value="membership" className="space-y-8">
           <section>
             <h2 className={sectionH}>Dues</h2>
-            <DuesCard billing={billing} />
+            <DuesCard billing={billing} methods={duesMethods} />
           </section>
 
           <section>
@@ -211,6 +217,14 @@ export function MePortalClient({
 
         <TabsContent value="activity" className="space-y-8">
           <section>
+            <h2 className={sectionH}>Email preferences</h2>
+            <NotificationPrefs initial={notifPrefs} />
+            <p className="font-sans text-xs text-muted-foreground mt-3">
+              Billing emails (dues receipts, payment alerts) are always sent.
+            </p>
+          </section>
+
+          <section>
             <h2 className={sectionH}>Notifications</h2>
             {notifs.length === 0 ? (
               <p className="font-sans text-sm text-muted-foreground">
@@ -228,7 +242,13 @@ export function MePortalClient({
                       </p>
                     </div>
                     <Badge variant={n.status === 'sent' ? 'default' : 'outline'}>
-                      {n.status === 'sent' ? 'Sent' : n.status === 'failed' ? 'Failed' : 'Queued'}
+                      {n.status === 'sent'
+                        ? 'Sent'
+                        : n.status === 'failed'
+                          ? 'Failed'
+                          : n.status === 'skipped'
+                            ? 'Muted'
+                            : 'Queued'}
                     </Badge>
                   </li>
                 ))}

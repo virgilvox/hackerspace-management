@@ -1,5 +1,7 @@
 import { z } from 'zod'
 import { INVITE_ROLES } from './invite-logic'
+import { MUTEABLE_CATEGORIES } from './notifications-prefs-logic'
+import { DUES_LINK_PLATFORMS, isSafeDuesUrl } from './dues-payments-logic'
 
 /**
  * Accepts every date-ish string the app produces and normalizes to a
@@ -1019,6 +1021,34 @@ export const stripeSettingsSchema = z.object({
   webhook_secret: z.string().trim().max(255).optional().nullable(),
   grace_days: z.number().int().min(0).max(90).optional().default(7),
   prices: z.record(z.string().trim().max(255)).optional().default({}),
+})
+
+// ─── Notification preferences ────────────────────────────────────────────────
+
+// Only muteable categories are settable; billing is membership-critical and
+// never user-controllable, so it is excluded from the enum (a request to set
+// it is rejected at the boundary).
+export const notificationPreferenceSchema = z.object({
+  category: z.enum(MUTEABLE_CATEGORIES as unknown as [string, ...string[]]),
+  enabled: z.boolean(),
+})
+
+// ─── Dues payment methods (admin-configured external links) ──────────────────
+
+// One external pay-here URL per platform. url must be absolute https (no
+// http downgrade, no javascript:/data: scheme) since it is rendered as a
+// member-clickable anchor. instructions is an optional memo hint (e.g. "put
+// your member name in the note") to help the treasurer reconcile later.
+export const duesPaymentMethodSchema = z.object({
+  platform: z.enum(DUES_LINK_PLATFORMS as unknown as [string, ...string[]]),
+  url: z
+    .string()
+    .trim()
+    .max(500)
+    .refine(isSafeDuesUrl, 'Enter an absolute https:// URL'),
+  instructions: z.string().trim().max(300).optional().nullable(),
+  is_active: z.boolean().optional().default(true),
+  sort_order: z.number().int().min(0).max(999).optional().default(0),
 })
 
 // Helper type exports

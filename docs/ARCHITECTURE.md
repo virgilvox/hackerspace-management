@@ -685,6 +685,30 @@ zero-decimal currencies (JPY/KRW/VND/etc. are NOT rescaled `/100`, via
 the real cause is logged server-side. Phases 2-3 (transactional
 notifications, broader self-serve) build on this.
 
+### Alternate dues payment methods (migration 049)
+
+Not every space uses Stripe. An admin can configure external pay-here links
+per platform (`dues_payment_methods`, one row per `(space_id, payment_platform)`
+for PayPal / Zeffy / Venmo) under `/settings`; members see the active ones as
+click-out buttons in the `/me` dues card and pay off-platform; a treasurer
+reconciles the resulting payment manually through the existing payments flow.
+The row carries the `payment_platform` tag precisely so that manual reconcile
+is pre-typed. This is link configuration only: there is NO automated payment
+record on click, no webhook, no money handled in-app. Pure logic in
+`lib/dues-payments-logic.ts` (the url-based platform subset + labels +
+`isSafeDuesUrl`, which requires an absolute `https:` URL so an admin-entered
+value cannot become an XSS or plaintext-downgrade vector; the Zod schema reuses
+it) is unit-tested. RLS: SELECT = any space member (they render the buttons),
+INSERT/UPDATE/DELETE = admin/board (`user_has_role_in_space`); the member-read
+and admin-write server actions are in `lib/actions/dues-payments.ts`. Links are
+rendered with `target="_blank" rel="noopener noreferrer"`.
+
+The `/me` dues card (`components/billing/dues-card.tsx`) gates the Stripe
+"Pay dues with card" button on whether the space actually has Stripe configured
+(`getMyBilling` now returns a `configured` flag from `isStripeConfigured`), so a
+space with no Stripe shows only its external links (or, if neither is set up, a
+"contact an admin" note) instead of a dead Checkout button.
+
 ### Transactional notifications (migration 041; product spine Phase 2)
 
 Outbox + dispatcher, not inline send. The Stripe webhook only writes a
@@ -771,6 +795,41 @@ Every enqueue is best-effort and wrapped: a notifications-table or
 permission-lookup failure can never throw into the calling action, so the
 underlying domain mutation always finalizes.
 
+### Member notification preferences (migration 048; product spine Phase 5)
+
+Per-member opt-out of muteable notification categories. The 11 event types map
+to five categories in pure logic (`lib/notifications-prefs-logic.ts`,
+unit-tested): `billing` (the three dues types), `bookings`, `classes`, `forms`
+(submitter receipts), and `admin_alerts` (the `form_submission_admin` fan-out).
+`billing` is deliberately NOT muteable: dues renewed / payment-failed / lapsed
+are membership-critical (a muted lapse notice would let a member silently lose
+access for non-payment), so they always send and never render a toggle. The
+other four are muteable, default-on (opt-out model: a member who never touches
+the toggles keeps today's behavior). Adding a new event type only needs a line
+in `TYPE_CATEGORY` and a renderer; the storage and dispatcher do not change.
+
+The preference is enforced at **dispatch time**, not enqueue time: the domain
+actions and the Stripe webhook are unchanged and still enqueue every row. The
+dispatcher batch-loads the preferences for the members in the drain set (keyed
+by `member_id`, a globally-unique `space_members` PK) and, via the pure
+`isMuted(prefs, type)`, marks a muted row `skipped` (a terminal status that
+leaves the pending pool) instead of calling the mail provider. No send, no
+Resend call, no rate-limit spacing for a muted row. The prefs lookup fails open
+(send everything) on error, so a transient blip can never silently drop a
+wanted email. Billing and unmapped types are never muted regardless of stored
+prefs (defense-in-depth, tested). This governs emails sent and inbox noise (the
+real cost and the volume governor for the Phase 4 fan-outs), not table rows.
+
+`notification_preferences` (PK `(space_id, member_id, category)`) has RLS
+enabled and **no client policy** (default-deny), the same convention as
+`notifications` / `member_billing`: the member self-view
+(`getMyNotificationPreferences`) and the toggle write
+(`setMyNotificationPreference`, Zod-validated to the muteable categories only,
+upsert scoped to the caller's own member row) both go through validated
+service-client actions, and the dispatcher reads via the service client. The
+toggles render on the `/me` Activity tab; a `skipped` row shows as "Muted" in
+the member's own notification history. No new permission code.
+
 ### Member self-serve portal (`/me`; product spine Phase 3)
 
 `/me` is a 3-tab portal (Profile / Membership / Activity). The server page does all data fetching and passes plain data to a single client portal component (`me-portal-client.tsx`) that owns tab state and rendering; the read-only sections were moved verbatim from the prior flat page (no behavior change in the shell). Profile editing and inline cancels reuse existing server actions (`updateMyProfile`, `discloseAffiliations`, `cancelMySignup`, `cancelReservation`) — no new mutation surface, server-side ownership/space scoping unchanged. `getMyPayments` follows the established service-client self-view convention (treasurer-scoped RLS, strictly scoped to the caller). Self-service email change goes through Supabase Auth (`updateUser` + `/auth/confirm` `verifyOtp`); the denormalized `space_members.email` is synced only post-verification. The email-change flow depends on Supabase project config (template + redirect allowlist; see DEPLOYMENT) and is inert until that is set. No new permission code, no schema change.
@@ -783,6 +842,6 @@ underlying domain mutation always finalizes.
 2. **Payment integrations** - Stripe recurring dues IS integrated (product spine Phase 1: per-space keys, hosted Checkout/Portal, the per-space signed webhook). A PayPal sync endpoint exists (`app/api/paypal/sync/route.ts`). Manual import/CSV reconciliation remains the path for ad-hoc/other-platform payments; Zeffy/Venmo live APIs are not integrated.
 3. **Social auth** - GitHub/Google sign-in is wired, gated by the `NEXT_PUBLIC_OAUTH_GITHUB`/`NEXT_PUBLIC_OAUTH_GOOGLE` env flags.
 4. **Webhooks** - The HMAC signing contract and secret rotation exist; per-event delivery is not implemented (see `docs/WEBHOOKS.md`).
-5. **Email notifications** - Dues-lifecycle (Phase 2; migration 041) plus booking, class signup, and form-submission events (Phase 4; migration 047) all reuse the same outbox + dispatcher. Member notification preferences (per-type opt-in/out) and an in-app notification center are the next planned passes; today every event is enqueued unconditionally.
+5. **Email notifications** - Dues-lifecycle (Phase 2; migration 041) plus booking, class signup, and form-submission events (Phase 4; migration 047) all reuse the same outbox + dispatcher. Member notification preferences (Phase 5; migration 048) let a member opt out of the muteable categories (bookings, classes, forms, admin alerts); billing is always-on. Enforced at dispatch time (muted rows are marked `skipped`, never sent). An in-app notification center (read/unread state) is the remaining planned pass.
 6. **Search** - Client-side filtering only, no server-side full-text search.
 7. **Single space per user** - The auth resolver assumes one active membership per user; a user in 2+ spaces is not supported (no space switcher). Fails closed.

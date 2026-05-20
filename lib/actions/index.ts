@@ -71,3 +71,6 @@ export * from './stripe'
 
 // Transactional notifications outbox (product spine Phase 2)
 export * from './notifications'
+
+// Alternate dues payment methods (admin-configured external links)
+export * from './dues-payments'

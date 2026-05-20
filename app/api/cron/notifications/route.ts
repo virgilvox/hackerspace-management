@@ -17,6 +17,11 @@ import { timingSafeEqual } from 'node:crypto'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail } from '@/lib/email/send'
 import { isTerminalAttempt, MAX_NOTIFICATION_ATTEMPTS } from '@/lib/notifications-logic'
+import {
+  isMuted,
+  type PrefMap,
+  type NotificationCategory,
+} from '@/lib/notifications-prefs-logic'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -51,7 +56,7 @@ export async function POST(req: NextRequest) {
   const admin = createAdminClient()
   const { data: candidates, error } = await admin
     .from('notifications')
-    .select('id, space_id, recipient, subject, body_html, body_text, attempts')
+    .select('id, space_id, member_id, type, recipient, subject, body_html, body_text, attempts')
     .eq('status', 'pending')
     .eq('channel', 'email')
     .lt('attempts', MAX_NOTIFICATION_ATTEMPTS)
@@ -87,11 +92,50 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Per-member notification preferences for the rows we're about to drain.
+  // member_id is a space_members PK (globally unique), so keying by it alone is
+  // unambiguous across spaces. A row whose type maps to a category the member
+  // muted is marked 'skipped' (a terminal status) so it leaves the pending pool
+  // instead of being re-scanned every minute. Billing types and unmapped types
+  // are never muteable (see notifications-prefs-logic). member_id null (e.g. a
+  // future broadcast) has no member to have a preference, so it always sends.
+  const memberIds = Array.from(
+    new Set((rows ?? []).map(r => r.member_id as string | null).filter((m): m is string => !!m)),
+  )
+  const prefsByMember = new Map<string, PrefMap>()
+  if (memberIds.length > 0) {
+    const { data: prefRows, error: prefErr } = await admin
+      .from('notification_preferences')
+      .select('member_id, category, enabled')
+      .in('member_id', memberIds)
+    // Fail open: if the prefs lookup errors, send everything rather than risk
+    // silently dropping a wanted (e.g. dues-failure) email on a transient blip.
+    if (prefErr) console.error('[cron/notifications] prefs lookup failed:', prefErr.message)
+    for (const p of prefRows ?? []) {
+      const mid = p.member_id as string
+      if (!prefsByMember.has(mid)) prefsByMember.set(mid, {})
+      prefsByMember.get(mid)![p.category as NotificationCategory] = p.enabled as boolean
+    }
+  }
+
   let sent = 0
   let failed = 0
   let retried = 0
+  let skipped = 0
 
   for (const row of rows ?? []) {
+    const memberId = row.member_id as string | null
+    if (memberId && isMuted(prefsByMember.get(memberId) ?? {}, row.type as string)) {
+      // No send, no Resend call, no rate-limit spacing: muted rows are cheap.
+      await admin
+        .from('notifications')
+        .update({ status: 'skipped', last_error: null })
+        .eq('id', row.id)
+        .eq('status', 'pending')
+      skipped++
+      continue
+    }
+
     const res = await sendEmail({
       to: row.recipient as string,
       subject: row.subject as string,
@@ -135,5 +179,5 @@ export async function POST(req: NextRequest) {
     if (SPACING_MS) await sleep(SPACING_MS)
   }
 
-  return NextResponse.json({ scanned: rows?.length ?? 0, sent, failed, retried })
+  return NextResponse.json({ scanned: rows?.length ?? 0, sent, failed, retried, skipped })
 }

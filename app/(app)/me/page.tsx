@@ -3,7 +3,9 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { PageHeader, PageTitle } from '@/components/ui/page-title'
 import { PERMISSIONS, PERMISSION_CODES } from '@/lib/permissions-catalog'
-import { getMyClassSignups, getMyReservations, getMyCards, getMyVisits, getMyBilling, getMyNotifications, getMyPayments } from '@/lib/actions'
+import { getMyClassSignups, getMyReservations, getMyCards, getMyVisits, getMyBilling, getMyNotifications, getMyNotificationPreferences, getMyPayments, listActiveDuesPaymentMethods } from '@/lib/actions'
+import type { PrefMap } from '@/lib/notifications-prefs-logic'
+import type { DuesMethod } from '@/components/billing/dues-card'
 import {
   MePortalClient,
   type Grant,
@@ -107,11 +109,19 @@ export default async function MePage() {
 
   const billingRes = await getMyBilling()
   const billing = ('data' in billingRes ? billingRes.data : null) as
-    | { status: string | null; currentPeriodEnd: string | null; hasCustomer: boolean }
+    | { status: string | null; currentPeriodEnd: string | null; hasCustomer: boolean; configured: boolean }
     | null
+
+  const duesMethodsRes = await listActiveDuesPaymentMethods()
+  const duesMethods: DuesMethod[] = 'data' in duesMethodsRes
+    ? duesMethodsRes.data.map(m => ({ platform: m.platform, url: m.url, instructions: m.instructions }))
+    : []
 
   const notifsRes = await getMyNotifications()
   const notifs: MyNotif[] = 'data' in notifsRes ? (notifsRes.data as MyNotif[]) : []
+
+  const notifPrefsRes = await getMyNotificationPreferences()
+  const notifPrefs: PrefMap = 'data' in notifPrefsRes ? notifPrefsRes.data : {}
 
   const paymentsRes = await getMyPayments()
   const payments: MyPayment[] = 'data' in paymentsRes ? (paymentsRes.data as MyPayment[]) : []
@@ -127,8 +137,10 @@ export default async function MePage() {
         grants={grants}
         held={held}
         billing={billing}
+        duesMethods={duesMethods}
         payments={payments}
         notifs={notifs}
+        notifPrefs={notifPrefs}
         classSignups={classSignups}
         reservations={reservations}
         myCards={myCards}
