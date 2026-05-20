@@ -2758,12 +2758,15 @@ CREATE TABLE IF NOT EXISTS public.notifications (
   last_error  text,
   dedupe_key  text        NOT NULL,
   sent_at     timestamptz,
+  read_at     timestamptz,
   created_at  timestamptz NOT NULL DEFAULT now(),
   updated_at  timestamptz NOT NULL DEFAULT now()
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_notifications_dedupe  ON public.notifications (space_id, dedupe_key);
 CREATE INDEX IF NOT EXISTS        idx_notifications_pending ON public.notifications (created_at) WHERE status = 'pending';
 CREATE INDEX IF NOT EXISTS        idx_notifications_member  ON public.notifications (space_id, member_id);
+-- read_at IS NULL = unread; partial index backs the in-app inbox unread count.
+CREATE INDEX IF NOT EXISTS        idx_notifications_unread  ON public.notifications (space_id, member_id) WHERE read_at IS NULL;
 
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS notifications_select ON public.notifications;
@@ -2784,8 +2787,13 @@ CREATE TRIGGER trg_notifications_touch
 -- 'skipped' instead of sending; the /me toggle writes through a validated
 -- service-client action. No client policy: default-deny, same convention as
 -- notifications / member_billing.
+-- space_id has NO FK to spaces ON PURPOSE (migration 052): a table with FKs to
+-- both space_members and spaces is read by PostgREST as a junction and makes
+-- the space_members<->spaces embed ambiguous (PGRST201), which broke the auth
+-- layout. The space is reachable via member_id -> space_members, and space
+-- deletion still cascades through that FK. Do NOT add a spaces FK here.
 CREATE TABLE IF NOT EXISTS public.notification_preferences (
-  space_id    uuid        NOT NULL REFERENCES public.spaces(id) ON DELETE CASCADE,
+  space_id    uuid        NOT NULL,
   member_id   uuid        NOT NULL REFERENCES public.space_members(id) ON DELETE CASCADE,
   category    text        NOT NULL,
   enabled     boolean     NOT NULL DEFAULT true,
