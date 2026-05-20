@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { requireMember, requireMemberWithRole, parseInput } from '@/lib/auth-helpers'
 import { ADMIN_ROLES } from '@/lib/permissions'
 import { duesPaymentMethodSchema } from '@/lib/validations'
+import { isSafeDuesUrl } from '@/lib/dues-payments-logic'
 
 export type DuesPaymentMethod = {
   platform: string
@@ -32,7 +33,11 @@ export async function listActiveDuesPaymentMethods(): Promise<
     .eq('is_active', true)
     .order('sort_order', { ascending: true })
 
-  return { data: (data ?? []).map(toMethod) }
+  // Defense-in-depth: only render absolute-https links. The DB CHECK and the
+  // admin Zod schema already enforce this, but a member's browser must never
+  // be handed an unsafe href, so re-validate at the boundary that feeds the
+  // clickable card and drop anything that is not a safe https URL.
+  return { data: (data ?? []).map(toMethod).filter(m => isSafeDuesUrl(m.url)) }
 }
 
 // Admin-facing: every configured method (active + inactive) for the management

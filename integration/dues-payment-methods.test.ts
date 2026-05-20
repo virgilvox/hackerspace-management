@@ -78,6 +78,24 @@ d('dues_payment_methods RLS', () => {
     expect(r.ok).toBe(false)
   })
 
+  it('the url CHECK rejects non-https schemes even via the service path (050)', () => {
+    const sid = space()
+    // service path bypasses RLS + the app Zod check, so the DB CHECK is the
+    // last line of defense against a stored javascript:/http: href.
+    const jsUrl = execService(
+      `insert into dues_payment_methods (space_id, platform, url) values ('${sid}','paypal','javascript:alert(1)');`,
+    )
+    expect(jsUrl.ok).toBe(false)
+    const httpUrl = execService(
+      `insert into dues_payment_methods (space_id, platform, url) values ('${sid}','venmo','http://insecure');`,
+    )
+    expect(httpUrl.ok).toBe(false)
+    const httpsUrl = execService(
+      `insert into dues_payment_methods (space_id, platform, url) values ('${sid}','zeffy','https://ok.example');`,
+    )
+    expect(httpsUrl.ok).toBe(true)
+  })
+
   it('an unverified member cannot write even with admin role (046 status gate)', () => {
     const sid = space()
     const pending = seedMember(sid, { role: 'admin', status: 'unverified' })

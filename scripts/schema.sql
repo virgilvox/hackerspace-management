@@ -2811,6 +2811,9 @@ CREATE TRIGGER trg_notification_prefs_touch
 -- Link configuration only, no automated payment record. RLS: SELECT = any
 -- space member (they render the buttons); writes admin/board. url is validated
 -- https-only at the server-action boundary.
+-- url must be an absolute https URL: it is rendered to members as a clickable
+-- href, and RLS lets admins write the row directly (bypassing the app's Zod
+-- check), so the data layer is the source of truth (migration 050).
 CREATE TABLE IF NOT EXISTS public.dues_payment_methods (
   id           uuid                   PRIMARY KEY DEFAULT uuid_generate_v4(),
   space_id     uuid                   NOT NULL REFERENCES public.spaces(id) ON DELETE CASCADE,
@@ -2821,7 +2824,8 @@ CREATE TABLE IF NOT EXISTS public.dues_payment_methods (
   sort_order   integer                NOT NULL DEFAULT 0,
   created_at   timestamptz            NOT NULL DEFAULT now(),
   updated_at   timestamptz            NOT NULL DEFAULT now(),
-  UNIQUE (space_id, platform)
+  UNIQUE (space_id, platform),
+  CONSTRAINT dues_payment_methods_url_https CHECK (url ~* '^https://')
 );
 CREATE INDEX IF NOT EXISTS idx_dues_payment_methods_space
   ON public.dues_payment_methods (space_id);
