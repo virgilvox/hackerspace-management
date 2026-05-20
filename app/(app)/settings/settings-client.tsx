@@ -9,6 +9,8 @@ import { financialVisibilities, directoryVisibilities } from '@/lib/validations'
 import type { Tables } from '@/types/database'
 import { PageTitle } from '@/components/ui/page-title'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { StripeBillingPanel } from '@/components/settings/stripe-billing-panel'
+import { DuesPaymentMethodsPanel } from '@/components/settings/dues-payment-methods-panel'
 
 type Space = Tables<'spaces'>
 type Integration = Tables<'integrations'>
@@ -88,7 +90,7 @@ const INTEGRATIONS_CONFIG = [
 ]
 
 export default function SettingsClient({ space, isAdmin, integrations, currentRole }: Props) {
-  const [activeTab, setActiveTab] = useState<'space' | 'integrations' | 'webhooks'>('space')
+  const [activeTab, setActiveTab] = useState<'space' | 'integrations' | 'dues' | 'webhooks'>('space')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
@@ -223,7 +225,7 @@ export default function SettingsClient({ space, isAdmin, integrations, currentRo
         <div className="flex-1 p-4 md:p-6">
           {/* Tabs */}
           <div className="bg-card border-b border-border flex gap-4 md:gap-6 px-2 mb-6 rounded-t overflow-x-auto">
-            {(['space', 'integrations', 'webhooks'] as const).map(tab => (
+            {(['space', 'integrations', 'dues', 'webhooks'] as const).map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -473,6 +475,14 @@ export default function SettingsClient({ space, isAdmin, integrations, currentRo
                   )
                 })}
               </div>
+            </div>
+          )}
+
+          {/* Dues Tab: how members pay dues (Stripe recurring + external links) */}
+          {activeTab === 'dues' && (
+            <div className="space-y-6">
+              <StripeBillingPanel spaceId={space.id} />
+              <DuesPaymentMethodsPanel />
             </div>
           )}
 

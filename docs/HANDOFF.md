@@ -4,6 +4,12 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-20 (pass 60): /settings "Dues" tab (LOCAL, NOT deployed)
+
+Branch `main`. The Stripe-dues config + external-payment-links panels were floating below the settings tab bar (rendered by page.tsx outside SettingsClient, shown regardless of the active tab). Moved both into a new **Dues** tab inside SettingsClient (tabs are now Space / Integrations / Dues / Webhooks); the panels render as standard `bg-card rounded border` tab cards instead of `border-t` page sections. page.tsx now renders only SettingsClient. UI-only, no schema/actions change. Build + 594 unit green. NOT deployed.
+
+---
+
 ## 2026-05-20 (pass 59): PROD OUTAGE fix + in-app inbox + /me consolidation + style
 
 Branch `main`. Suite 594 unit, 40 integration, build clean.

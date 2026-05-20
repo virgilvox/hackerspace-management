@@ -56,7 +56,7 @@ export function StripeBillingPanel({ spaceId }: { spaceId: string }) {
   }
 
   return (
-    <div className="p-4 md:p-6 border-t border-border">
+    <div className="bg-card rounded border border-border p-6">
       <div className="max-w-2xl space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
