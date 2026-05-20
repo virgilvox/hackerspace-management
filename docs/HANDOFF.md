@@ -18,8 +18,8 @@ Branch `main`. Audited surfaces I had NOT recently touched, via three parallel i
 - Public/API: `proxy.ts` whitelist is narrow + exact; `submitForm` resolves space server-side + projects answers through `validateAnswers` + rate-limited; `getPublicForm` never serves members-only; `/auth/callback` open-redirect guard + `/auth/confirm` OTP-type pin intact; `paypal/sync` role-gated + constant fetch URLs (no SSRF). No `fetch()` to a user-controlled URL anywhere.
 - AuthZ: every mutating action has an auth gate; every `createAdminClient()` query is scoped to `member.space_id`. (Defense-in-depth noted, not fixed: equipment cancel / door slot writes filter by space-unique id after a space-checked parent load; adding `.eq('space_id')` would be belt-and-suspenders.)
 
-### Open / next
-- NOT deployed: this batch + pass 60 (Dues tab) + pass 61 (audit fixes) are committed locally, no migration. Deploying together.
+### Deploy state (DEPLOYED)
+- Passes 60 (Dues tab) + 61 (Stripe-card footgun + validation) + 62 (this) shipped together in `c0d6d49` (run 26153548195, success; no migration). Prod re-verified: auth embed `space_members?select=*,spaces(*)` returns `[]` (not PGRST201); `/` 200, `/dashboard` 307->login, `/login` 200. No regressions.
 
 ---
 
