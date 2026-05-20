@@ -118,15 +118,30 @@ export async function addComment(input: {
   if (!auth.ok) return { error: auth.error }
   const { member } = auth
 
-  // Reject comments on locked forum threads up front.
+  // Verify the target entity exists IN THE CALLER'S SPACE before commenting.
+  // The RLS client scopes these reads to the caller's space, so a missing row
+  // means the entity is not in their space (or does not exist). Without this,
+  // a member could attach a comment to another space's proposal/incident/policy
+  // (the row would be stamped with the caller's own space_id). Also gates
+  // locked forum threads.
+  let entityInSpace = false
+  let threadLocked = false
   if (v.data.entity_type === 'forum_thread') {
-    const { data: thread } = await supabase
-      .from('forum_threads')
-      .select('locked')
-      .eq('id', v.data.entity_id)
-      .single()
-    if (thread?.locked) return { error: 'Thread is locked' }
+    const { data } = await supabase.from('forum_threads').select('id, locked').eq('id', v.data.entity_id).maybeSingle()
+    entityInSpace = !!data
+    threadLocked = !!data?.locked
+  } else if (v.data.entity_type === 'proposal') {
+    const { data } = await supabase.from('proposals').select('id').eq('id', v.data.entity_id).maybeSingle()
+    entityInSpace = !!data
+  } else if (v.data.entity_type === 'incident') {
+    const { data } = await supabase.from('incidents').select('id').eq('id', v.data.entity_id).maybeSingle()
+    entityInSpace = !!data
+  } else if (v.data.entity_type === 'policy') {
+    const { data } = await supabase.from('policies').select('id').eq('id', v.data.entity_id).maybeSingle()
+    entityInSpace = !!data
   }
+  if (!entityInSpace) return { error: 'Not found' }
+  if (threadLocked) return { error: 'Thread is locked' }
 
   const { data, error } = await supabase
     .from('comments')

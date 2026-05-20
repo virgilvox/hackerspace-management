@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { BrandMark } from '@/components/brand-mark'
 import { SafeMarkdown } from '@/components/safe-markdown'
+import { sanitizeUrl } from '@/lib/security'
 import { FormRenderer } from '@/components/forms/form-renderer'
 import type { FormField } from '@/lib/forms-schema'
 import {
@@ -231,16 +232,22 @@ export function OnboardingFlow({ spaceName, steps, canSkip, profile: initialProf
             ) : step.step_type === 'payment' ? (
               <div className="space-y-4">
                 {step.body && <SafeMarkdown>{step.body}</SafeMarkdown>}
-                {typeof step.config?.payment_url === 'string' && step.config.payment_url && (
-                  <a
-                    href={step.config.payment_url as string}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 bg-primary text-white text-sm font-sans px-4 py-2 rounded hover:bg-primary/90 transition"
-                  >
-                    Set up payment
-                  </a>
-                )}
+                {typeof step.config?.payment_url === 'string' &&
+                  (() => {
+                    // Admin-entered; sanitize to http(s) so a stored
+                    // javascript:/data: URL can't XSS members in onboarding.
+                    const url = sanitizeUrl(step.config.payment_url as string)
+                    return url ? (
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 bg-primary text-white text-sm font-sans px-4 py-2 rounded hover:bg-primary/90 transition"
+                      >
+                        Set up payment
+                      </a>
+                    ) : null
+                  })()}
               </div>
             ) : step.step_type === 'form' ? (
               <div className="space-y-4">

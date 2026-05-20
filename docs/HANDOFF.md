@@ -4,6 +4,25 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-20 (pass 62): Diversified surface audit + fixes (LOCAL, NOT deployed)
+
+Branch `main`. Audited surfaces I had NOT recently touched, via three parallel independent reviews: (1) anonymous/public + all `app/api/**` route handlers, (2) XSS / unsafe rendering across the whole app, (3) authorization + tenant-isolation in legacy server actions (tasks/projects/members/kb/secrets/contacts/comms/classes/equipment/door/presence/certs/invites/roles/permissions/onboarding/forms/governance). **No P0 on any surface.** Suite 594 / build green.
+
+### Fixed
+- **P1 stored XSS (onboarding `payment_url`).** `app/onboarding/onboarding-flow.tsx` rendered the admin-entered `payment_url` into an `href` with no protocol check (onboarding step `config` is `z.record(z.unknown())`). Same class as the dues-url bug: an admin could store `javascript:...` and XSS every new member in onboarding. Fixed at the sink with `sanitizeUrl` (http(s)-only; renders nothing otherwise).
+- **P2 forum comment tenant check.** `lib/actions/forum.ts addComment` only space-verified `forum_thread` targets; `proposal`/`incident`/`policy` `entity_id`s were unchecked, so a member could attach a comment to another space's entity (stamped with their own `space_id`; low impact since reads filter by space, but a real gap). Now verifies the target row exists in the caller's space (RLS-scoped read) for every entity type before insert.
+- **P2 joinSpace rate limit.** Added `checkRateLimit('joinspace:<uid>', 10/hr)` for parity with `createSpace`/`signIn`, bounding invite-code guessing (codes are ~40-bit so not practically guessable, but it was the one unthrottled auth action).
+
+### Clean (verified by the reviews)
+- Markdown rendering is centralized + hardened: `components/markdown.tsx` (no `rehypeRaw`), `components/safe-markdown.tsx` (`rehypeRaw` THEN `rehypeSanitize` with a tightened schema, href protocols allowlisted). Comments/forum/proposals/incidents/policies render inert. Member profile fields render as escaped JSX text. The one `dangerouslySetInnerHTML` (chart.tsx) is developer-config, not user data.
+- Public/API: `proxy.ts` whitelist is narrow + exact; `submitForm` resolves space server-side + projects answers through `validateAnswers` + rate-limited; `getPublicForm` never serves members-only; `/auth/callback` open-redirect guard + `/auth/confirm` OTP-type pin intact; `paypal/sync` role-gated + constant fetch URLs (no SSRF). No `fetch()` to a user-controlled URL anywhere.
+- AuthZ: every mutating action has an auth gate; every `createAdminClient()` query is scoped to `member.space_id`. (Defense-in-depth noted, not fixed: equipment cancel / door slot writes filter by space-unique id after a space-checked parent load; adding `.eq('space_id')` would be belt-and-suspenders.)
+
+### Open / next
+- NOT deployed: this batch + pass 60 (Dues tab) + pass 61 (audit fixes) are committed locally, no migration. Deploying together.
+
+---
+
 ## 2026-05-20 (pass 61): Deep audit + fixes (LOCAL, NOT deployed)
 
 Branch `main`. Deep audit of the app + the recent change set (passes 56-60), an independent subagent review of the new code, and fixes for what was real. Suite 594 unit / 40 integration / build green.

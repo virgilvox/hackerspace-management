@@ -111,6 +111,12 @@ export async function joinSpace(formData: {
   const { data: { user }, error: userErr } = await supabase.auth.getUser()
   if (userErr || !user) return { error: 'Not authenticated' }
 
+  // Throttle to bound invite-code guessing (parity with createSpace/signIn).
+  const rateLimit = checkRateLimit(`joinspace:${user.id}`, 10, 3600000) // 10 per hour
+  if (!rateLimit.allowed) {
+    return { error: 'Too many join attempts. Please try again later.' }
+  }
+
   // Use admin client for operations
   const admin = createAdminClient()
 
