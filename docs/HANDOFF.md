@@ -4,7 +4,17 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
-## 2026-05-19 (pass 58): Dues payment options + /me visual pass (LOCAL, NOT deployed)
+## 2026-05-19 (pass 58): Dues payment options + /me visual pass (DEPLOYED)
+
+> DEPLOY STATE: pass-57 + pass-58 shipped together in commit `ab8c22a`
+> (run 26139360768, success). Deploy log confirms `applying
+> 048_notification_preferences.sql` then `applying 049_dues_payment_methods.sql`.
+> Smoke clean: public 200; gated /me + /settings redirect to login; Stripe
+> webhook 400 (sig rejected); cron 503 (CRON_SECRET unset, fails safe). No
+> regressions. Inert until Resend + CRON_SECRET provisioned (notifications) and
+> an admin adds dues payment links. Browser click-through of the /me visual
+> pass still pending owner review. This deploy-state edit is held local and
+> rides the next deploy (pass-56 convention).
 
 Branch `main`. Same session as pass-57; addressed three follow-up requests the user raised after the notification-prefs work. Suite 593 (was 585; +8 dues-payments tests), build clean. NOT deployed. Stacks on top of the uncommitted pass-57 changes.
 
@@ -28,7 +38,7 @@ Branch `main`. Same session as pass-57; addressed three follow-up requests the u
 
 ---
 
-## 2026-05-19 (pass 57): Product spine Phase 5: member notification preferences (LOCAL, NOT deployed)
+## 2026-05-19 (pass 57): Product spine Phase 5: member notification preferences (DEPLOYED in ab8c22a)
 
 Branch `main`. Took backlog item 2: per-member opt-out of muteable notification categories, doubling as the volume governor for the Phase 4 fan-outs. Design-first via AskUserQuestion. Suite 585 (was 572; +13 prefs tests), build clean. NOT deployed.
 
