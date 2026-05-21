@@ -97,6 +97,7 @@ The deploy script is idempotent and tracked: every numbered migration in `script
 | [docs/API_REFERENCE.md](./docs/API_REFERENCE.md) | Server actions and REST endpoints |
 | [docs/COMPONENT_REFERENCE.md](./docs/COMPONENT_REFERENCE.md) | UI components and props |
 | [docs/DEPLOY_DO_SELFHOSTED.md](./docs/DEPLOY_DO_SELFHOSTED.md) | End to end production deploy |
+| [docs/SPINE_VALIDATION.md](./docs/SPINE_VALIDATION.md) | Owner runbook: provision + prove dues/email/door end to end |
 | [docs/LOCAL_DEV.md](./docs/LOCAL_DEV.md) | Fresh clone to running locally |
 | [docs/GOVERNANCE_FEATURES.md](./docs/GOVERNANCE_FEATURES.md) | Proposals, incidents, policies |
 | [docs/WEBHOOKS.md](./docs/WEBHOOKS.md) | Webhook payload, signing, verification |

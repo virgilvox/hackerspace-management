@@ -28,6 +28,30 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-21 (pass 70): Audit the runbook + lock the privilege-escalation RLS
+
+Branch `main`. Audited the freshly-written runbook against the code, then locked an untested core security invariant.
+
+**Audit (the runbook is owner-executed, so an error is a real bug).** Verified `docs/SPINE_VALIDATION.md`'s factual claims against the source: env var names, the two cron endpoints + their fail-closed codes (401/503), the Stripe webhook path + event list + the 400-on-unsigned, the Dues-tab fields + the displayed webhook URL, the Billing-Portal + change-email steps, Stripe test cards. **One inaccuracy fixed:** the notifications-cron response is `{scanned, sent, failed, retried, skipped}` (the runbook had omitted `skipped`).
+
+**Continued: locked the privilege-escalation guard (was untested).** The additive permission model's integrity rests on one RLS gate: only `admin`/`board` may WRITE `space_role_permissions` (insert WITH CHECK, update/delete USING `user_has_role_in_space(...,['admin','board'])`). There was NO integration test for it. Added `integration/permission-escalation.test.ts` (4): a plain member's INSERT of a self-grant is rejected; an admin's INSERT succeeds (positive control); a member's DELETE of a seeded grant is USING-filtered to 0 rows so the grant survives (no error, no effect); an admin cannot INSERT into another space (WITH CHECK pins space). (Dropped a 5th read-visibility case: `rowsAsUser` mis-parses a multi-row `select 1` projection -- a harness quirk, not an app issue, and low value next to the write guards.)
+
+**State.** 626 unit / 54 integration (was 50; +4) / build + lint green. This pass ships together with pass-69 (the runbook + README link) -- docs + one new test, no code/migration, no behavior change.
+
+---
+
+## 2026-05-21 (pass 69): Diversified audit (public/API, clean) + spine-validation runbook
+
+Branch `main`. Fresh diversified audit on surfaces NOT recently touched, then took backlog item 1 (the owner-gated spine validation).
+
+**Audit (CLEAN, diversified).** Enumerated all 6 `app/api/**` route handlers (the 4 pre-existing + the 2 door ones) -- all accounted for and gated. XSS: the only `dangerouslySetInnerHTML` is `components/ui/chart.tsx` (developer CSS vars, not user data). SSRF: the ONLY variable-URL `fetch` outside the hardened door executor is `/api/paypal/sync`, and its `baseUrl` is a hardcoded constant gated by a boolean `sandbox` flag (`api-m[.sandbox].paypal.com`), not admin-controllable -- no SSRF. No `console.*` logs a secret/key/token. Combined with the converged door/api-button/mobile passes, no new finding.
+
+**Continued: backlog item 1 -> `docs/SPINE_VALIDATION.md` (new).** A precise owner runbook + copy-paste checklist that converts the shipped-but-inert spine into proven-working. Part A provisioning (Resend domain + `RESEND_API_KEY`/`EMAIL_FROM`; `CRON_SECRET` + BOTH crontabs incl. door-ingest, with 401/503/200 verifies; per-space Stripe test mode -- products/prices, secret key, the webhook endpoint URL the Dues tab displays + signing secret, Billing Portal activation, the Dues-tab save; the Supabase Change-Email template + `/auth/confirm` allowlist). Part B end-to-end validation (test-mode dues cycle incl. renewal/failed/lapse + the dispatcher email + in-app inbox; booking/class/form notifications; pref muting vs always-on billing; `/me` click-through; door grant/self-entry/inbound + API-button press). Grounded in the actual config (exact env vars, the `StripeBillingPanel` webhook URL, the route fail-closed codes), not invented. Linked from the README docs table. Owner executes; the agent cannot (external accounts + a live session + on-droplet env/cron).
+
+**State.** Docs-only this pass (no code, no migration). 626 unit / 50 integration / build + lint green (unchanged). Item 1 deliverable produced; remaining backlog: production observability (item 2, design-first), integration-harness extension (item 4), owner browser review (item 3, owner-only).
+
+---
+
 ## 2026-05-21 (pass 68): App-wide mobile-overflow audit + cron poll parallelized
 
 Branch `main`. Continued the mobile pass app-wide and cleared the tracked cron finding. Build + lint green; 626 unit / 50 integration.
