@@ -138,39 +138,51 @@ export function normalizeWebhookEvents(events: WebhookEventInput[]): DoorIngestE
   })
 }
 
-// Interpret a card identifier string as both decimal and hex (HeatSync stores
-// uids as hex but the schema does not enforce it; the poll log reconstructs a
-// decimal number). Returns every plausible numeric value.
-function toBigIntCandidates(s: string): bigint[] {
-  const u = s.trim().toLowerCase().replace(/^0x/, '')
-  const out: bigint[] = []
-  // A digit-only string gets both readings (it may be a decimal number or a
-  // hex uid that happens to be all digits); a string with a-f is hex only.
-  if (/^[0-9]+$/.test(u)) {
-    try { out.push(BigInt(u)) } catch { /* ignore */ }
+// Parse a stored card_uid as HEX. HeatSync stores the uid as hex (the grant
+// encoder requires 1-8 hex chars), so this is the canonical reading. Returns
+// null for a non-hex value (it cannot be a HeatSync card).
+function hexToBigInt(uid: string): bigint | null {
+  const u = uid.trim().toLowerCase().replace(/^0x/, '')
+  if (!/^[0-9a-f]+$/.test(u)) return null
+  try {
+    return BigInt('0x' + u)
+  } catch {
+    return null
   }
-  if (/^[0-9a-f]+$/.test(u)) {
-    try { out.push(BigInt('0x' + u)) } catch { /* ignore */ }
-  }
-  return out
 }
 
 // True when a stored member_cards.card_uid refers to the same physical card as
-// the value seen in a log/webhook event. Matches on exact (case-insensitive)
-// string equality OR numeric equality across decimal/hex interpretations, so a
-// hex-stored uid resolves a decimal-reconstructed poll number and vice versa.
-export function cardUidsEquivalent(stored: string, seen: string): boolean {
-  const a = stored.trim().toLowerCase()
-  const b = seen.trim().toLowerCase()
-  if (!a || !b) return false
-  if (a === b) return true
-  const ca = toBigIntCandidates(stored)
-  const cb = toBigIntCandidates(seen)
-  return ca.some(x => cb.some(y => x === y))
-}
+// an ingested event. The match is source-anchored to the HeatSync model rather
+// than guessing radixes symmetrically (which mis-attributes all-digit uids,
+// e.g. stored "16" = hex 0x16 = 22 must NOT match a decimal poll of card 16):
+//
+//   * A reported DECIMAL number (poll `?z`, or a webhook card_number, or an
+//     all-digit webhook card_uid) matches when hexInt(storedUid) equals it,
+//     because the stored uid is hex and the controller reports the decimal
+//     card number.
+//   * A webhook card_uid that is not purely decimal is matched by exact
+//     (case-insensitive) string equality -- a relay should send the uid as
+//     stored.
+export function cardMatchesEvent(storedUid: string, ev: DoorIngestEvent): boolean {
+  const stored = storedUid.trim().toLowerCase()
+  if (!stored) return false
 
-// Given an event, the value to resolve against stored card uids (the decimal
-// number for poll, the raw uid for webhook).
-export function eventCardValue(ev: DoorIngestEvent): string | null {
-  return ev.cardUid ?? ev.cardNumber
+  // Exact uid match (a webhook relay sending the stored hex uid).
+  if (ev.cardUid && stored === ev.cardUid.trim().toLowerCase()) return true
+
+  // Decimal card number: the poll number, an explicit webhook card_number, or
+  // an all-digit webhook card_uid.
+  const decStr =
+    ev.cardNumber ?? (ev.cardUid && /^\d+$/.test(ev.cardUid.trim()) ? ev.cardUid.trim() : null)
+  if (decStr) {
+    const h = hexToBigInt(stored)
+    if (h !== null) {
+      try {
+        if (h === BigInt(decStr)) return true
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+  return false
 }

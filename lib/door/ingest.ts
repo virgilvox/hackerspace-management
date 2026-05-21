@@ -11,8 +11,7 @@ import { resolveDoorSecret } from './secret'
 import { encodeHeatSyncControl, applyTemplate, redactDoorSecrets } from '@/lib/door-logic'
 import {
   parseHeatSyncLog,
-  cardUidsEquivalent,
-  eventCardValue,
+  cardMatchesEvent,
   type DoorIngestEvent,
 } from '@/lib/door-log-logic'
 
@@ -78,8 +77,7 @@ export async function ingestEvents(
       skipped++
       continue
     }
-    const value = eventCardValue(ev)
-    const card = value ? cardList.find(c => cardUidsEquivalent(c.card_uid, value)) : undefined
+    const card = cardList.find(c => cardMatchesEvent(c.card_uid, ev))
     const targetMemberId = card?.member_id ?? null
     if (card) resolved++
 

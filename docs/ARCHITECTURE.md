@@ -630,8 +630,10 @@ H:M:E). Webhook: `POST /api/door/inbound/[connection]` (also
 controller/relay, authenticated by a per-connection bearer secret
 (`inbound_secret_ref`, a distinct vault secret from the outbound password,
 constant-time compared); body-size guarded, rate-limited, Zod-validated
-(≤100 events). Both resolve a presented card to a member via numeric
-hex/decimal equality (`cardUidsEquivalent`) and dedupe-insert through the
+(≤100 events). Both resolve a presented card to a member via the HeatSync
+hex-uid model (`cardMatchesEvent`: a stored hex `card_uid` matches when
+`hexInt(uid)` equals the reported decimal number, or a webhook uid matches
+exactly) and dedupe-insert through the
 service client: `door_access_log.dedupe_key` + the partial-unique
 `(connection_id, dedupe_key)` index make a re-poll or webhook retry a
 no-op, while NULL-keyed action rows stay unconstrained. The poll is
