@@ -155,21 +155,33 @@ export type Database = {
         Relationships: []
       }
       door_connections: {
-        Row: { id: string; space_id: string; name: string; adapter: string; base_url: string; pinned_host: string; auth_mode: string; auth_param: string | null; secret_ref: string | null; verbs: Json; allow_member_self_entry: boolean; is_enabled: boolean; created_by: string | null; created_at: string; updated_at: string }
-        Insert: { id?: string; space_id: string; name: string; adapter?: string; base_url: string; pinned_host: string; auth_mode?: string; auth_param?: string | null; secret_ref?: string | null; verbs?: Json; allow_member_self_entry?: boolean; is_enabled?: boolean; created_by?: string | null; created_at?: string; updated_at?: string }
-        Update: { id?: string; space_id?: string; name?: string; adapter?: string; base_url?: string; pinned_host?: string; auth_mode?: string; auth_param?: string | null; secret_ref?: string | null; verbs?: Json; allow_member_self_entry?: boolean; is_enabled?: boolean; created_by?: string | null; created_at?: string; updated_at?: string }
+        Row: { id: string; space_id: string; name: string; adapter: string; base_url: string; pinned_host: string; auth_mode: string; auth_param: string | null; secret_ref: string | null; verbs: Json; allow_member_self_entry: boolean; is_enabled: boolean; inbound_enabled: boolean; inbound_secret_ref: string | null; created_by: string | null; created_at: string; updated_at: string }
+        Insert: { id?: string; space_id: string; name: string; adapter?: string; base_url: string; pinned_host: string; auth_mode?: string; auth_param?: string | null; secret_ref?: string | null; verbs?: Json; allow_member_self_entry?: boolean; is_enabled?: boolean; inbound_enabled?: boolean; inbound_secret_ref?: string | null; created_by?: string | null; created_at?: string; updated_at?: string }
+        Update: { id?: string; space_id?: string; name?: string; adapter?: string; base_url?: string; pinned_host?: string; auth_mode?: string; auth_param?: string | null; secret_ref?: string | null; verbs?: Json; allow_member_self_entry?: boolean; is_enabled?: boolean; inbound_enabled?: boolean; inbound_secret_ref?: string | null; created_by?: string | null; created_at?: string; updated_at?: string }
         Relationships: []
       }
       door_access_log: {
-        Row: { id: string; space_id: string; connection_id: string | null; actor_member_id: string | null; target_member_id: string | null; action: string; success: boolean; detail: string | null; occurred_at: string }
-        Insert: { id?: string; space_id: string; connection_id?: string | null; actor_member_id?: string | null; target_member_id?: string | null; action: string; success?: boolean; detail?: string | null; occurred_at?: string }
-        Update: { id?: string; space_id?: string; connection_id?: string | null; actor_member_id?: string | null; target_member_id?: string | null; action?: string; success?: boolean; detail?: string | null; occurred_at?: string }
+        Row: { id: string; space_id: string; connection_id: string | null; actor_member_id: string | null; target_member_id: string | null; action: string; success: boolean; detail: string | null; dedupe_key: string | null; occurred_at: string }
+        Insert: { id?: string; space_id: string; connection_id?: string | null; actor_member_id?: string | null; target_member_id?: string | null; action: string; success?: boolean; detail?: string | null; dedupe_key?: string | null; occurred_at?: string }
+        Update: { id?: string; space_id?: string; connection_id?: string | null; actor_member_id?: string | null; target_member_id?: string | null; action?: string; success?: boolean; detail?: string | null; dedupe_key?: string | null; occurred_at?: string }
         Relationships: []
       }
       door_card_slots: {
         Row: { id: string; space_id: string; connection_id: string; card_id: string; slot: number; created_by: string | null; created_at: string; updated_at: string }
         Insert: { id?: string; space_id: string; connection_id: string; card_id: string; slot: number; created_by?: string | null; created_at?: string; updated_at?: string }
         Update: { id?: string; space_id?: string; connection_id?: string; card_id?: string; slot?: number; created_by?: string | null; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
+      api_buttons: {
+        Row: { id: string; space_id: string; label: string; button_group: string; sort_order: number; method: string; base_url: string; pinned_host: string; url_template: string | null; headers: Json; body_template: string | null; auth_mode: string; auth_param: string | null; secret_ref: string | null; required_permission: string; confirm: boolean; is_enabled: boolean; created_by: string | null; created_at: string; updated_at: string }
+        Insert: { id?: string; space_id: string; label: string; button_group?: string; sort_order?: number; method?: string; base_url: string; pinned_host: string; url_template?: string | null; headers?: Json; body_template?: string | null; auth_mode?: string; auth_param?: string | null; secret_ref?: string | null; required_permission?: string; confirm?: boolean; is_enabled?: boolean; created_by?: string | null; created_at?: string; updated_at?: string }
+        Update: { id?: string; space_id?: string; label?: string; button_group?: string; sort_order?: number; method?: string; base_url?: string; pinned_host?: string; url_template?: string | null; headers?: Json; body_template?: string | null; auth_mode?: string; auth_param?: string | null; secret_ref?: string | null; required_permission?: string; confirm?: boolean; is_enabled?: boolean; created_by?: string | null; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
+      api_call_log: {
+        Row: { id: string; space_id: string; button_id: string | null; actor_member_id: string | null; action: string; success: boolean; detail: string | null; occurred_at: string }
+        Insert: { id?: string; space_id: string; button_id?: string | null; actor_member_id?: string | null; action: string; success?: boolean; detail?: string | null; occurred_at?: string }
+        Update: { id?: string; space_id?: string; button_id?: string | null; actor_member_id?: string | null; action?: string; success?: boolean; detail?: string | null; occurred_at?: string }
         Relationships: []
       }
       space_visits: {

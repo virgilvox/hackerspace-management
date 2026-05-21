@@ -15,7 +15,7 @@ import {
   MessageSquare, Users, CreditCard, BookUser, Download, LogOut,
   Vote, ShieldAlert, ScrollText, LineChart, UserSearch,
   MessagesSquare, SlidersHorizontal, ClipboardList, FileText, Award, BadgeCheck, GraduationCap, Hammer,
-  ChevronDown, DoorClosed, CalendarCheck,
+  ChevronDown, DoorClosed, CalendarCheck, Zap,
 } from 'lucide-react'
 
 interface NavLinkProps {
@@ -230,6 +230,7 @@ export function AppSidebar({ member, roleName, taskBadge = 0, commsBadge = 0, pa
             {canClasses && <NavLink href="/classes/manage" label="Manage classes" icon={GraduationCap} active={isActive('/classes/manage')} onClick={onNav} />}
             {canEquip && <NavLink href="/equipment/manage" label="Manage equipment" icon={Hammer} active={isActive('/equipment/manage')} onClick={onNav} />}
             {canDoor && <NavLink href="/door/manage" label="Door access" icon={DoorClosed} active={isActive('/door/manage')} onClick={onNav} />}
+            {canDoor && <NavLink href="/door/buttons" label="API buttons" icon={Zap} active={isActive('/door/buttons')} onClick={onNav} />}
             {isAdmin && <NavLink href="/import" label="Import / Sync" icon={Download} active={isActive('/import')} onClick={onNav} />}
             {isAdmin && <NavLink href="/settings" label="Settings" icon={Settings2} active={isActive('/settings')} onClick={onNav} />}
           </NavSection>

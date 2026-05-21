@@ -4,8 +4,9 @@ import { PageHeader, PageTitle } from '@/components/ui/page-title'
 import { Badge } from '@/components/ui/badge'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
 import { DoorClosed } from 'lucide-react'
-import { listSelfEntryDoors, getMyCards, listMyDoorActivity } from '@/lib/actions'
+import { listSelfEntryDoors, getMyCards, listMyDoorActivity, listInvokableButtons } from '@/lib/actions'
 import { DoorSelfEntry } from '../dashboard/door-self-entry'
+import { ApiButtonsInvoke } from './api-buttons-invoke'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,16 +28,18 @@ export default async function DoorsPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [doorsRes, cardsRes, activityRes] = await Promise.all([
+  const [doorsRes, cardsRes, activityRes, buttonsRes] = await Promise.all([
     listSelfEntryDoors(),
     getMyCards(),
     listMyDoorActivity(),
+    listInvokableButtons(),
   ])
   const doors = ('data' in doorsRes ? doorsRes.data : []) as { id: string; name: string }[]
   const cards = ('data' in cardsRes ? cardsRes.data : []) as Card[]
   const activity = ('data' in activityRes ? activityRes.data : []) as Activity[]
+  const buttons = ('data' in buttonsRes ? buttonsRes.data : []) as { id: string; label: string; group: string; confirm: boolean }[]
 
-  const nothing = doors.length === 0 && cards.length === 0 && activity.length === 0
+  const nothing = doors.length === 0 && cards.length === 0 && activity.length === 0 && buttons.length === 0
 
   return (
     <>
@@ -65,6 +68,16 @@ export default async function DoorsPage() {
             <p className="font-mono text-[10px] text-muted-foreground mt-2">
               Only use this when you are physically at the door and authorized to enter. Every
               attempt is logged.
+            </p>
+          </section>
+        )}
+
+        {buttons.length > 0 && (
+          <section>
+            <h2 className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-3">Actions</h2>
+            <ApiButtonsInvoke buttons={buttons} />
+            <p className="font-mono text-[10px] text-muted-foreground mt-2">
+              Each action fires a configured request. Every press is logged.
             </p>
           </section>
         )}

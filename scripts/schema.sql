@@ -1877,7 +1877,7 @@ BEGIN
     ('board','certifications.manage'),('board','certifications.grant'),
     ('board','classes.manage'),('board','classes.instruct'),
     ('board','equipment.manage'),
-    ('board','door.manage'),('board','door.operate'),
+    ('board','door.manage'),('board','door.operate'),('board','apicall.invoke'),
     ('board','customize.manage'),('board','settings.manage'),
     ('treasurer','payments.manage'),('treasurer','ops.kb.read'),('treasurer','ops.process.read'),
     ('member','ops.kb.read'),('member','ops.process.read'),
@@ -2551,6 +2551,11 @@ CREATE TABLE IF NOT EXISTS public.door_connections (
   verbs                   jsonb       NOT NULL DEFAULT '{}',
   allow_member_self_entry boolean     NOT NULL DEFAULT false,
   is_enabled              boolean     NOT NULL DEFAULT true,
+  -- Inbound access-log ingest (053). inbound_enabled gates the per-connection
+  -- webhook endpoint (opt-in). inbound_secret_ref is the INBOUND bearer secret
+  -- in the AES vault, distinct from secret_ref (the outbound door password).
+  inbound_enabled         boolean     NOT NULL DEFAULT false,
+  inbound_secret_ref      uuid        REFERENCES public.secrets(id) ON DELETE SET NULL,
   created_by              uuid        REFERENCES public.space_members(id) ON DELETE SET NULL,
   created_at              timestamptz NOT NULL DEFAULT now(),
   updated_at              timestamptz NOT NULL DEFAULT now()
@@ -2566,9 +2571,15 @@ CREATE TABLE IF NOT EXISTS public.door_access_log (
   action           text        NOT NULL,
   success          boolean     NOT NULL DEFAULT false,
   detail           text,
+  -- Per-event idempotency token for inbound ingest (053). NULL for app-issued
+  -- action rows; set for ingested poll/webhook events. Partial-unique below.
+  dedupe_key       text,
   occurred_at      timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_door_access_log_space ON public.door_access_log (space_id, occurred_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_door_access_log_dedupe
+  ON public.door_access_log (connection_id, dedupe_key)
+  WHERE dedupe_key IS NOT NULL;
 
 ALTER TABLE public.door_connections ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.door_access_log  ENABLE ROW LEVEL SECURITY;
@@ -2640,6 +2651,81 @@ CREATE POLICY door_card_slots_select ON public.door_card_slots FOR SELECT
 DROP TRIGGER IF EXISTS trg_door_card_slots_touch ON public.door_card_slots;
 CREATE TRIGGER trg_door_card_slots_touch
   BEFORE UPDATE ON public.door_card_slots
+  FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
+
+-- ---------------------------------------------------------------------------
+-- Universal API-call UI builder (Door epic phase 5; migration 054).
+--   api_buttons: per-space button definitions fired through the same hardened
+--     egress as the door executor (per-button pinned_host SSRF pin; secret in
+--     the AES vault via secret_ref, never stored here). All CRUD = door.manage;
+--     each button's required_permission (default apicall.invoke) gates pressing
+--     it (enforced by the service-client invoke action, not RLS).
+--   api_call_log: append-only, secrets-redacted audit. SELECT = door.manage;
+--     NO client write policy (validated service-client invoker only; immutable).
+--   New permission code apicall.invoke (group Access) is seeded above.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.api_buttons (
+  id                  uuid        PRIMARY KEY DEFAULT uuid_generate_v4(),
+  space_id            uuid        NOT NULL REFERENCES public.spaces(id) ON DELETE CASCADE,
+  label               text        NOT NULL CHECK (char_length(label) BETWEEN 1 AND 120),
+  button_group        text        NOT NULL DEFAULT 'General' CHECK (char_length(button_group) BETWEEN 1 AND 60),
+  sort_order          integer     NOT NULL DEFAULT 0,
+  method              text        NOT NULL DEFAULT 'POST'
+                                  CHECK (method IN ('GET','POST','PUT','PATCH','DELETE')),
+  base_url            text        NOT NULL CHECK (base_url ~ '^https?://'),
+  pinned_host         text        NOT NULL CHECK (char_length(pinned_host) BETWEEN 1 AND 255),
+  url_template        text,
+  headers             jsonb       NOT NULL DEFAULT '{}',
+  body_template       text,
+  auth_mode           text        NOT NULL DEFAULT 'none'
+                                  CHECK (auth_mode IN ('none','query','header','bearer')),
+  auth_param          text,
+  secret_ref          uuid        REFERENCES public.secrets(id) ON DELETE SET NULL,
+  required_permission text        NOT NULL DEFAULT 'apicall.invoke'
+                                  CHECK (char_length(required_permission) BETWEEN 1 AND 60),
+  confirm             boolean     NOT NULL DEFAULT true,
+  is_enabled          boolean     NOT NULL DEFAULT true,
+  created_by          uuid        REFERENCES public.space_members(id) ON DELETE SET NULL,
+  created_at          timestamptz NOT NULL DEFAULT now(),
+  updated_at          timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_api_buttons_space ON public.api_buttons (space_id, button_group, sort_order);
+
+CREATE TABLE IF NOT EXISTS public.api_call_log (
+  id               uuid        PRIMARY KEY DEFAULT uuid_generate_v4(),
+  space_id         uuid        NOT NULL REFERENCES public.spaces(id) ON DELETE CASCADE,
+  button_id        uuid        REFERENCES public.api_buttons(id) ON DELETE SET NULL,
+  actor_member_id  uuid        REFERENCES public.space_members(id) ON DELETE SET NULL,
+  action           text        NOT NULL,
+  success          boolean     NOT NULL DEFAULT false,
+  detail           text,
+  occurred_at      timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_api_call_log_space ON public.api_call_log (space_id, occurred_at DESC);
+
+ALTER TABLE public.api_buttons  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.api_call_log ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS api_buttons_select ON public.api_buttons;
+DROP POLICY IF EXISTS api_buttons_insert ON public.api_buttons;
+DROP POLICY IF EXISTS api_buttons_update ON public.api_buttons;
+DROP POLICY IF EXISTS api_buttons_delete ON public.api_buttons;
+CREATE POLICY api_buttons_select ON public.api_buttons FOR SELECT
+  USING (public.user_has_permission(auth.uid(), space_id, 'door.manage'));
+CREATE POLICY api_buttons_insert ON public.api_buttons FOR INSERT
+  WITH CHECK (public.user_has_permission(auth.uid(), space_id, 'door.manage'));
+CREATE POLICY api_buttons_update ON public.api_buttons FOR UPDATE
+  USING (public.user_has_permission(auth.uid(), space_id, 'door.manage'));
+CREATE POLICY api_buttons_delete ON public.api_buttons FOR DELETE
+  USING (public.user_has_permission(auth.uid(), space_id, 'door.manage'));
+
+DROP POLICY IF EXISTS api_call_log_select ON public.api_call_log;
+CREATE POLICY api_call_log_select ON public.api_call_log FOR SELECT
+  USING (public.user_has_permission(auth.uid(), space_id, 'door.manage'));
+
+DROP TRIGGER IF EXISTS trg_api_buttons_touch ON public.api_buttons;
+CREATE TRIGGER trg_api_buttons_touch
+  BEFORE UPDATE ON public.api_buttons
   FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
 
 

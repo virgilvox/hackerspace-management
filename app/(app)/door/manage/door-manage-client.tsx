@@ -32,6 +32,8 @@ type Conn = {
   verbs: Record<string, string> | null
   allow_member_self_entry: boolean
   is_enabled: boolean
+  inbound_enabled: boolean
+  inbound_secret_ref: string | null
 }
 type LogRow = { id: string; action: string; success: boolean; detail: string | null; occurred_at: string }
 type DoorCard = { cardId: string; memberName: string; label: string | null; last4: string; slot: number | null }
@@ -65,6 +67,7 @@ export function DoorManageClient({
   const [cardsFor, setCardsFor] = useState<string | null>(null)
   const [cards, setCards] = useState<DoorCard[]>([])
   const [cardsBusy, setCardsBusy] = useState(false)
+  const [inboundFor, setInboundFor] = useState<string | null>(null)
   const rows = log as LogRow[]
 
   async function onControl(c: Conn, verb: 'open' | 'unlock' | 'lock') {
@@ -161,6 +164,7 @@ export function DoorManageClient({
         pinned_host: d.pinned_host.trim(), auth_mode: d.secret_ref ? 'query' : 'none',
         auth_param: d.adapter === 'native_heatsync' ? 'e' : null, secret_ref: d.secret_ref || null,
         verbs: buildVerbs(d), allow_member_self_entry: d.allow_member_self_entry, is_enabled: true,
+        inbound_enabled: false, inbound_secret_ref: null,
       },
       ...prev,
     ])
@@ -189,6 +193,36 @@ export function DoorManageClient({
     const res = await updateDoorConnection({ connectionId: c.id, allow_member_self_entry: next })
     if ('error' in res && res.error) return toast.error(res.error)
     setConns(prev => prev.map(x => (x.id === c.id ? { ...x, allow_member_self_entry: next } : x)))
+  }
+
+  async function onSetInboundSecret(c: Conn, ref: string) {
+    const res = await updateDoorConnection({ connectionId: c.id, inbound_secret_ref: ref || null })
+    if ('error' in res && res.error) return toast.error(res.error)
+    setConns(prev => prev.map(x => (x.id === c.id ? { ...x, inbound_secret_ref: ref || null } : x)))
+  }
+
+  async function onToggleInbound(c: Conn) {
+    const next = !c.inbound_enabled
+    if (next && !c.inbound_secret_ref) {
+      return toast.error('Choose a webhook secret first; it authenticates inbound events.')
+    }
+    const res = await updateDoorConnection({ connectionId: c.id, inbound_enabled: next })
+    if ('error' in res && res.error) return toast.error(res.error)
+    setConns(prev => prev.map(x => (x.id === c.id ? { ...x, inbound_enabled: next } : x)))
+  }
+
+  function webhookUrl(id: string): string {
+    const origin = typeof window !== 'undefined' ? window.location.origin : ''
+    return `${origin}/api/door/inbound/${id}`
+  }
+
+  async function copyWebhookUrl(id: string) {
+    try {
+      await navigator.clipboard.writeText(webhookUrl(id))
+      toast.success('Webhook URL copied')
+    } catch {
+      toast.error('Could not copy. Select and copy the URL manually.')
+    }
   }
 
   async function onTest(c: Conn) {
@@ -332,6 +366,7 @@ export function DoorManageClient({
                       <Badge variant="outline">{c.adapter === 'native_heatsync' ? 'HeatSync' : 'Generic'}</Badge>
                       {!c.is_enabled && <Badge variant="outline">Disabled</Badge>}
                       {c.allow_member_self_entry && <span className="font-mono text-[10px] text-amber-600">self-entry on</span>}
+                      {c.inbound_enabled && <span className="font-mono text-[10px] text-primary">inbound on</span>}
                     </div>
                     <p className="font-mono text-[10px] text-muted-foreground mt-1">
                       {c.base_url} · pinned {c.pinned_host} · auth {c.secret_ref ? 'secret' : 'none'}
@@ -342,6 +377,9 @@ export function DoorManageClient({
                     <Button size="sm" variant="outline" onClick={() => onToggleEnabled(c)}>{c.is_enabled ? 'Disable' : 'Enable'}</Button>
                     <Button size="sm" variant="outline" onClick={() => onToggleSelfEntry(c)}>
                       {c.allow_member_self_entry ? 'Self-entry off' : 'Self-entry on'}
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setInboundFor(v => (v === c.id ? null : c.id))}>
+                      {inboundFor === c.id ? 'Hide inbound' : 'Inbound'}
                     </Button>
                     <Button size="sm" variant="outline" onClick={() => onDelete(c)}>Delete</Button>
                   </div>
@@ -356,6 +394,45 @@ export function DoorManageClient({
                     <Button size="sm" variant="outline" onClick={() => loadCards(c)}>
                       {cardsFor === c.id ? 'Hide cards' : 'Cards'}
                     </Button>
+                  </div>
+                )}
+
+                {inboundFor === c.id && (
+                  <div className="rounded border border-border bg-background p-3 space-y-3">
+                    <div className="text-xs text-muted-foreground space-y-1">
+                      <p className="font-sans">
+                        Inbound ingest pulls real entry/denied events into the access log and
+                        matches each presented card to a member. Two transports, one switch:
+                        the once-a-minute poll reads a HeatSync controller&rsquo;s log, and the
+                        webhook accepts events POSTed by any controller or relay. Turn it on per
+                        connection after choosing a webhook secret.
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <select
+                        className={input}
+                        value={c.inbound_secret_ref ?? ''}
+                        onChange={e => onSetInboundSecret(c, e.target.value)}
+                      >
+                        <option value="">No webhook secret</option>
+                        {secrets.map(s => <option key={s.id} value={s.id}>Secret: {s.title}</option>)}
+                      </select>
+                      <Button size="sm" variant="outline" onClick={() => onToggleInbound(c)}>
+                        {c.inbound_enabled ? 'Turn inbound off' : 'Turn inbound on'}
+                      </Button>
+                    </div>
+                    <div className="rounded border border-border bg-card p-2 space-y-2">
+                      <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Webhook URL</p>
+                      <div className="flex items-center gap-2">
+                        <code className="font-mono text-[10px] text-foreground break-all min-w-0">{webhookUrl(c.id)}</code>
+                        <Button size="sm" variant="outline" className="shrink-0" onClick={() => copyWebhookUrl(c.id)}>Copy</Button>
+                      </div>
+                      <p className="font-mono text-[10px] text-muted-foreground">
+                        POST with header <code>Authorization: Bearer &lt;your webhook secret&gt;</code> and a JSON
+                        body <code>{'{ "events": [{ "id": "<stable-id>", "card_uid": "<hex>", "result": "granted" }] }'}</code>.
+                        The <code>id</code> dedupes retries; <code>card_uid</code> or <code>card_number</code> identifies the card.
+                      </p>
+                    </div>
                   </div>
                 )}
 

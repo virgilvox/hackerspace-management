@@ -28,6 +28,43 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-20 (pass 64): Door epic Phase 5 (universal API-call UI builder) (LOCAL, NOT deployed)
+
+Branch `main`. Completes the door epic. Design-first via AskUserQuestion; the user chose **full verbs** (GET/POST/PUT/PATCH/DELETE) + **per-button required permission**. Suite 624 unit (was 615; +9 buildApiRequest tests) / 50 integration (was 44; +6 api-buttons) / build green / lint clean.
+
+**Shipped (local):**
+- **Migration 054**: new permission code `apicall.invoke` (group Access) seeded into `seed_default_role_permissions` (CREATE OR REPLACE) + backfilled for board on existing spaces (additive, like door.* in 034). `api_buttons` (label, button_group, sort_order, method, base_url, pinned_host, url_template, headers jsonb, body_template, auth_mode/auth_param, secret_ref -> vault, required_permission default apicall.invoke, confirm, is_enabled) + `api_call_log` (append-only press audit, redacted, service-client-only). All button CRUD = `door.manage` (the catalog already scopes door.manage to "buttons"); per-button required_permission gates pressing (enforced by the invoke action, members have no RLS read on defs). schema.sql + types + DATABASE_SCHEMA + DB_SCHEMA_MAP + catalog same-change.
+- **Shared egress**: refactored `lib/door/executor.ts` so the SSRF+resolve+connect-by-IP+no-redirect+caps+redact core is one internal `egress`; `callDoor` (GET) is behavior-identical (guarded by the existing door tests), `callApi` adds full verbs + headers + body + per-auth_mode secret injection, host header forced to the pin. Pure request assembly in `lib/api-call-logic.ts` (`buildApiRequest`) + 9 unit tests.
+- **Actions** `lib/actions/api-buttons.ts`: manage CRUD + `listApiCallLog` (door.manage); `listInvokableButtons` (curated, presentational-only) + `invokeApiButton` (rate-limit-first, per-row permission check, denials audited, secret server-side, redacted audit). Zod schemas (method enum, https? url, header count/length caps, required_permission refined against the catalog).
+- **UI**: builder `/door/buttons` (grouped list, create form, door-template preset, secret + required_permission pickers, enable/delete, the call log) + sidebar "API buttons" link (door.manage). Member invoke: an "Actions" section on `/doors` (grouped buttons, confirm dialog).
+- **Audit**: SSRF egress reused (host pin + metadata block absolute even for admin config; member never supplies url/headers/body, only a buttonId); tenant-isolated; secret space-scoped + never returned + redacted; all rendering escaped JSX; single secrets FK (PGRST safe, auth-embed green). **Fix:** moved the invoke rate-limit before any DB work so a member can't flood denial-audit rows.
+
+**Deploy state.** NOT deployed; **batched with the pass-63 (P4) work** awaiting one deploy authorization. Migrations 053 + 054 applied to the LOCAL stack only. No new env var or cron for P5 (all in-app). Inert until an admin creates a button.
+
+**Open / next.** Door epic is feature-complete (P1-P5). v1 limits (documented, not bugs): the builder supports create/enable/delete (full field edit = delete+recreate); buttons use static url/headers/body (no per-press placeholder substitution). Browser click-through of `/door/buttons` + the `/doors` Actions section still pending (auth-gated). Back to the main backlog after this: owner-gated spine validation, observability, etc.
+
+---
+
+## 2026-05-20 (pass 63): Door epic Phase 4 (inbound access-log ingest) (LOCAL, NOT deployed)
+
+Branch `main`. Took backlog item 6. Design-first via AskUserQuestion; the user chose BOTH transports. Built poll + webhook sharing one ingest core. Suite 612 unit (was 594; +18 parser tests) / 44 integration (was 40; +4 door-ingest) / build green / lint clean.
+
+**Web-verified first.** Refetched `zyphlar/Open_Access_Control_Ethernet.ino` and characterized the `?z` wire format (recorded in memory `integration-api-facts`): `<pre>`-wrapped `K: N` stream from a fixed 40-slot ring (no per-entry id), card number split across G+g/D+d with divisor 32767, emitted decimal vs hex-stored uid, H:M:E only at verbosity <2. Conclusion: poll is best-effort, webhook (explicit ids) is the reliable path.
+
+**Shipped (local):**
+- **Migration 053** (additive only): `door_access_log.dedupe_key` + partial-unique `(connection_id, dedupe_key)` (re-poll / webhook-retry no-op; action rows stay NULL/unconstrained); `door_connections.inbound_enabled` (opt-in, off) + `inbound_secret_ref -> secrets` (inbound bearer secret, distinct from the outbound password). schema.sql + types + DATABASE_SCHEMA + DB_SCHEMA_MAP same-change. PGRST: 2 secrets FKs but surrogate PK = not a junction (safe re 052); auth-embed test still green.
+- **Pure parser** `lib/door-log-logic.ts` (`parseHeatSyncLog`, `normalizeWebhookEvents`, `cardUidsEquivalent` hex/decimal match) + 18 unit tests.
+- **Ingest core** `lib/door/ingest.ts` (resolve card->member, dedupe-insert via service client). Extracted the shared `resolveDoorSecret` to `lib/door/secret.ts` (door.ts now imports it). Executor gained an additive `fullBody` option (32KB cap; existing callers unchanged at 4096/500).
+- **Poll** `POST /api/cron/door-ingest` (CRON_SECRET, proxy-whitelisted, native_heatsync + inbound_enabled only, ≤50 conns/run). **Webhook** `POST /api/door/inbound/[connection]` (proxy-whitelisted prefix, per-connection bearer constant-time, generic 401 non-oracle, 64KB body guard, 120/min, Zod ≤100 events). Both feed the ingest core.
+- **Admin UI**: per-connection "Inbound" panel on `/door/manage` (secret picker, on/off toggle that requires a secret first, copyable webhook URL + payload hint, "inbound on" badge).
+- **Audit hardening** (3 passes): body-size guard before JSON parse; `occurred_at` clamped not-in-future so a relay can't reorder the log. **Fresh-pass real bug fixed:** the `?z` body is untrusted plaintext HTTP, and `Number('9'*400)===Infinity` then `BigInt(Infinity)` THROWS, which would 500 the whole poll and starve other connections; capped the parser value at 15 digits (firmware is int32) + bounded the G/g pairing window + wrapped each connection in the cron loop in try/catch. Verified: executor change behavior-identical for existing callers; inbound secret space-scoped on write + read; tenant isolation from the looked-up connection; ingested `detail` renders as escaped JSX (no XSS); audit log stays immutable from the client (integration-tested). Accepted trade-offs (documented): decrypt-flood needs an unguessable uuid; `resolved` count is mild info to the already-trusted relay; the content-length guard is best-effort behind the platform body limit.
+
+**Deploy state.** NOT deployed; awaiting the per-request go (ASK-before-deploy). Migration 053 is applied to the LOCAL stack only. No new env var (reuses CRON_SECRET); the door-ingest crontab line is documented in DEPLOYMENT but optional (only spaces that enable inbound need it). Inert until an admin turns on `inbound_enabled` for a connection.
+
+**Open / next.** Door epic **Phase 5** (universal API-call UI builder, `api_buttons`) is the remaining door work; it needs its own design pass (HTTP-method scope + per-button vs fixed invoke permission forks) and extends the executor to method+headers+body. Browser click-through of the `/door/manage` inbound panel still pending (auth-gated; can't curl). Minor deferred: a far-future-date relay can't reorder but a near-now spoof is accepted (trusted relay); `resolved` count is mild info to the trusted relay.
+
+---
+
 ## 2026-05-20 (pass 62): Diversified surface audit + fixes (DEPLOYED)
 
 Branch `main`. Audited surfaces I had NOT recently touched, via three parallel independent reviews: (1) anonymous/public + all `app/api/**` route handlers, (2) XSS / unsafe rendering across the whole app, (3) authorization + tenant-isolation in legacy server actions (tasks/projects/members/kb/secrets/contacts/comms/classes/equipment/door/presence/certs/invites/roles/permissions/onboarding/forms/governance). **No P0 on any surface.** Suite 594 / build green.

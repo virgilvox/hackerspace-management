@@ -30,6 +30,15 @@ const PUBLIC_ROUTES = [
   // Scoped to the exact route so a future /api/cron/* without its own
   // secret is not exposed.
   '/api/cron/notifications',
+  // Door inbound-log poll, also crontab-driven; enforces its own CRON_SECRET.
+  // Scoped to the exact route.
+  '/api/cron/door-ingest',
+  // Per-connection inbound door-event webhook. Called by a controller/relay
+  // with no session; each request is authenticated by the connection's bearer
+  // secret in the route handler. The [connection] segment varies, so this is a
+  // prefix match (every /api/door/inbound/* path is session-exempt and must
+  // self-authenticate).
+  '/api/door/inbound',
   // Public form / waiver fill page. Only /f/[slug] lives here and must be
   // reachable anonymously (the page serves only published public forms and
   // submitForm enforces visibility). The /forms* management routes do NOT

@@ -28,7 +28,7 @@ import {
 } from '@/lib/door-logic'
 import { pickLowestFreeSlot, slotCapacity } from '@/lib/door-slots-logic'
 import { callDoor } from '@/lib/door/executor'
-import { decryptSecret } from '@/lib/secrets/crypto'
+import { resolveDoorSecret } from '@/lib/door/secret'
 import { checkRateLimit } from '@/lib/security'
 
 type Gate =
@@ -50,37 +50,10 @@ async function requireDoorManager(): Promise<Gate> {
   return { ok: true, supabase, member }
 }
 
-// Load + decrypt a connection's door password from the encrypted secrets
-// vault. Service client: a door manager may legitimately not hold
-// ops.secrets.read, and the plaintext must never reach the browser. Returns
-// null when no secret is referenced (auth_mode 'none').
-async function resolveSecret(
-  admin: ReturnType<typeof createAdminClient>,
-  spaceId: string,
-  secretRef: string | null,
-): Promise<string | null> {
-  if (!secretRef) return null
-  const { data } = await admin
-    .from('secrets')
-    .select('encryption_version, encrypted_value, value')
-    .eq('id', secretRef)
-    .eq('space_id', spaceId)
-    .maybeSingle()
-  if (!data) return null
-  if (data.encryption_version === 1 && data.encrypted_value) {
-    const raw = data.encrypted_value as unknown
-    const buf =
-      typeof raw === 'string'
-        ? Buffer.from((raw as string).replace(/^\\x/, ''), 'hex')
-        : Buffer.from(raw as Uint8Array)
-    try {
-      return decryptSecret(buf, 1)
-    } catch {
-      return null
-    }
-  }
-  return (data.value as string | null) ?? null
-}
+// Connection door password is loaded + decrypted via the shared
+// resolveDoorSecret (lib/door/secret.ts); service client, never returned to
+// the browser. Aliased here to keep the existing call sites unchanged.
+const resolveSecret = resolveDoorSecret
 
 function isUniqueViolation(message: string): boolean {
   return /duplicate key value|already exists|unique constraint/i.test(message)
@@ -97,15 +70,18 @@ export async function createDoorConnection(input: unknown) {
   if (!v.ok) return { error: v.error }
   const c = v.data
 
-  if (c.secret_ref) {
+  const refs = [c.secret_ref, c.inbound_secret_ref].filter(Boolean) as string[]
+  if (refs.length > 0) {
     const admin = createAdminClient()
-    const { data: sec } = await admin
-      .from('secrets')
-      .select('id')
-      .eq('id', c.secret_ref)
-      .eq('space_id', member.space_id)
-      .maybeSingle()
-    if (!sec) return { error: 'The referenced secret was not found in this space.' }
+    for (const ref of refs) {
+      const { data: sec } = await admin
+        .from('secrets')
+        .select('id')
+        .eq('id', ref)
+        .eq('space_id', member.space_id)
+        .maybeSingle()
+      if (!sec) return { error: 'The referenced secret was not found in this space.' }
+    }
   }
 
   const { data, error } = await supabase
@@ -122,6 +98,8 @@ export async function createDoorConnection(input: unknown) {
       verbs: c.verbs,
       allow_member_self_entry: c.allow_member_self_entry,
       is_enabled: c.is_enabled,
+      inbound_enabled: c.inbound_enabled,
+      inbound_secret_ref: c.inbound_secret_ref ?? null,
       created_by: member.id,
     })
     .select('id')
@@ -145,21 +123,25 @@ export async function updateDoorConnection(input: unknown) {
   if (!v.ok) return { error: v.error }
   const u = v.data
 
-  if (u.secret_ref) {
+  const refs = [u.secret_ref, u.inbound_secret_ref].filter(Boolean) as string[]
+  if (refs.length > 0) {
     const admin = createAdminClient()
-    const { data: sec } = await admin
-      .from('secrets')
-      .select('id')
-      .eq('id', u.secret_ref)
-      .eq('space_id', member.space_id)
-      .maybeSingle()
-    if (!sec) return { error: 'The referenced secret was not found in this space.' }
+    for (const ref of refs) {
+      const { data: sec } = await admin
+        .from('secrets')
+        .select('id')
+        .eq('id', ref)
+        .eq('space_id', member.space_id)
+        .maybeSingle()
+      if (!sec) return { error: 'The referenced secret was not found in this space.' }
+    }
   }
 
   const patch: Record<string, unknown> = {}
   for (const k of [
     'name', 'adapter', 'base_url', 'pinned_host', 'auth_mode',
     'auth_param', 'secret_ref', 'verbs', 'allow_member_self_entry', 'is_enabled',
+    'inbound_enabled', 'inbound_secret_ref',
   ] as const) {
     if (u[k] !== undefined) patch[k] = u[k] === undefined ? null : u[k] ?? null
   }
@@ -204,7 +186,7 @@ export async function listDoorConnections() {
 
   const { data, error } = await supabase
     .from('door_connections')
-    .select('id, name, adapter, base_url, pinned_host, auth_mode, auth_param, secret_ref, verbs, allow_member_self_entry, is_enabled, updated_at')
+    .select('id, name, adapter, base_url, pinned_host, auth_mode, auth_param, secret_ref, verbs, allow_member_self_entry, is_enabled, inbound_enabled, inbound_secret_ref, updated_at')
     .eq('space_id', member.space_id)
     .order('name', { ascending: true })
   if (error) return { error: error.message }

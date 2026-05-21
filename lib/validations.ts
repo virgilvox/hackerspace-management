@@ -2,6 +2,8 @@ import { z } from 'zod'
 import { INVITE_ROLES } from './invite-logic'
 import { MUTEABLE_CATEGORIES } from './notifications-prefs-logic'
 import { DUES_LINK_PLATFORMS, isSafeDuesUrl } from './dues-payments-logic'
+import { isValidPermission } from './permissions-catalog'
+import { API_METHODS } from './api-call-logic'
 
 /**
  * Accepts every date-ish string the app produces and normalizes to a
@@ -953,6 +955,11 @@ export const createDoorConnectionSchema = z.object({
   verbs: z.record(z.string().max(2000)).optional().default({}),
   allow_member_self_entry: z.boolean().optional().default(false),
   is_enabled: z.boolean().optional().default(true),
+  // Inbound access-log ingest (P4). inbound_enabled gates both the poll cron
+  // and the per-connection webhook; inbound_secret_ref is the webhook bearer
+  // secret (a secrets-vault row), distinct from secret_ref.
+  inbound_enabled: z.boolean().optional().default(false),
+  inbound_secret_ref: z.string().uuid('Invalid secret reference').optional().nullable(),
 })
 
 export const updateDoorConnectionSchema = z.object({
@@ -967,6 +974,8 @@ export const updateDoorConnectionSchema = z.object({
   verbs: z.record(z.string().max(2000)).optional(),
   allow_member_self_entry: z.boolean().optional(),
   is_enabled: z.boolean().optional(),
+  inbound_enabled: z.boolean().optional(),
+  inbound_secret_ref: z.string().uuid('Invalid secret reference').optional().nullable(),
 })
 
 export const doorConnectionIdSchema = z.object({
@@ -990,6 +999,79 @@ export const doorRevokeSchema = z.object({
 export const doorControlSchema = z.object({
   connectionId: z.string().uuid('Invalid connection ID'),
   verb: z.enum(['open', 'unlock', 'lock']),
+})
+
+// ─── Door inbound webhook (Door epic P4) ─────────────────────────────────────
+// A controller or relay pushes access events to /api/door/inbound/[connection],
+// authenticated by the connection's inbound bearer secret. Each event MUST
+// carry a stable id (the dedupe token; retries are idempotent). At least one of
+// card_uid / card_number identifies the card; result states the access
+// decision. The batch is bounded so one request cannot enqueue unbounded work.
+const doorWebhookEvent = z.object({
+  id: z.string().min(1).max(200),
+  card_uid: z.string().trim().min(1).max(200).optional().nullable(),
+  card_number: z.string().trim().regex(/^\d{1,20}$/, 'card_number must be digits').optional().nullable(),
+  result: z.enum(['granted', 'denied', 'unknown']).optional(),
+  occurred_at: z.string().datetime({ offset: true }).optional().nullable(),
+})
+
+export const doorWebhookPayloadSchema = z.object({
+  events: z.array(doorWebhookEvent).min(1).max(100),
+})
+
+// ─── Universal API-call buttons (Door epic P5) ───────────────────────────────
+const apiMethod = z.enum(API_METHODS)
+const apiAuthMode = z.enum(['none', 'query', 'header', 'bearer'])
+// required_permission must be a real catalog code (any of them; the admin picks
+// which capability gates pressing the button, default apicall.invoke).
+const requiredPermission = z
+  .string()
+  .max(60)
+  .refine(isValidPermission, 'Unknown permission code')
+// A flat string->string header map, bounded in count and value length.
+const apiHeaders = z
+  .record(z.string().max(2000))
+  .refine(h => Object.keys(h).length <= 20, 'Too many headers (max 20)')
+
+export const createApiButtonSchema = z.object({
+  label: z.string().min(1, 'Label is required').max(120),
+  button_group: z.string().min(1).max(60).optional().default('General'),
+  sort_order: z.number().int().min(0).max(100000).optional().default(0),
+  method: apiMethod.optional().default('POST'),
+  base_url: httpUrl,
+  pinned_host: z.string().min(1, 'A pinned host is required').max(255),
+  url_template: z.string().max(2000).optional().nullable(),
+  headers: apiHeaders.optional().default({}),
+  body_template: z.string().max(8000).optional().nullable(),
+  auth_mode: apiAuthMode.optional().default('none'),
+  auth_param: z.string().max(120).optional().nullable(),
+  secret_ref: z.string().uuid('Invalid secret reference').optional().nullable(),
+  required_permission: requiredPermission.optional().default('apicall.invoke'),
+  confirm: z.boolean().optional().default(true),
+  is_enabled: z.boolean().optional().default(true),
+})
+
+export const updateApiButtonSchema = z.object({
+  buttonId: z.string().uuid('Invalid button ID'),
+  label: z.string().min(1).max(120).optional(),
+  button_group: z.string().min(1).max(60).optional(),
+  sort_order: z.number().int().min(0).max(100000).optional(),
+  method: apiMethod.optional(),
+  base_url: httpUrl.optional(),
+  pinned_host: z.string().min(1).max(255).optional(),
+  url_template: z.string().max(2000).optional().nullable(),
+  headers: apiHeaders.optional(),
+  body_template: z.string().max(8000).optional().nullable(),
+  auth_mode: apiAuthMode.optional(),
+  auth_param: z.string().max(120).optional().nullable(),
+  secret_ref: z.string().uuid('Invalid secret reference').optional().nullable(),
+  required_permission: requiredPermission.optional(),
+  confirm: z.boolean().optional(),
+  is_enabled: z.boolean().optional(),
+})
+
+export const apiButtonIdSchema = z.object({
+  buttonId: z.string().uuid('Invalid button ID'),
 })
 
 // ─── Presence / attendance ───────────────────────────────────────────────────

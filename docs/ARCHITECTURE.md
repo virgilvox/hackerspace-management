@@ -616,8 +616,50 @@ row; surfaced as a "Door access" panel on the dashboard and on the
 member `/doors` page (self-entry + masked own cards via `getMyCards` +
 the member's own recent activity via `listMyDoorActivity`, a service-client
 read after `requireMember` filtered to that member), hidden entirely for
-ineligible members. Phases 4-5 add inbound log ingest and the
-universal API-call UI builder. No anonymous path. The executor is the
+ineligible members. Phase 4 (053) adds inbound access-log ingest: real
+entry/denied events are pulled INTO `door_access_log` and matched to a
+member, via two transports that share one ingest core
+(`lib/door/ingest.ts`). Poll: `POST /api/cron/door-ingest` (constant-time
+`CRON_SECRET`, `proxy.ts`-whitelisted, once-a-minute crontab) reads each
+`inbound_enabled` native-HeatSync connection's `?z` log through the same
+hardened executor (`fullBody`, capped) and parses it with the pure,
+firmware-characterized `lib/door-log-logic.ts` (`<pre>` ring-buffer dump,
+G+g/D+d card-number reconstruction with the 32767 divisor, best-effort
+H:M:E). Webhook: `POST /api/door/inbound/[connection]` (also
+`proxy.ts`-whitelisted, session-exempt) accepts pushed event JSON from any
+controller/relay, authenticated by a per-connection bearer secret
+(`inbound_secret_ref`, a distinct vault secret from the outbound password,
+constant-time compared); body-size guarded, rate-limited, Zod-validated
+(≤100 events). Both resolve a presented card to a member via numeric
+hex/decimal equality (`cardUidsEquivalent`) and dedupe-insert through the
+service client: `door_access_log.dedupe_key` + the partial-unique
+`(connection_id, dedupe_key)` index make a re-poll or webhook retry a
+no-op, while NULL-keyed action rows stay unconstrained. The poll is
+inherently best-effort (the HeatSync ring buffer has no per-entry sequence
+id); the webhook (explicit event ids) is the reliable transport. The audit
+log stays no-client-write/immutable; a webhook-supplied `occurred_at` is
+clamped to not-in-the-future so a relay cannot reorder the operator's log.
+Phase 5 (054) is the universal API-call UI builder: admins (door.manage,
+which the catalog already scopes to "buttons") define `api_buttons` (label,
+group, method GET/POST/PUT/PATCH/DELETE, base_url, pinned_host, url_template,
+headers, body_template, auth_mode/auth_param, vault `secret_ref`, confirm,
+and a per-button `required_permission`). A member presses only buttons whose
+`required_permission` they hold (one new generic code `apicall.invoke`, the
+default; a door-flavored button can require `door.operate`). `listInvokable
+Buttons` is a service-client read returning only presentational fields (never
+url/headers/secret); `invokeApiButton` is rate-limited-first, loads the
+definition service-side scoped to the member's space, checks the per-row
+permission (denials audited), decrypts the secret server-side and fires
+through `callApi`. The egress is now shared: the SSRF+resolve+connect-by-IP+
+no-redirect+caps+redact core is factored into one internal `egress`, with
+`callDoor` (GET, query secret) and `callApi` (full verbs + headers + body +
+secret injected per auth_mode, host header forced to the pin) on top; pure
+request assembly + secret placement is unit-tested in `lib/api-call-logic.ts`
+(`buildApiRequest`). The metadata/link-local block is absolute even for an
+admin-configured button. `api_call_log` is the append-only, redacted,
+service-client-only press audit (SELECT = door.manage). The builder lives at
+`/door/buttons` (with a door-template preset); members press from `/doors`.
+No anonymous path. The executor is the
 single hardened egress: it resolves the controller host once via
 `dns.lookup`, rejects if any resolved IP is loopback / unspecified /
 link-local / metadata (IPv4-mapped IPv6 normalized; RFC1918 / LAN / ULA

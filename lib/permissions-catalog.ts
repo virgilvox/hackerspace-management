@@ -29,6 +29,7 @@ export const PERMISSIONS = [
   { code: 'equipment.manage',   group: 'Equipment', label: 'Manage equipment and reservations' },
   { code: 'door.manage',        group: 'Access', label: 'Configure door integrations, buttons, and member cards' },
   { code: 'door.operate',       group: 'Access', label: 'Operate doors: open/lock, push/revoke cards' },
+  { code: 'apicall.invoke',     group: 'Access', label: 'Use API-call buttons (non-door automations)' },
   { code: 'customize.manage',   group: 'Admin', label: 'Customize roles, tiers, areas, invites, onboarding' },
   { code: 'settings.manage',    group: 'Admin', label: 'Space settings, integrations, webhooks' },
 ] as const
@@ -51,7 +52,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, PermissionCode[]> = {
     'certifications.manage', 'certifications.grant',
     'classes.manage', 'classes.instruct',
     'equipment.manage',
-    'door.manage', 'door.operate',
+    'door.manage', 'door.operate', 'apicall.invoke',
     'customize.manage', 'settings.manage',
   ],
   treasurer: ['payments.manage', 'ops.kb.read', 'ops.process.read'],

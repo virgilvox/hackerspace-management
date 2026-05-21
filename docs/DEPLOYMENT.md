@@ -64,6 +64,16 @@ Transactional email is an outbox drained by `POST /api/cron/notifications`. Add 
 
 It hits the app locally (bypassing Caddy), self-throttles under Resend's rate limit, and is idempotent, so a missed or overlapping minute is harmless. Migration `041_notifications.sql` is applied automatically by `deploy.sh` like every other `scripts/0*.sql`; no manual database step.
 
+### Door inbound-log poll cron (optional, door epic Phase 4)
+
+If a space runs a native-HeatSync controller and turns on inbound ingest (per connection, on `/door/manage`), the once-a-minute poll pulls its `?z` log into the access log and matches each card to a member. It reuses the same `CRON_SECRET`; add a second crontab entry:
+
+```
+* * * * * curl -fsS -m 30 -X POST http://127.0.0.1:3000/api/cron/door-ingest -H "Authorization: Bearer $CRON_SECRET" >/dev/null 2>&1
+```
+
+No new env var. The route returns 503 if `CRON_SECRET` is unset and 401 on mismatch, polls only connections with `inbound_enabled` + `adapter='native_heatsync'`, and is idempotent (overlapping or missed minutes are harmless; events dedupe on `(connection_id, dedupe_key)`). Generic (non-HeatSync) controllers do NOT use this poll; they push to the per-connection webhook instead (`POST /api/door/inbound/[connection]`, authenticated by the connection's bearer secret from the vault — no env var, no crontab; the webhook URL is shown on `/door/manage` when inbound is enabled). Migration `053_door_inbound_ingest.sql` applies automatically with the rest.
+
 ### Member email change (Supabase Auth config — required)
 
 The self-serve "change my login email" feature (`/me` Profile tab) needs Supabase project configuration that is NOT in code. Until this is set, requesting an email change will send a link that does not land correctly.
