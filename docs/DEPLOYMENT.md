@@ -59,14 +59,15 @@ For initial server provisioning (Docker, the Supabase stack, Caddy, firewall, SS
 Transactional email is an outbox drained by `POST /api/cron/notifications`. Add a once-a-minute root crontab entry on the Droplet (after `RESEND_API_KEY`, `EMAIL_FROM`, `CRON_SECRET` are set in the app `.env`):
 
 ```
+CRON_SECRET=<the same value set in .env.production>
 * * * * * curl -fsS -m 30 -X POST http://127.0.0.1:3000/api/cron/notifications -H "Authorization: Bearer $CRON_SECRET" >/dev/null 2>&1
 ```
 
-It hits the app locally (bypassing Caddy), self-throttles under Resend's rate limit, and is idempotent, so a missed or overlapping minute is harmless. Migration `041_notifications.sql` is applied automatically by `deploy.sh` like every other `scripts/0*.sql`; no manual database step.
+Define `CRON_SECRET=` on its own line at the top of the crontab. A crontab runs with a bare environment, so a bare `$CRON_SECRET` reference expands to empty and every call silently 401s (the `>/dev/null 2>&1` hides it). It hits the app locally (bypassing the reverse proxy), self-throttles under Resend's rate limit, and is idempotent, so a missed or overlapping minute is harmless. Migration `041_notifications.sql` is applied automatically by `deploy.sh` like every other `scripts/0*.sql`; no manual database step.
 
 ### Door inbound-log poll cron (optional, door epic Phase 4)
 
-If a space runs a native-HeatSync controller and turns on inbound ingest (per connection, on `/door/manage`), the once-a-minute poll pulls its `?z` log into the access log and matches each card to a member. It reuses the same `CRON_SECRET`; add a second crontab entry:
+If a space runs a native-HeatSync controller and turns on inbound ingest (per connection, on `/door/manage`), the once-a-minute poll pulls its `?z` log into the access log and matches each card to a member. It reuses the same `CRON_SECRET`; add a second crontab entry under the same inline `CRON_SECRET=` definition as above:
 
 ```
 * * * * * curl -fsS -m 30 -X POST http://127.0.0.1:3000/api/cron/door-ingest -H "Authorization: Bearer $CRON_SECRET" >/dev/null 2>&1

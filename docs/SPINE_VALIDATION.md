@@ -28,11 +28,12 @@ Conventions: `APP` = your app domain (e.g. `hackerspace.sh`). `SPACE_ID` = the i
 3. Add two root crontab entries (`crontab -e`):
 
 ```
+CRON_SECRET=<the same value you set in .env>
 * * * * * curl -fsS -m 30 -X POST http://127.0.0.1:3000/api/cron/notifications -H "Authorization: Bearer $CRON_SECRET" >/dev/null 2>&1
 * * * * * curl -fsS -m 30 -X POST http://127.0.0.1:3000/api/cron/door-ingest   -H "Authorization: Bearer $CRON_SECRET" >/dev/null 2>&1
 ```
 
-(The crontab must have `CRON_SECRET` available, e.g. set it in the crontab file or inline the literal value.)
+Define `CRON_SECRET=` on its own line at the top of the crontab as shown. A crontab runs with a bare environment, so a `$CRON_SECRET` reference with no such line expands to empty: every call then silently 401s, and the `>/dev/null 2>&1` hides it.
 
 **Verify:**
 - `curl -s -o /dev/null -w "%{http_code}" -X POST https://APP/api/cron/notifications` (no auth) → **401**.
