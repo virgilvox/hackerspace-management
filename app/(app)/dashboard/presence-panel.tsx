@@ -65,7 +65,7 @@ export function PresencePanel({ present }: { present: Present[] }) {
           <ul className="divide-y divide-border">
             {present.map(p => (
               <li key={p.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
-                <span className="font-sans text-sm text-foreground truncate">
+                <span className="flex-1 min-w-0 font-sans text-sm text-foreground truncate">
                   {p.name}{p.isMe ? ' (you)' : ''}
                   {p.note && <span className="font-mono text-[10px] text-muted-foreground ml-2">{p.note}</span>}
                 </span>

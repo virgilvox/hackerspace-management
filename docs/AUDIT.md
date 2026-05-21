@@ -1,5 +1,7 @@
 # Codebase Audit
 
+> **Historical snapshot.** This is a full-codebase audit as of 2026-05-14, before the certifications, classes, equipment, Stripe-dues, notifications, member-portal, and door (cards / connections / inbound ingest / API-call buttons) work landed. For audit findings, deploy state, and the running session log AFTER this date, see [HANDOFF.md](./HANDOFF.md) (newest entry on top) — it carries the rolling per-pass security audits.
+
 Date: 2026-05-13 through 2026-05-14 (three passes)
 Scope: every file outside `node_modules`, `.next`, and `.git`.
 Method: read each source file, cross-check against the live database type definitions in `types/database.ts`, the canonical schema in `scripts/schema.sql`, and the column map in `DB_SCHEMA_MAP.md`.

@@ -52,29 +52,39 @@ export async function POST(req: NextRequest) {
     .limit(MAX_CONNECTIONS)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  let polled = 0
+  // Poll connections concurrently: each connection is independent, and the
+  // executor's per-call timeout means a sequential loop would take the SUM of
+  // all timeouts (a slow/unreachable fleet could run minutes and overlap the
+  // next tick). allSettled bounds a tick to roughly the slowest single poll;
+  // each connection is isolated so one misbehaving controller (untrusted,
+  // plaintext HTTP) cannot 500 the run or starve the rest. MAX_CONNECTIONS
+  // caps the fan-out.
+  const list = (conns ?? []) as unknown as IngestConn[]
+  const settled = await Promise.allSettled(
+    list.map(async c => {
+      const poll = await pollConnectionLog(admin, c)
+      if (!poll.ok) {
+        console.error(`[door-ingest] connection ${c.id}: ${poll.detail}`)
+        return { failed: true, inserted: 0, resolved: 0 }
+      }
+      const res = await ingestEvents(admin, c.space_id, c.id, poll.events)
+      return { failed: false, inserted: res.inserted, resolved: res.resolved }
+    }),
+  )
+
   let inserted = 0
   let resolved = 0
   let failed = 0
-  for (const c of (conns ?? []) as unknown as IngestConn[]) {
-    polled++
-    // Isolate each connection: a single misbehaving controller (the body is
-    // untrusted, plaintext HTTP) must not 500 the whole run and starve the rest.
-    try {
-      const poll = await pollConnectionLog(admin, c)
-      if (!poll.ok) {
-        failed++
-        console.error(`[door-ingest] connection ${c.id}: ${poll.detail}`)
-        continue
-      }
-      const res = await ingestEvents(admin, c.space_id, c.id, poll.events)
-      inserted += res.inserted
-      resolved += res.resolved
-    } catch (e) {
+  for (const r of settled) {
+    if (r.status === 'rejected') {
       failed++
-      console.error(`[door-ingest] connection ${c.id} threw:`, e instanceof Error ? e.message : e)
+      console.error('[door-ingest] connection threw:', r.reason instanceof Error ? r.reason.message : r.reason)
+      continue
     }
+    if (r.value.failed) failed++
+    inserted += r.value.inserted
+    resolved += r.value.resolved
   }
 
-  return NextResponse.json({ ok: true, polled, inserted, resolved, failed })
+  return NextResponse.json({ ok: true, polled: list.length, inserted, resolved, failed })
 }

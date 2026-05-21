@@ -31,8 +31,8 @@ export function DoorSelfEntry({ doors }: { doors: Door[] }) {
     <div className="bg-card rounded border border-border divide-y divide-border">
       {doors.map(d => (
         <div key={d.id} className="flex items-center justify-between gap-3 px-4 py-3">
-          <span className="font-sans text-sm text-foreground truncate">{d.name}</span>
-          <Button size="sm" disabled={busy === d.id} onClick={() => open(d)}>
+          <span className="flex-1 min-w-0 font-sans text-sm text-foreground truncate">{d.name}</span>
+          <Button size="sm" className="shrink-0" disabled={busy === d.id} onClick={() => open(d)}>
             {busy === d.id ? 'Opening…' : 'Open'}
           </Button>
         </div>

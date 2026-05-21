@@ -1,6 +1,6 @@
 # Hackerspace.sh - Architecture Documentation
 
-> **Last Updated**: 2026-05-17  
+> **Last Updated**: 2026-05-21  
 > **Version**: 1.0.0  
 > **Status**: In production (serving live traffic)
 >
@@ -451,7 +451,10 @@ forms + waivers + onboarding form step + per-space form slug + invite roles,
 `030` certifications + Instructor capability, `031` secrets SELECT honors
 `ops.secrets.read`, `032` classes + sessions + signups, `033` equipment +
 reservations, `034` member access cards + door permissions, `035` door
-connections + access log).
+connections + access log, `036` door card slots; later migrations through
+`054` add classes/equipment/Stripe-dues/notifications and the door epic's
+inbound access-log ingest (`053`) + universal API-call buttons (`054`) — see
+docs/DATABASE_SCHEMA.md for the full, authoritative migration history).
 
 ### Forms & waivers (migrations 026-029; complete Phases 1-5)
 
@@ -575,9 +578,9 @@ status='reserved'` constraint (migration 042 + `btree_gist`), so two
 simultaneous requests for the same window cannot both insert. No
 anonymous path.
 
-### Door / access control (migrations 034-036; epic in progress)
+### Door / access control (migrations 034-036, 053-054; epic complete, P1-P5)
 
-Phased; P1-P3 built, including member self-entry (reviewed at the locked checkpoint, then built). `member_cards` (034) associates RFID/NFC UIDs to
+Phased and complete: P1-P5 built + deployed, including member self-entry (reviewed at the locked checkpoint, then built). `member_cards` (034) associates RFID/NFC UIDs to
 members; the UID is a credential (`door.manage`-only RLS, no member SELECT;
 masked count+last4 self-view via a service-client action). `door.manage` /
 `door.operate` permissions (group Access). `door_connections` (035) is a

@@ -18,7 +18,7 @@ A multi-tenant operating system for hackerspaces, makerspaces, and member-run sh
 - **Certifications and instructors.** Certification types with optional validity periods; an Instructor capability awards and revokes them; expiry and revocation tracked; members see their own record.
 - **Classes.** Class offerings with scheduled sessions, member signup with waitlists, attendance, and an optional certification granted on completion.
 - **Equipment.** Tool and equipment registry with time-window reservations, no-overlap enforcement, and an optional required certification per item.
-- **Access control.** Member access cards (the card UID is treated as a credential), a configurable per-space door integration (native HeatSync controller or generic HTTP) behind an SSRF-guarded executor, and an immutable, secret-redacted access log.
+- **Access control.** Member access cards (the card UID is treated as a credential), a configurable per-space door integration (native HeatSync controller or generic HTTP) behind an SSRF-guarded executor, live grant/revoke/open and member self-entry, inbound access-log ingest (a HeatSync `?z` poll plus a per-connection authenticated webhook, each card matched back to a member), and an immutable, secret-redacted access log. A universal **API-call button builder** generalizes this: admins define permission-gated buttons (any HTTP verb, headers, body, vault-stored secret) that fire through the same hardened egress, with a door-control preset.
 - **Onboarding and invites.** A configurable member onboarding flow; multi-use, expiring, role-granting invite links.
 - **Payments and financials.** Per-member payment ledger, integration credentials per space, exports, monthly financial summary. **Stripe recurring dues** are a first-class integration: each space configures its own Stripe account (not Connect), members pay through hosted Checkout and self-serve cancel/update through the hosted Billing Portal (no card data on our servers), and a per-space signed webhook keeps `member_billing` and member status (`current` / `late`) in sync, never auto-downgrading past `late`.
 - **Transactional email and notifications.** An idempotent notifications outbox writes dues-lifecycle emails (renewal receipt, payment failed, lapse) from the Stripe webhook; a small dispatcher cron drains them through Resend with a fair per-space queue and per-attempt idempotency. Adding other domains (bookings, forms) reuses the same outbox.
@@ -120,7 +120,7 @@ pnpm test:e2e     # playwright end-to-end
 
 ## Project status
 
-The system is feature-functional and serving production traffic at `hackerspace.sh`. See [docs/AUDIT.md](./docs/AUDIT.md) for the latest audit and the open issues list.
+The system is feature-functional and serving production traffic at `hackerspace.sh`. The running session log, deploy state, and rolling security audits live in [docs/HANDOFF.md](./docs/HANDOFF.md) (newest on top). [docs/AUDIT.md](./docs/AUDIT.md) is a deeper full-codebase audit snapshot from 2026-05-14 (historical context).
 
 ## Contributing
 

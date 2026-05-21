@@ -237,7 +237,7 @@ export function FormBuilder({ initial }: { initial: BuilderForm }) {
 
         {isEdit && initial.status === 'published' && visibility !== 'members' && (
           <div className="flex items-center gap-2 rounded-lg border bg-muted/40 p-3 text-sm">
-            <span className="truncate font-mono text-xs">{publicUrl}</span>
+            <span className="flex-1 min-w-0 truncate font-mono text-xs">{publicUrl}</span>
             <Button
               size="sm"
               variant="secondary"

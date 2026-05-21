@@ -215,7 +215,7 @@ export default function CommsClient({ member, space, channels }: Props) {
                     }`}
                   >
                     <Hash className="w-3.5 h-3.5 flex-shrink-0" />
-                    <span className="truncate">{channel.name}</span>
+                    <span className="truncate min-w-0">{channel.name}</span>
                     {channel.unread_count > 0 && (
                       <span className="ml-auto w-4 h-4 bg-primary text-white text-[9px] font-bold rounded-full flex items-center justify-center">
                         {channel.unread_count}
@@ -240,7 +240,7 @@ export default function CommsClient({ member, space, channels }: Props) {
                     }`}
                   >
                     <Hash className="w-3.5 h-3.5 flex-shrink-0" />
-                    <span className="truncate">{channel.name}</span>
+                    <span className="truncate min-w-0">{channel.name}</span>
                   </button>
                 ))}
               </div>
@@ -262,7 +262,7 @@ export default function CommsClient({ member, space, channels }: Props) {
                     <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
                     </svg>
-                    <span className="truncate">{channel.name}</span>
+                    <span className="truncate min-w-0">{channel.name}</span>
                   </button>
                 ))}
               </div>

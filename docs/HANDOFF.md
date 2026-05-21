@@ -28,6 +28,45 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-21 (pass 68): App-wide mobile-overflow audit + cron poll parallelized
+
+Branch `main`. Continued the mobile pass app-wide and cleared the tracked cron finding. Build + lint green; 626 unit / 50 integration.
+
+**Audit: systematic mobile horizontal-overflow scan.** Grepped every `truncate` in `app/`+`components/` for the flex anti-pattern (a `truncate` flex child without `min-w-0` will NOT shrink, so a long value pushes the row past the viewport). Triaged the 5 files that use `truncate` but never `min-w-0`: table-cell truncates in `payments`/`import` are fine (`max-w-[…]` + `table-cell`), the payments meta `<p>` is a block child (fine), and `mini-previews` is decorative landing. Two real instances fixed: **comms channel-name spans** (3, the channel sidebar/mobile drawer) -> `truncate min-w-0`; **form-builder published-URL span** -> `flex-1 min-w-0 truncate`. (Pass 67 already fixed the dashboard presence + door-self-entry spans.)
+
+**Cron poll parallelized (clears the pass-66 latent finding).** `/api/cron/door-ingest` now polls connections with `Promise.allSettled` instead of a sequential `for…await`, so a tick is bounded to ~the slowest single poll rather than the SUM of all 6s timeouts (a slow/unreachable fleet could previously run minutes and overlap the next minute's tick). Each connection stays isolated (one bad controller can't 500 the run); `MAX_CONNECTIONS=50` caps the fan-out; dedup keeps it idempotent. Inert until CRON_SECRET is provisioned.
+
+**Deploy.** This pass + the uncommitted pass-66 (docs/README refresh) + pass-67 (dashboard mobile + API-button re-audit) ship together (see the deploy note below this entry once pushed). No migration; no behavior change for existing users (className + cron-internal only).
+
+---
+
+## 2026-05-21 (pass 67): API-buttons/door re-audit (clean) + dashboard mobile fixes
+
+Branch `main`. Re-audited the API-call buttons + door subsystems with a fresh adversarial lens and did a dashboard mobile-responsiveness pass.
+
+**API-buttons + door audit (CLEAN, no code bug).** Re-read the invoke path, executor, and validations. Confirmed: the SSRF pin is enforced on the FINAL assembled URL (`base_url + url_template + query-secret` -> `validateDoorTarget` -> resolve-once-connect-by-IP), so even a `url_template` like `@evil.com` cannot bypass it -- a host mismatch with the per-button pin rejects, and the metadata/link-local block is absolute. `buildApiRequest` drops a caller `Host` header and undici rejects CRLF in header names/values (no request smuggling). Invoke is rate-limited FIRST, loads the def service-side scoped to the member's space, gates on the per-row `required_permission` (denials audited), fails closed on disabled/unknown-permission, decrypts the secret server-side and never returns it; `api_call_log` detail is double-redacted (egress + action). Tenant isolation holds; all UI rendering is escaped JSX; no committed secrets. The pass-65 hex-uid matcher holds.
+
+**Dashboard mobile responsiveness.** The shell is sound (fixed 52px mobile top bar + hamburger drawer; `main` clears it with `pt-[52px] md:pt-0`) and the dashboard grids already collapse (`grid-cols-2 lg:grid-cols-4` stats; `lg:grid-cols-[1fr_280px]` -> single column; 44px touch targets on Quick Task / CLAIM; titles `truncate` with `min-w-0`). Found + fixed TWO real horizontal-overflow bugs: in `dashboard/presence-panel.tsx` and `dashboard/door-self-entry.tsx` the name `<span>` had `truncate` but no `min-w-0`, so in a flex row a long member/door name would NOT shrink and pushed the row past the viewport (horizontal scroll on a phone). Added `flex-1 min-w-0` (+ `shrink-0` on the door Open button). The task-row title was already correct. No other overflow risks found (banner links `flex-wrap`; proposals/incidents titles are block `truncate`; activity/project text wraps). **Could not browser-test (auth-gated); verified by layout inspection + build.** Note (not changed): shared `Button size="sm"` is ~36px tall, under the 44px touch guideline, but that is app-wide and consistent, not a dashboard regression.
+
+**State.** Build + lint green; 626 unit / 50 integration unchanged (className-only + audit). Includes the pass-66 docs (still uncommitted).
+
+---
+
+## 2026-05-21 (pass 66): Ultrathink audit (broad) + docs/README refresh
+
+Branch `main`. A fresh diversified audit (not re-defending the door work) plus the doc/README consolidation it surfaced. No code change this pass.
+
+**Audit (diversified surfaces; findings).**
+- **Clean / re-verified.** No committed secrets in the door/api-button files. No hardcoded permission-code list that adding `apicall.invoke` would break (the only consumers are `user_has_permission` calls + the door-template default). The `apicall.invoke` catalog addition + 054 backfill are additive (board + admin-implicit only; member/treasurer/associate unchanged). API-button header injection is bounded: `buildApiRequest` drops a caller `host`, and undici rejects CRLF in header names/values (no request smuggling); admins are trusted for their own buttons and the metadata/link-local block is absolute regardless. The matcher fix (pass 65) holds.
+- **Finding 1 (LATENT, inert): poll cron is sequential.** `/api/cron/door-ingest` does `for (const c of conns) await pollConnectionLog(c)` with a 6s per-poll timeout and `MAX_CONNECTIONS=50`, so a fleet of slow/unreachable controllers can make one tick run up to ~300s (the crontab's `curl -m 30` returns, but the Node handler keeps running), and overlapping minute-ticks can pile up. Safe for correctness (idempotent dedup) and a non-issue for the deploying org (1-2 doors), but a real scaling concern. **Recommended fix when this matters: `Promise.allSettled` the polls (bounded) so a tick takes ~max(single poll) not the sum, and/or lower the per-poll timeout.** Inert today (CRON_SECRET unprovisioned). Not changed this pass (docs-focused; would need its own deploy).
+- **Finding 2 (DOCS, fixed this pass): stale docs.** ARCHITECTURE still framed the door epic as "P1-P3 built / migrations 034-036; epic in progress"; the README access-control bullet predated P4/P5; and the README pointed at `docs/AUDIT.md` (a 2026-05-14 snapshot) as "the latest audit." Fixed below.
+
+**Docs/README refreshed (same-change).** ARCHITECTURE: door section header + intro now read "migrations 034-036, 053-054; epic complete, P1-P5"; the migration parenthetical points to DATABASE_SCHEMA for the full history; "Last Updated" -> 2026-05-21. README: access-control feature bullet now covers grant/revoke/self-entry + inbound ingest (poll + webhook) + the API-call button builder; the project-status pointer now sends readers to HANDOFF.md for the running log and labels AUDIT.md as a historical 2026-05-14 snapshot. `docs/AUDIT.md` gained a top banner saying the same. CHANGELOG `[Unreleased] / Added` gained a door-epic-complete entry.
+
+**State.** Suite 626 unit / 50 integration / build + lint green. Migrations through 054. Door epic feature-complete + deployed (P1-P5). One latent scaling finding (cron sequential poll) documented, not yet fixed.
+
+---
+
 ## 2026-05-20 (pass 65): Door epic P4+P5 DEPLOYED + ultrathink audit
 
 Branch `main`. Shipped the batched door-epic completion and ran a fresh diversified audit.
