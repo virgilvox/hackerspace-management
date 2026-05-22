@@ -60,7 +60,9 @@ services:
       REDIS_URL: redis://redis:6379/0
       PORT: 8080
     ports:
-      - '127.0.0.1:${GLITCHTIP_PORT:-8000}:8080'
+      # Default 8100 (not 8000) so it does not collide with Supabase's Kong
+      # gateway, which binds 8000 on a self-hosted Supabase host.
+      - '127.0.0.1:${GLITCHTIP_PORT:-8100}:8080'
     depends_on:
       postgres:
         condition: service_healthy
