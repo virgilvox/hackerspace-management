@@ -1,0 +1,90 @@
+# Optional self-hosted error monitoring for hackerspace-management.
+#
+# Self-contained: its OWN Postgres + Redis, nothing shared with the app stack,
+# so it works on any host with Docker regardless of how the app's database is
+# run. Bound to 127.0.0.1 by default (no public surface); view the dashboard
+# over an SSH tunnel or put your own reverse proxy in front.
+#
+# Quickstart:
+#   cp .env.example .env       # then set POSTGRES_PASSWORD + SECRET_KEY
+#   docker compose up -d       # migrate runs once, then web + worker start
+# Then register the first user (open http://localhost:GLITCHTIP_PORT), create an
+# organization + project, copy its DSN into the app's SENTRY_DSN, restart the app.
+#
+# Reproducibility: pin `glitchtip/glitchtip` to a release tag for production
+# (see https://gitlab.com/glitchtip/glitchtip for versions); `latest` is used
+# here so a fresh clone runs without edits.
+name: glitchtip
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    mem_limit: 256m
+    environment:
+      POSTGRES_DB: glitchtip
+      POSTGRES_USER: glitchtip
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - gt-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U glitchtip']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    mem_limit: 128m
+
+  migrate:
+    image: glitchtip/glitchtip:latest
+    command: ./manage.py migrate
+    restart: 'no'
+    env_file: [.env]
+    environment:
+      DATABASE_URL: postgres://glitchtip:${POSTGRES_PASSWORD}@postgres:5432/glitchtip
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    image: glitchtip/glitchtip:latest
+    restart: unless-stopped
+    mem_limit: 768m
+    env_file: [.env]
+    environment:
+      DATABASE_URL: postgres://glitchtip:${POSTGRES_PASSWORD}@postgres:5432/glitchtip
+      REDIS_URL: redis://redis:6379/0
+      PORT: 8080
+    ports:
+      - '127.0.0.1:${GLITCHTIP_PORT:-8000}:8080'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      migrate:
+        condition: service_completed_successfully
+
+  worker:
+    image: glitchtip/glitchtip:latest
+    command: ./bin/run-celery-with-beat.sh
+    restart: unless-stopped
+    mem_limit: 640m
+    env_file: [.env]
+    environment:
+      DATABASE_URL: postgres://glitchtip:${POSTGRES_PASSWORD}@postgres:5432/glitchtip
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  gt-postgres:

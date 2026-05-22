@@ -37,7 +37,9 @@ Branch `main`. Took backlog item 2. Design-first: owner chose self-hosted Glitch
 
 **Gate:** `pnpm test` **639** (was 626; +13) green; `pnpm build` clean. Server-side capture only (no client SDK). No migration, no schema, no RLS.
 
-**Inert in prod until Phase 2:** with `SENTRY_DSN` unset nothing is sent, so this is a safe deploy. **Phase 2 (the box, not started):** add a 2GB swapfile (droplet is RAM-tight: 3.8G total, ~865M free, NO swap, 2 vCPU, 7 supabase containers + the app), stand up GlitchTip (web+worker+redis, memory-capped) with `DATABASE_URL` -> a new DB on the existing `supabase-db` (no 2nd Postgres), nginx subdomain + cert for the UI, generate the DSN, set it in `.env.production`, verify a test capture. RAM-watch throughout.
+**Deployed (`c89e4d9`, run 26260262561 success); inert in prod** (`SENTRY_DSN` unset). Phase 1 was a safe no-behavior-change deploy.
+
+**Phase 2 = a REPRODUCIBLE repo artifact, not droplet surgery (owner steer).** Instead of hand-building containers on the specific droplet, the GlitchTip backend is now committed at `deploy/glitchtip/` (`docker-compose.yml` + `.env.example` + README), self-contained (its OWN Postgres + Redis, shares nothing with the app stack), `127.0.0.1`-bound, memory-capped, one-command `docker compose up -d` (migrate runs first via `service_completed_successfully`). Any self-hoster gets it the same way; the app stays generic (`SENTRY_DSN` works with this OR Sentry SaaS OR nothing). A 2GB swapfile was added to the production droplet (was RAM-tight: 3.8G, no swap) + persisted in fstab. **Remaining:** bring the stack up (the documented one-command), register the first user + project to get the DSN, set `SENTRY_DSN` in `.env.production`, restart, verify a capture. A first hand-rolled bring-up attempt was scrapped after a psql-quoting bug; the committed compose supersedes it.
 
 ---
 

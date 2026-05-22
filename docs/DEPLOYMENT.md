@@ -89,6 +89,12 @@ The self-serve "change my login email" feature (`/me` Profile tab) needs Supabas
 
 With Secure email change on, Supabase sends this to both the old and new address; each link hits `/auth/confirm`, which `verifyOtp`s and (post-verification only) syncs the denormalized `space_members.email`. Email delivery uses the project's configured SMTP (or Supabase built-in if none); production should use a real SMTP provider.
 
+### Error monitoring (optional)
+
+The app reports server-side errors (the Stripe webhook, both cron dispatchers, and every server action via `onRequestError`) to any Sentry-compatible backend named by the `SENTRY_DSN` env var. Unset = the capture seam no-ops, so this is fully optional and costs nothing when off. All event content is secret-scrubbed before send (emails, JWTs, Stripe/Resend keys, bearer tokens).
+
+To self-host the backend, [`deploy/glitchtip/`](../deploy/glitchtip/README.md) is a batteries-included GlitchTip stack (own Postgres + Redis, `127.0.0.1`-bound): `cp .env.example .env`, set the two secrets, `docker compose up -d`, register a project, then put its DSN in `SENTRY_DSN` and restart the app. You can equally point `SENTRY_DSN` at Sentry SaaS and skip the self-hosted stack.
+
 ## Operational checklist
 
 - Monitor `/var/log/hackerspace-deploy.log` for deploy outcomes.

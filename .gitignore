@@ -31,3 +31,6 @@ supabase/.temp/
 # doesn't also match lib/secrets/ (which is application code, not credentials).
 /secrets/
 *.pem
+
+# Optional GlitchTip backend env (holds POSTGRES_PASSWORD + SECRET_KEY).
+/deploy/glitchtip/.env
