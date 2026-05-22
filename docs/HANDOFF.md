@@ -14,7 +14,7 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 **Backlog (priority order for the next session):**
 1. **OWNER-GATED spine validation EXECUTION.** The runbook is written (`docs/SPINE_VALIDATION.md`); the owner now executes Part A (provision) + Part B (prove the dues cycle / notifications / `/me` / door). The agent cannot (external accounts + live session + on-droplet env/cron). This converts shipped -> proven.
-2. **Production observability.** No error monitoring; money path (Stripe webhook) + both crons + every server action only `console.error`. Add a Sentry-equivalent (design-first on the tool; likely self-hosted GlitchTip).
+2. **Production observability.** Phase 1 (app-side capture seam) is BUILT + inert, pending deploy (pass 72): backend-agnostic no-SDK fetch seam -> `SENTRY_DSN`, secret-scrubbed, covers the money path + both crons + all server actions (via `onRequestError`). Remaining = Phase 2 (the box): swap + self-hosted GlitchTip on the existing supabase-db + the DSN. Owner chose self-hosted GlitchTip.
 3. **Owner browser review** (auth-gated, agent cannot): `/me`, the Dues tab, AND the new door surfaces (`/door/manage` inbound panel, `/door/buttons` builder, `/doors` Actions); plus a real-device check of the mobile flex-row fixes with a long name.
 4. **Extend the integration harness**: payments link/import, presence, forms `submitForm`/`linkSubmissionsByEmail`. (Door RLS, api-buttons RLS, and the permission-escalation guard are now covered.)
 5. Defense-in-depth noted, not done: `.eq('space_id')` on equipment-cancel / door-slot writes (parent already space-checked); webhook signing secret shown pre-populated to admins (retrievable by design); door-ingest parallel poll bursts up to 50 concurrent DB calls (fine for a small fleet, bounded by `MAX_CONNECTIONS`). Deferred until product need: outbound webhooks epic, server-side search, multi-space-per-user, Zeffy/Venmo live APIs.
@@ -25,13 +25,29 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-05-21 (pass 72): Observability Phase 1 (app-side capture seam, inert)
+
+Branch `main`. Took backlog item 2. Design-first: owner chose self-hosted GlitchTip (+ swap), so the app-side capture is a backend-agnostic seam pointed at a DSN. Implementation call (made, not asked): a **no-SDK fetch envelope sender** mirroring `lib/email/send.ts`, NOT `@sentry/nextjs` (keeps the client bundle + `next.config` untouched, zero dependency/supply-chain). NOT yet deployed; awaiting owner go.
+
+**Shipped (local):**
+- `lib/observability/scrub.ts` (pure): redacts emails, JWTs, Bearer tokens, Stripe `sk_`/`rk_`/`whsec_`, Resend `re_`, bare 32+ hex; leaves dashed UUIDs intact. Deep-walks objects (depth/breadth-capped, cycle-safe).
+- `lib/observability/capture.ts`: `parseDsn` + pure `buildEvent` (scrubbed) + `captureException`/`captureMessage`. Inert when `SENTRY_DSN` unset (no-op). Best-effort fire-and-forget POST to `…/api/<projectId>/store/` with a 2.5s abort; never throws into a caller.
+- `instrumentation.ts` `onRequestError` -> the broad net for any thrown route/RSC/server-action error (no per-action wiring). Manual capture at the swallow/500 sites that never reach it: Stripe webhook (dedupe + handler), `/api/cron/notifications` (candidates + prefs), `/api/cron/door-ingest` (load + poll-fail + threw), `enqueueNotification` (central), `lib/door/ingest.ts` insert.
+- `__tests__/observability.test.ts` (+13). Docs: `.env.example` `SENTRY_DSN`; ARCHITECTURE observability subsection.
+
+**Gate:** `pnpm test` **639** (was 626; +13) green; `pnpm build` clean. Server-side capture only (no client SDK). No migration, no schema, no RLS.
+
+**Inert in prod until Phase 2:** with `SENTRY_DSN` unset nothing is sent, so this is a safe deploy. **Phase 2 (the box, not started):** add a 2GB swapfile (droplet is RAM-tight: 3.8G total, ~865M free, NO swap, 2 vCPU, 7 supabase containers + the app), stand up GlitchTip (web+worker+redis, memory-capped) with `DATABASE_URL` -> a new DB on the existing `supabase-db` (no 2nd Postgres), nginx subdomain + cert for the UI, generate the DSN, set it in `.env.production`, verify a test capture. RAM-watch throughout.
+
+---
+
 ## 2026-05-21 (pass 71): Spine provisioning A1+A2 executed on prod (owner-supported)
 
 Branch `main`. Owner asked the agent to provision directly; did it over SSH on the Droplet. No code change, no deploy (config + crontab on the box only; the sole repo edit is this HANDOFF).
 
 **Real prod layout (docs drift; corrected in memory `prod-ops-access`).** App is `/opt/hackerspace-ops` (NOT `/opt/hackerspace`), runs as systemd `hackerspace-app` via `next start` (native Node, NOT docker compose), env file `/opt/hackerspace-ops/.env.production` (`deploy:deploy 0600`), `deploy` has passwordless sudo. Supabase runs in docker on the same box.
 
-**A1 Resend (DONE + proven).** `.env.production` was missing all three spine vars. Backed it up, added `RESEND_API_KEY` (from `secrets/base.env`) + `EMAIL_FROM="hackerspace.sh <noreply@hackerspace.sh>"`. The key is a restricted send-only key (can't list domains), so proved the domain another way: a direct `POST https://api.resend.com/emails` from `noreply@hackerspace.sh` returned a message id -> domain verified, transport works.
+**A1 Resend (DONE + proven, incl. the full pipeline).** `.env.production` was missing all three spine vars. Backed it up, added `RESEND_API_KEY` (from `secrets/base.env`) + `EMAIL_FROM="hackerspace.sh <noreply@hackerspace.sh>"`. The key is a restricted send-only key (can't list domains), so proved the domain via a direct `POST https://api.resend.com/emails` (returned a message id). Then proved the FULL app outbox pipeline: injected one `pending` `notifications` row (member_id NULL = always-send, space HeatSync Labs) via the service client and ran the authed dispatcher on the box -> `{scanned:1,sent:1}`, row reached `status=sent`; deleted the test row (notifications back to 0). Remaining notification gap is only the ENQUEUE side on real domain events (Part B, needs a live session).
 
 **A2 CRON_SECRET + crontabs (DONE + proven).** Generated `CRON_SECRET` on the box, added to `.env.production`; installed BOTH crontab lines in the `deploy` crontab with `CRON_SECRET=` defined inline at the top (a bare `$CRON_SECRET` in a crontab line is empty -> silent 401; the runbook example is a footgun). Restarted `hackerspace-app`. Verified: public no-auth + wrong-bearer now **401** (were 503); authed localhost **200** (`notifications {scanned:0..}`, `door-ingest {ok:true,polled:0..}`). Outbox now drains every minute.
 

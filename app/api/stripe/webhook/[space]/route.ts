@@ -34,6 +34,7 @@ import {
   getSpaceName as readSpaceName,
   buildManageUrl,
 } from '@/lib/notifications/enqueue'
+import { captureException } from '@/lib/observability/capture'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -76,6 +77,10 @@ export async function POST(
       return NextResponse.json({ received: true, duplicate: true })
     }
     console.error('[stripe webhook] dedupe insert failed:', dedupe.error.message)
+    captureException(dedupe.error, {
+      surface: 'stripe-webhook',
+      tags: { space: spaceId, eventType: event.type, stage: 'dedupe' },
+    })
     return NextResponse.json({ error: 'Webhook processing error' }, { status: 500 })
   }
 
@@ -315,6 +320,10 @@ export async function POST(
     // than silently short-circuited as a duplicate (no lost events).
     await admin.from('stripe_webhook_events').delete().eq('event_id', event.id)
     console.error('[stripe webhook] handler error:', e instanceof Error ? e.message : e)
+    captureException(e, {
+      surface: 'stripe-webhook',
+      tags: { space: spaceId, eventId: event.id, eventType: event.type, stage: 'handler' },
+    })
     return NextResponse.json({ error: 'Webhook handler error' }, { status: 500 })
   }
 

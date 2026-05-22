@@ -22,6 +22,7 @@ import {
   type PrefMap,
   type NotificationCategory,
 } from '@/lib/notifications-prefs-logic'
+import { captureException, captureMessage } from '@/lib/observability/capture'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -63,7 +64,10 @@ export async function POST(req: NextRequest) {
     .order('created_at', { ascending: true })
     .limit(CANDIDATES)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    captureException(error, { surface: 'cron/notifications', tags: { stage: 'candidates' } })
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
 
   // Fair drain: round-robin the oldest-first candidates across spaces so one
   // tenant's burst can't head-of-line-block others. Fairness binds only under
@@ -110,7 +114,14 @@ export async function POST(req: NextRequest) {
       .in('member_id', memberIds)
     // Fail open: if the prefs lookup errors, send everything rather than risk
     // silently dropping a wanted (e.g. dues-failure) email on a transient blip.
-    if (prefErr) console.error('[cron/notifications] prefs lookup failed:', prefErr.message)
+    if (prefErr) {
+      console.error('[cron/notifications] prefs lookup failed:', prefErr.message)
+      captureMessage('prefs lookup failed (failing open, sending all)', {
+        surface: 'cron/notifications',
+        level: 'warning',
+        extra: { error: prefErr.message },
+      })
+    }
     for (const p of prefRows ?? []) {
       const mid = p.member_id as string
       if (!prefsByMember.has(mid)) prefsByMember.set(mid, {})

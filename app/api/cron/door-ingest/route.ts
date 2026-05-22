@@ -14,6 +14,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { timingSafeEqual } from 'node:crypto'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { pollConnectionLog, ingestEvents, type IngestConn } from '@/lib/door/ingest'
+import { captureException, captureMessage } from '@/lib/observability/capture'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -50,7 +51,10 @@ export async function POST(req: NextRequest) {
     .eq('adapter', 'native_heatsync')
     .order('created_at', { ascending: true })
     .limit(MAX_CONNECTIONS)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    captureException(error, { surface: 'cron/door-ingest', tags: { stage: 'load-connections' } })
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
 
   // Poll connections concurrently: each connection is independent, and the
   // executor's per-call timeout means a sequential loop would take the SUM of
@@ -65,6 +69,12 @@ export async function POST(req: NextRequest) {
       const poll = await pollConnectionLog(admin, c)
       if (!poll.ok) {
         console.error(`[door-ingest] connection ${c.id}: ${poll.detail}`)
+        captureMessage('door poll failed', {
+          surface: 'cron/door-ingest',
+          level: 'warning',
+          tags: { space: c.space_id, connection: c.id },
+          extra: { detail: poll.detail },
+        })
         return { failed: true, inserted: 0, resolved: 0 }
       }
       const res = await ingestEvents(admin, c.space_id, c.id, poll.events)
@@ -79,6 +89,7 @@ export async function POST(req: NextRequest) {
     if (r.status === 'rejected') {
       failed++
       console.error('[door-ingest] connection threw:', r.reason instanceof Error ? r.reason.message : r.reason)
+      captureException(r.reason, { surface: 'cron/door-ingest', tags: { stage: 'poll' } })
       continue
     }
     if (r.value.failed) failed++

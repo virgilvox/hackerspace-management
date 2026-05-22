@@ -11,6 +11,7 @@
 // unique index makes duplicate enqueues a no-op via ignoreDuplicates.
 
 import type { createAdminClient } from '@/lib/supabase/admin'
+import { captureException } from '@/lib/observability/capture'
 
 type AdminClient = ReturnType<typeof createAdminClient>
 
@@ -87,12 +88,20 @@ export async function enqueueNotification(
     )
     if (error) {
       console.error(`[notifications] enqueue ${params.type} failed:`, error.message)
+      captureException(error, {
+        surface: 'notifications/enqueue',
+        tags: { space: params.spaceId, type: params.type },
+      })
     }
   } catch (e) {
     console.error(
       `[notifications] enqueue ${params.type} threw:`,
       e instanceof Error ? e.message : e,
     )
+    captureException(e, {
+      surface: 'notifications/enqueue',
+      tags: { space: params.spaceId, type: params.type, stage: 'throw' },
+    })
   }
 }
 

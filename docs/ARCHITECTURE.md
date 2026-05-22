@@ -883,6 +883,32 @@ the member's own notification history. No new permission code.
 
 ---
 
+### Observability / error monitoring (Phase 1: app-side seam)
+
+A backend-agnostic capture seam, modeled on the `lib/email/send.ts` transport
+pattern (a one-purpose fetch transport, no SDK). `lib/observability/capture.ts`
+sends Sentry-format events to a self-hosted GlitchTip (or any Sentry-compatible)
+ingest endpoint named by `SENTRY_DSN`. It is **inert by default**: with
+`SENTRY_DSN` unset every `captureException`/`captureMessage` is a no-op, so the
+seam ships to prod dark until the backend is provisioned (Phase 2). Capture is
+always best-effort and never throws into a caller (a logging-backend blip must
+not be able to break the money path, a cron, or a request); the send is
+fire-and-forget with a short abort timeout. All event content (message,
+exception value + stack, tags, extra) is run through the pure, unit-tested
+`lib/observability/scrub.ts` (redacts emails, JWTs, Bearer tokens, Stripe
+`sk_`/`rk_`/`whsec_` keys, Resend `re_` keys, and bare high-entropy hex while
+leaving dashed UUIDs intact) so no credential or PII leaves the box.
+
+Coverage is two-pronged: `instrumentation.ts` `onRequestError` is the
+framework-wide net for anything thrown out of a route handler, server
+component, or server action (broad server-action coverage with no per-action
+wiring); swallowed best-effort failures that never reach that hook are captured
+manually at their sites: the Stripe webhook (dedupe + handler 500), both crons
+(`/api/cron/notifications`, `/api/cron/door-ingest`), the central
+`enqueueNotification`, and the door-ingest insert. Server-side only (no client
+SDK / bundle impact) in this phase. Phase 2 stands up the GlitchTip backend on
+the droplet and sets the DSN.
+
 ## 13. Known Limitations
 
 1. **Test suite** - Extensive Vitest unit coverage of pure logic (`__tests__/`, run with `pnpm test`, hermetic), Playwright smoke e2e (`e2e/`), and a DB-backed integration suite (`integration/`, run with `pnpm test:integration` against a real Postgres; self-skips without one) that drives the shipped SQL through `psql` and the route handlers through their actual exports: the advisory-lock signup/cancel RPCs (045), the equipment exclusion constraint (042), the self-change trigger + `members_update` WITH CHECK (043/044), the billing/notification idempotency invariants, the Stripe webhook end to end (real signed events, vault secret resolution, replay, out-of-order period guard), and the RLS-layer privilege-status gate (046). Remaining gap: server-action orchestration beyond those critical paths still has no integration coverage, and e2e is mostly page-render checks.

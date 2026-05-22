@@ -14,6 +14,7 @@ import {
   cardMatchesEvent,
   type DoorIngestEvent,
 } from '@/lib/door-log-logic'
+import { captureException } from '@/lib/observability/capture'
 
 type Admin = ReturnType<typeof createAdminClient>
 
@@ -115,6 +116,7 @@ export async function ingestEvents(
         // Anything else (e.g. a transient DB error) is surfaced via console so
         // the row is not silently lost; the next poll re-attempts it.
         console.error('[door-ingest] insert failed:', error.message)
+        captureException(error, { surface: 'door/ingest', tags: { stage: 'insert' } })
       }
       continue
     }
