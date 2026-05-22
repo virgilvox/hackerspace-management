@@ -43,7 +43,8 @@ Supabase's Kong gateway on 8000; no public surface). Reach it either by:
 
 - Resources: the capped stack needs roughly 1.5-2 GB RAM. On a small host add
   swap first.
-- Reproducibility: pin the `glitchtip/glitchtip` image to a release tag in
-  `docker-compose.yml` for production (it ships as `latest` so a fresh clone
-  runs without edits).
-- Updates: `docker compose pull && docker compose up -d` (re-runs `migrate`).
+- Reproducibility: the `glitchtip/glitchtip` image is pinned to a release tag
+  in `docker-compose.yml` (currently `6.1.6`). Bump it deliberately rather than
+  tracking `latest`.
+- Updates: edit the pinned tag, then `docker compose pull && docker compose up -d`
+  (re-runs `migrate`).

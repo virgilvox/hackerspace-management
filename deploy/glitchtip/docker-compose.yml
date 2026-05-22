@@ -11,9 +11,9 @@
 # Then register the first user (open http://localhost:GLITCHTIP_PORT), create an
 # organization + project, copy its DSN into the app's SENTRY_DSN, restart the app.
 #
-# Reproducibility: pin `glitchtip/glitchtip` to a release tag for production
-# (see https://gitlab.com/glitchtip/glitchtip for versions); `latest` is used
-# here so a fresh clone runs without edits.
+# Reproducibility: the `glitchtip/glitchtip` image is pinned to a release tag
+# (bump it deliberately, then `docker compose pull && up -d`). See
+# https://gitlab.com/glitchtip/glitchtip for versions.
 name: glitchtip
 
 services:
@@ -39,7 +39,7 @@ services:
     mem_limit: 128m
 
   migrate:
-    image: glitchtip/glitchtip:latest
+    image: glitchtip/glitchtip:6.1.6
     command: ./manage.py migrate
     restart: 'no'
     env_file: [.env]
@@ -51,7 +51,7 @@ services:
         condition: service_healthy
 
   web:
-    image: glitchtip/glitchtip:latest
+    image: glitchtip/glitchtip:6.1.6
     restart: unless-stopped
     mem_limit: 768m
     env_file: [.env]
@@ -72,7 +72,7 @@ services:
         condition: service_completed_successfully
 
   worker:
-    image: glitchtip/glitchtip:latest
+    image: glitchtip/glitchtip:6.1.6
     command: ./bin/run-celery-with-beat.sh
     restart: unless-stopped
     mem_limit: 640m
