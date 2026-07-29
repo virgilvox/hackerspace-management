@@ -8,7 +8,6 @@ import {
   CubeIcon,
   KeyIcon,
   GridIcon,
-  HackBuildIcon,
 } from '@/components/resources/icons'
 import { AtlasLogo } from '@/components/resources/atlas-logo'
 
@@ -124,7 +123,7 @@ export default function ResourcesLandingPage() {
                 title="Hacking Your Hackerspace"
                 description="A talk on the patterns, pitfalls, and governance lessons behind keeping a hackerspace alive — the research from these projects, condensed into one interactive session."
                 type="Talk · Interactive"
-                visual={<HackBuildIcon />}
+                visual={<img src="/hackbuild-mark.png" alt="" />}
               />
             </div>
           </section>

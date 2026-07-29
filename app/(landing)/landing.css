@@ -161,11 +161,16 @@
 
 /* Resource showcase: a single row of square tiles */
 .landing-root .landing-showcase {
-  display: grid; grid-template-columns: repeat(6, 1fr);
-  gap: 1px; background: var(--ln-border); border: 1px solid var(--ln-border);
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  /* Hairlines come from each tile's right/bottom border rather than a grey
+     container showing through 1px gaps — so an incomplete final row leaves
+     no filled-in grey cells. */
+  gap: 0; background: transparent;
+  border: 1px solid var(--ln-border); border-right: 0; border-bottom: 0;
 }
 .landing-root .landing-tile {
   background: var(--ln-bg); aspect-ratio: 1 / 1;
+  border-right: 1px solid var(--ln-border); border-bottom: 1px solid var(--ln-border);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 14px; padding: 20px; text-align: center;
   transition: background 0.3s ease;
@@ -178,6 +183,7 @@
 }
 .landing-root .landing-tile:hover .landing-tile-visual { transform: translateY(-2px); }
 .landing-root .landing-tile-visual svg { width: 100%; height: 100%; }
+.landing-root .landing-tile-visual img { width: 100%; height: 100%; object-fit: contain; }
 .landing-root .landing-tile-title {
   font-size: 0.75rem; letter-spacing: 0.04em; color: var(--ln-text-dim);
   transition: color 0.3s ease;

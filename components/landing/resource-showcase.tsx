@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { AtlasLogo } from '@/components/resources/atlas-logo'
-import { CubeIcon, TraceIcon, SpaceIcon, GridIcon, KeyIcon, HackBuildIcon } from '@/components/resources/icons'
+import { CubeIcon, TraceIcon, SpaceIcon, GridIcon, KeyIcon } from '@/components/resources/icons'
 
 // The hackerspace.sh research/game projects, shown as a single row of square
 // tiles at the foot of the landing page. Internal routes use next/link;
@@ -13,7 +13,7 @@ const RESOURCES = [
   { title: 'The Hackerspace Game', href: '/zine', external: false, visual: <SpaceIcon /> },
   { title: 'Interactive Learner', href: 'https://hackerspacegame.netlify.app/', external: true, visual: <GridIcon /> },
   { title: 'Governance in a Box', href: '/governance', external: false, visual: <KeyIcon /> },
-  { title: 'Hacking Your Hackerspace', href: 'https://hack.build/hacking-your-hackerspace.html', external: true, visual: <HackBuildIcon /> },
+  { title: 'Hacking Your Hackerspace', href: 'https://hack.build/hacking-your-hackerspace.html', external: true, visual: <img src="/hackbuild-mark.png" alt="" /> },
 ]
 
 export function ResourceShowcase() {
