@@ -15,7 +15,7 @@ import {
   MessageSquare, Users, CreditCard, BookUser, Download, LogOut,
   Vote, ShieldAlert, ScrollText, LineChart, UserSearch,
   MessagesSquare, SlidersHorizontal, ClipboardList, FileText, Award, BadgeCheck, GraduationCap, Hammer,
-  ChevronDown, DoorClosed, CalendarCheck, Zap,
+  ChevronDown, DoorClosed, CalendarCheck, Zap, Home, Compass,
 } from 'lucide-react'
 
 interface NavLinkProps {
@@ -24,22 +24,19 @@ interface NavLinkProps {
   icon: React.ElementType
   badge?: number
   active: boolean
+  external?: boolean
   onClick?: () => void
 }
 
-function NavLink({ href, label, icon: Icon, badge, active, onClick }: NavLinkProps) {
-  return (
-    <Link
-      href={href}
-      onClick={onClick}
-      aria-current={active ? 'page' : undefined}
-      className={cn(
-        'flex items-center justify-between mx-2 px-3 py-2 rounded-md text-sm transition-colors',
-        active
-          ? 'bg-[var(--sidebar-primary)]/15 text-[var(--sidebar-primary)]'
-          : 'text-[var(--sidebar-foreground)]/70 hover:bg-[var(--sidebar-accent)] hover:text-[var(--sidebar-foreground)]',
-      )}
-    >
+function NavLink({ href, label, icon: Icon, badge, active, external, onClick }: NavLinkProps) {
+  const className = cn(
+    'flex items-center justify-between mx-2 px-3 py-2 rounded-md text-sm transition-colors',
+    active
+      ? 'bg-[var(--sidebar-primary)]/15 text-[var(--sidebar-primary)]'
+      : 'text-[var(--sidebar-foreground)]/70 hover:bg-[var(--sidebar-accent)] hover:text-[var(--sidebar-foreground)]',
+  )
+  const inner = (
+    <>
       <span className="flex items-center gap-2.5">
         <Icon className={cn('w-4 h-4', active ? 'text-[var(--sidebar-primary)]' : 'text-[var(--sidebar-foreground)]/50')} />
         {label}
@@ -49,6 +46,18 @@ function NavLink({ href, label, icon: Icon, badge, active, onClick }: NavLinkPro
           {badge}
         </span>
       ) : null}
+    </>
+  )
+  if (external) {
+    return (
+      <a href={href} target="_blank" rel="noopener noreferrer" onClick={onClick} className={className}>
+        {inner}
+      </a>
+    )
+  }
+  return (
+    <Link href={href} onClick={onClick} aria-current={active ? 'page' : undefined} className={className}>
+      {inner}
     </Link>
   )
 }
@@ -220,6 +229,11 @@ export function AppSidebar({ member, roleName, taskBadge = 0, commsBadge = 0, pa
 
         <NavSection id="account" title="Account">
           <NavLink href="/me" label="My membership" icon={BadgeCheck} active={isActive('/me')} onClick={onNav} />
+        </NavSection>
+
+        <NavSection id="public" title="Public Site">
+          <NavLink href="/" label="Homepage" icon={Home} external active={false} onClick={onNav} />
+          <NavLink href="/resources" label="Resources" icon={Compass} external active={false} onClick={onNav} />
         </NavSection>
 
         {showAdminSection && (

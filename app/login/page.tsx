@@ -176,6 +176,11 @@ export default function LoginPage() {
               create or join a space →
             </Link>
           </p>
+          <p className="text-center font-mono text-xs mt-4">
+            <Link href="/" className="text-zinc-500 hover:text-[#d4f53c] hover:underline transition">
+              ← Back to homepage
+            </Link>
+          </p>
         </div>
       </div>
     </div>

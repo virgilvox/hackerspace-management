@@ -8,6 +8,7 @@ import {
   CubeIcon,
   KeyIcon,
   GridIcon,
+  PlayIcon,
 } from '@/components/resources/icons'
 import { AtlasLogo } from '@/components/resources/atlas-logo'
 
@@ -55,7 +56,7 @@ export default function ResourcesLandingPage() {
           <section>
             <div className="resources-section-header">
               <span className="resources-section-label">Projects</span>
-              <span className="resources-section-count">06 tools</span>
+              <span className="resources-section-count">07 tools</span>
             </div>
 
             <div className="resources-projects">
@@ -114,6 +115,16 @@ export default function ResourcesLandingPage() {
                 type="Resource Kit"
                 featured
                 visual={<KeyIcon />}
+              />
+
+              <ProjectCard
+                href="https://hack.build/hacking-your-hackerspace.html"
+                external
+                num="07"
+                title="Hacking Your Hackerspace"
+                description="A talk on the patterns, pitfalls, and governance lessons behind keeping a hackerspace alive — the research from these projects, condensed into one interactive session."
+                type="Talk · Interactive"
+                visual={<PlayIcon />}
               />
             </div>
           </section>

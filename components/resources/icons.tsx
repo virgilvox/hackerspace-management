@@ -114,3 +114,12 @@ export function PromptIcon(props: IconProps) {
     </svg>
   )
 }
+
+export function PlayIcon(props: IconProps) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" {...props}>
+      <rect x="4" y="8" width="40" height="32" rx="3" stroke="currentColor" strokeWidth={2.5} />
+      <path d="M20 18 L30 24 L20 30 Z" fill="#d4ff00" />
+    </svg>
+  )
+}
