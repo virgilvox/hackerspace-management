@@ -123,3 +123,19 @@ export function PlayIcon(props: IconProps) {
     </svg>
   )
 }
+
+// hack.build — the brand's hot-pink open-end wrench (an open "C" head at the
+// top-right with a diagonal handle to the lower-left).
+export function HackBuildIcon(props: IconProps) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" {...props}>
+      <path
+        d="M32.6 8.1 A9 9 0 1 0 39.9 15.4"
+        stroke="#ff179a"
+        strokeWidth={6.5}
+        strokeLinecap="round"
+      />
+      <path d="M25 23 L13.5 33.5" stroke="#ff179a" strokeWidth={7} strokeLinecap="round" />
+    </svg>
+  )
+}
