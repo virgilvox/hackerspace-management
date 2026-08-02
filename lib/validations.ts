@@ -19,7 +19,7 @@ import { API_METHODS } from './api-call-logic'
  * Returns a Zod schema that produces a `string | null` (after preprocess +
  * `.datetime().nullable()`).
  */
-export const flexibleDateTime = () =>
+export const flexibleDateTime = (): z.ZodType<string | null, z.ZodTypeDef, unknown> =>
   z.preprocess(
     (val) => {
       if (val === null || val === undefined || val === '') return null

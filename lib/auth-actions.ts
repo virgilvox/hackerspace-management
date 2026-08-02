@@ -124,13 +124,12 @@ export async function joinSpace(formData: {
 
   // Try the new multi-code invites table first. Falls back to the legacy
   // spaces.invite_code (a permanent default) if the code isn't found there.
-  let invite: { id: string; space_id: string; max_uses: number | null; uses_count: number; expires_at: string | null; is_enabled: boolean; role: string } | null = null
   const { data: inviteRow } = await admin
     .from('space_invites')
     .select('id, space_id, max_uses, uses_count, expires_at, is_enabled, role')
     .eq('code', code)
     .maybeSingle()
-  if (inviteRow) invite = inviteRow as typeof invite
+  const invite = inviteRow
 
   let spaceId: string | null = null
   if (invite) {
@@ -171,7 +170,7 @@ export async function joinSpace(formData: {
     .from('space_members')
     .select('id')
     .eq('user_id', user.id)
-    .in('status', ACTIVE_STATUSES as unknown as string[])
+    .in('status', ACTIVE_STATUSES)
     .maybeSingle()
   if (existingMembership) {
     return { error: 'You are already a member of a space.' }

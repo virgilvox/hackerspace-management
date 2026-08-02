@@ -1,5 +1,8 @@
-import { createServerClient } from '@supabase/ssr'
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+
+/** Shape `@supabase/ssr` passes to `setAll` (typing lost to the ssr/js version drift). */
+type CookiesToSet = { name: string; value: string; options: CookieOptions }[]
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -16,7 +19,7 @@ export async function updateSession(request: NextRequest) {
         getAll() {
           return request.cookies.getAll()
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet: CookiesToSet) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value),
           )

@@ -1702,6 +1702,16 @@ export type Database = {
         Args: { sid: string; perm: string }
         Returns: { member_id: string }[]
       }
+      // Hand-added to match scripts/045_class_signup_concurrency.sql until this
+      // file is regenerated from the live schema (`supabase gen types typescript`).
+      class_signup_tx: {
+        Args: { p_session_id: string; p_space_id: string; p_member_id: string }
+        Returns: { signup_id: string | null; signup_status: string | null; err: string | null }[]
+      }
+      class_cancel_tx: {
+        Args: { p_session_id: string; p_space_id: string; p_member_id: string }
+        Returns: { cancelled_id: string | null; promoted_id: string | null; err: string | null }[]
+      }
     }
     Enums: {
       area_lead_status: "active" | "vacant" | "handoff"
