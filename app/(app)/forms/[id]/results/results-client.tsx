@@ -51,6 +51,7 @@ export function ResultsClient({
       toast.error(res.error || 'Export failed')
       return
     }
+    if (!res.data) return
     const { filename, csv } = res.data
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)

@@ -96,7 +96,7 @@ export default function KbEntryEditor({ entry, member }: Props) {
                 <label className="font-sans text-xs font-medium text-muted-foreground block mb-1.5">Visibility</label>
                 <select
                   value={visibility}
-                  onChange={e => setVisibility(e.target.value)}
+                  onChange={e => setVisibility(e.target.value as 'board' | 'all_members' | 'admin_only')}
                   className="w-full bg-background border border-border rounded px-3 py-2 font-sans text-sm text-foreground focus:outline-none focus:border-primary transition"
                 >
                   <option value="all_members">All Members</option>

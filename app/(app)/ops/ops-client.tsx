@@ -9,7 +9,7 @@ import { revealSecret, deleteSecret } from '@/lib/actions/secrets'
 import { OpsAclEditor } from '@/components/ops/ops-acl-editor'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import type { Tables, TablesInsert } from '@/types/database'
+import type { Tables, TablesInsert, TablesUpdate, Enums } from '@/types/database'
 import { PageTitle } from '@/components/ui/page-title'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useConfirm } from '@/components/ui/confirm'
@@ -135,7 +135,7 @@ function KbModal({
               <label className="font-sans text-xs font-medium text-muted-foreground block mb-1.5">Visibility</label>
               <select
                 value={visibility}
-                onChange={e => setVisibility(e.target.value)}
+                onChange={e => setVisibility(e.target.value as Enums<'kb_visibility'>)}
                 className="w-full bg-background border border-border rounded px-3 py-2 font-sans text-sm text-foreground focus:outline-none focus:border-primary transition"
               >
                 <option value="all_members">All Members</option>
@@ -212,7 +212,11 @@ function AddSecretModal({
       label: title.trim(),
       area: area.trim() || null,
       value: value.trim(),
-    }).select('id, title, area, created_at').single()
+      // `satisfies` keeps the payload type-checked; the trailing `as never`
+      // only bridges the typed browser client whose .insert() generic collapses
+      // to `never`.
+      // TODO(types): remove after regenerating types/database.ts (missing FK relationship metadata)
+    } satisfies TablesInsert<'secrets'> as never).select('id, title, area, created_at').single()
     setSaving(false)
     if (error) { toast.error(error.message); return }
     toast.success('Secret saved')
@@ -298,14 +302,16 @@ function AreaLeadModal({
         area_name: areaName.trim(),
         lead_handle: memberName.trim(),
         description: contactInfo.trim() || null,
-      }).eq('id', lead.id).select('*').single()
+        // TODO(types): remove `as never` after regenerating types/database.ts (missing FK relationship metadata)
+      } satisfies TablesUpdate<'area_leads'> as never).eq('id', lead.id).select('*').single()
     } else {
       result = await supabase.from('area_leads').insert({
         space_id: spaceId,
         area_name: areaName.trim(),
         lead_handle: memberName.trim(),
         description: contactInfo.trim() || null,
-      }).select('*').single()
+        // TODO(types): remove `as never` after regenerating types/database.ts (missing FK relationship metadata)
+      } satisfies TablesInsert<'area_leads'> as never).select('*').single()
     }
     setSaving(false)
     if (result.error) { toast.error(result.error.message); return }

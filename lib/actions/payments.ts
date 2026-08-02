@@ -15,7 +15,7 @@ import {
   linkPaymentSchema,
   importPaymentsCsvSchema,
 } from '@/lib/validations'
-import type { Enums } from '@/types/database'
+import type { Enums, TablesInsert } from '@/types/database'
 
 type PaymentPlatform = Enums<'payment_platform'>
 
@@ -131,7 +131,7 @@ export async function importPaymentsCsv(rows: unknown) {
   // transaction_date. Invalid rows are skipped and counted, not silently
   // dropped without feedback.
   const rowSchema = importPaymentsCsvSchema.element
-  const inserts: Array<Record<string, unknown>> = []
+  const inserts: Array<TablesInsert<'payments'>> = []
   let skipped = 0
   for (const raw of rows) {
     const r = rowSchema.safeParse(raw)

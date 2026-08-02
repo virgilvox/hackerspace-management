@@ -85,11 +85,11 @@ export default function CommsClient({ member, space, channels }: Props) {
                 m.id.startsWith('temp-') &&
                 m.user_id === payload.new.user_id &&
                 m.content === payload.new.content
-                  ? payload.new
+                  ? (payload.new as Message)
                   : m,
               )
             }
-            return [...prev, payload.new]
+            return [...prev, payload.new as Message]
           })
         },
       )
@@ -105,6 +105,7 @@ export default function CommsClient({ member, space, channels }: Props) {
   }, [messages])
 
   async function loadMessages() {
+    if (!selectedChannel) return
     const supabase = createClient()
     const { data } = await supabase
       .from('comms_messages')
@@ -119,6 +120,7 @@ export default function CommsClient({ member, space, channels }: Props) {
     e.preventDefault()
     const content = newMessage.trim()
     if (!content || sending) return
+    if (!selectedChannel) return
     setSending(true)
 
     // Optimistic insert — message appears immediately for the sender
@@ -133,7 +135,7 @@ export default function CommsClient({ member, space, channels }: Props) {
       content,
       created_at: new Date().toISOString(),
     }
-    setMessages(prev => [...prev, optimisticMsg])
+    setMessages(prev => [...prev, optimisticMsg as Message])
     setNewMessage('')
 
     const supabase = createClient()
@@ -142,7 +144,7 @@ export default function CommsClient({ member, space, channels }: Props) {
       .insert({
         channel_id: selectedChannel.id,
         space_id: space?.id ?? member.space_id,
-        user_id: member.user_id,
+        user_id: member.user_id as string,
         display_name: member.display_name,
         handle: member.handle,
         content,

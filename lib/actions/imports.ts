@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { requireMemberWithRole } from '@/lib/auth-helpers'
 import { ADMIN_ROLES } from '@/lib/permissions'
 import { importMembersSchema } from '@/lib/validations'
+import type { TablesInsert } from '@/types/database'
 
 export async function importMembers(rows: unknown) {
   if (!Array.isArray(rows) || rows.length === 0) {
@@ -19,7 +20,7 @@ export async function importMembers(rows: unknown) {
   // Validate per row so one bad row does not reject the whole file; the
   // schema lowercases email and normalizes dates via flexibleDateTime.
   const rowSchema = importMembersSchema.element
-  const valid: Array<Record<string, unknown>> = []
+  const valid: Array<TablesInsert<'space_members'>> = []
   let skipped = 0
   for (const raw of rows) {
     const r = rowSchema.safeParse(raw)

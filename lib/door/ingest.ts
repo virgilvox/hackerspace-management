@@ -6,6 +6,7 @@
 // outbound actions.
 
 import type { createAdminClient } from '@/lib/supabase/admin'
+import type { TablesInsert } from '@/types/database'
 import { callDoor } from './executor'
 import { resolveDoorSecret } from './secret'
 import { encodeHeatSyncControl, applyTemplate, redactDoorSecrets } from '@/lib/door-logic'
@@ -88,7 +89,7 @@ export async function ingestEvents(
       null,
     )
 
-    const row: Record<string, unknown> = {
+    const row: TablesInsert<'door_access_log'> = {
       space_id: spaceId,
       connection_id: connectionId,
       actor_member_id: null,

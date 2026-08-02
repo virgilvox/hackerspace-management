@@ -81,7 +81,7 @@ export function ContactsClient({ contacts: initialContacts }: { contacts: Contac
       tags: form.tags ? form.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
     })
     if (result.error) { setError(result.error); setLoading(false); return }
-    setContacts(prev => prev.map(c => c.id === editContact.id ? { ...c, ...form } : c))
+    setContacts(prev => prev.map(c => c.id === editContact.id ? { ...c, ...form } as unknown as Contact : c))
     setEditContact(null)
     setLoading(false)
   }

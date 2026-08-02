@@ -111,7 +111,7 @@ async function egress(opts: {
       }
     }
     const snippet = redactDoorSecrets(received.slice(0, opts.snippetLen), opts.redactSecret, opts.redactAuthParam)
-    return { ok: res.ok, status: res.status, snippet }
+    return { ok: res.ok, status: res.status, snippet } as DoorCallResult
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'request failed'
     return { ok: false, reason: redactDoorSecrets(msg, opts.redactSecret, opts.redactAuthParam) }

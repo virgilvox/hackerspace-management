@@ -68,7 +68,8 @@ export function MemberCertificationsDialog({
     if ('error' in g && g.error) {
       toast.error(g.error)
     } else {
-      setGrants(((g as { data: Grant[] }).data) ?? [])
+      // TODO(types): remove after regenerating types/database.ts (missing FK relationship metadata)
+      setGrants(((g as unknown as { data: Grant[] }).data) ?? [])
     }
     if (!('error' in t) || !t.error) {
       setTypes(((t as { data: CertType[] }).data ?? []).filter(c => c.is_active))

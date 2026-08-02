@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import type { Tables } from '@/types/database'
 import CommsClient from './comms-client'
 
 export default async function CommsPage() {
@@ -17,5 +18,5 @@ export default async function CommsPage() {
     .order('channel_type')
     .order('name')
 
-  return <CommsClient member={member} space={member?.spaces} channels={channels ?? []} />
+  return <CommsClient member={member} space={member?.spaces as Tables<'spaces'>} channels={channels ?? []} />
 }

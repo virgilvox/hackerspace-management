@@ -30,7 +30,7 @@ export function TrackClient({
       setError(res.error)
       return
     }
-    setView(res.data)
+    setView(res.data ?? null)
   }
 
   useEffect(() => {

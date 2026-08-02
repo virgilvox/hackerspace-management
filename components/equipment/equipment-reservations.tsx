@@ -33,7 +33,8 @@ export function EquipmentReservations({ equipmentId }: { equipmentId: string }) 
       toast.error(res.error)
       return
     }
-    setRows(((res as { data: Reservation[] }).data) ?? [])
+    // TODO(types): remove after regenerating types/database.ts (missing FK relationship metadata)
+    setRows(((res as unknown as { data: Reservation[] }).data) ?? [])
   }, [equipmentId])
 
   useEffect(() => {

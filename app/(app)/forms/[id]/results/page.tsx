@@ -30,7 +30,16 @@ export default async function FormResultsPage({ params }: { params: Promise<{ id
       formId={form.id}
       title={form.title}
       fields={parseFormSchema(form.schema)}
-      submissions={submissions ?? []}
+      submissions={
+        (submissions ?? []) as {
+          id: string
+          member_id: string | null
+          submitter_email: string | null
+          answers: Record<string, unknown> | null
+          form_version: number
+          created_at: string
+        }[]
+      }
     />
   )
 }

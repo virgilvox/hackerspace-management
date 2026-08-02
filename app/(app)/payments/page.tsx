@@ -1,3 +1,4 @@
+import type { ComponentProps } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { PaymentsClient } from './payments-client'
 
@@ -27,7 +28,7 @@ export default async function PaymentsPage() {
 
   return (
     <PaymentsClient
-      payments={payments ?? []}
+      payments={(payments ?? []) as ComponentProps<typeof PaymentsClient>['payments']}
       members={members ?? []}
       integrations={integrations ?? []}
       currentRole={member.role}

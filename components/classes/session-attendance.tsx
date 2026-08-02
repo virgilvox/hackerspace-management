@@ -35,7 +35,8 @@ export function SessionAttendance({
       toast.error(res.error)
       return
     }
-    setRows(((res as { data: Signup[] }).data) ?? [])
+    // TODO(types): remove after regenerating types/database.ts (missing FK relationship metadata)
+    setRows(((res as unknown as { data: Signup[] }).data) ?? [])
   }, [sessionId])
 
   useEffect(() => {

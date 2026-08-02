@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import type { Json } from '@/types/database'
 import { requireMember, requireMemberWithRole, parseInput } from '@/lib/auth-helpers'
 import {
   createOnboardingStepSchema,
@@ -45,7 +46,7 @@ export async function createOnboardingStep(input: {
       step_type: v.data.step_type,
       title: v.data.title,
       body: v.data.body ?? null,
-      config: v.data.config ?? {},
+      config: (v.data.config ?? {}) as Json,
       is_enabled: v.data.is_enabled ?? true,
       is_required: v.data.is_required ?? false,
       is_system: false,

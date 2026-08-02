@@ -4,6 +4,7 @@
 // module: it takes a Supabase admin client and is imported by server actions
 // and route handlers. Secrets are server-only and never returned to a client.
 import type { createAdminClient } from '@/lib/supabase/admin'
+import type { TablesInsert } from '@/types/database'
 import { encryptSecret, decryptSecret, encryptionAvailable } from '@/lib/secrets/crypto'
 
 type Admin = ReturnType<typeof createAdminClient>
@@ -33,7 +34,11 @@ export async function storeSecret(
     row.value = value
     row.encryption_version = 0
   }
-  const { data, error } = await admin.from('secrets').insert(row).select('id').single()
+  const { data, error } = await admin
+    .from('secrets')
+    .insert(row as TablesInsert<'secrets'>)
+    .select('id')
+    .single()
   if (error || !data) return null
   return data.id as string
 }

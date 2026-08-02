@@ -432,7 +432,26 @@ export async function listUpcomingSessions() {
     .order('starts_at', { ascending: true })
   if (error) return { error: error.message }
 
-  const rows = (sessions ?? []).filter(
+  // TODO(types): remove after regenerating types/database.ts (missing FK relationship metadata)
+  const rows = ((sessions ?? []) as unknown as Array<{
+    id: string
+    class_id: string
+    starts_at: string
+    ends_at: string | null
+    location: string | null
+    capacity: number | null
+    status: string
+    notes: string | null
+    classes: {
+      title: string
+      description: string | null
+      payment_link: string | null
+      capacity: number | null
+      is_active: boolean
+      grants_certification_id: string | null
+      required_form_id: string | null
+    } | null
+  }>).filter(
     (s: { classes?: { is_active?: boolean } | null }) => s.classes?.is_active !== false,
   )
   const ids = rows.map((s: { id: string }) => s.id)
@@ -536,7 +555,8 @@ export async function signUpForClass(input: unknown) {
     .eq('space_id', member.space_id)
     .maybeSingle()
   if (!session) return { error: 'Session not found' }
-  const cls = (session as {
+  // TODO(types): remove after regenerating types/database.ts (missing FK relationship metadata)
+  const cls = (session as unknown as {
     classes?: { title: string | null; capacity: number | null; is_active: boolean; required_form_id: string | null } | null
   }).classes
   if (cls && cls.is_active === false) return { error: 'This class is no longer available.' }
@@ -827,7 +847,8 @@ export async function completeSession(input: unknown) {
     .eq('space_id', member.space_id)
   if (upErr) return { error: upErr.message }
 
-  const cls = (session as { classes?: { title: string; grants_certification_id: string | null } | null }).classes
+  // TODO(types): remove after regenerating types/database.ts (missing FK relationship metadata)
+  const cls = (session as unknown as { classes?: { title: string; grants_certification_id: string | null } | null }).classes
   let issued = 0
   let certSkipped = false
   if (cls?.grants_certification_id) {

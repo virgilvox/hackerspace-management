@@ -194,7 +194,7 @@ export default function SettingsClient({ space, isAdmin, integrations, currentRo
     const existing = integrations.find(i => i.platform === config.platform)
     const initialForm: Record<string, string> = {}
     config.fields.forEach(f => {
-      initialForm[f.key] = existing?.config?.[f.key] || ''
+      initialForm[f.key] = (existing?.config as Record<string, string> | undefined)?.[f.key] || ''
     })
     setIntegrationForm(initialForm)
     setEditingIntegration(config)

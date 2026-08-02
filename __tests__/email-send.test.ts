@@ -4,7 +4,7 @@ import { sendEmail } from '@/lib/email/send'
 const OLD = { ...process.env }
 
 function mockFetch(status: number, body: unknown) {
-  return vi.fn(async () =>
+  return vi.fn(async (_input?: Request | string | URL, _init?: RequestInit) =>
     new Response(JSON.stringify(body), {
       status,
       headers: { 'content-type': 'application/json' },

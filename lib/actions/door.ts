@@ -619,7 +619,8 @@ export async function listDoorCards(input: unknown) {
 
   return {
     data: (cards ?? []).map(c => {
-      const sm = c.space_members as { display_name: string | null } | { display_name: string | null }[] | null
+      // TODO(types): remove after regenerating types/database.ts (missing FK relationship metadata)
+      const sm = c.space_members as unknown as { display_name: string | null } | { display_name: string | null }[] | null
       const name = Array.isArray(sm) ? sm[0]?.display_name : sm?.display_name
       return {
         cardId: c.id as string,

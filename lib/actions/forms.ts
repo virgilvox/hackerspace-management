@@ -41,6 +41,7 @@ import {
   getSpaceName,
   buildManageUrl,
 } from '@/lib/notifications/enqueue'
+import type { Json } from '@/types/database'
 
 // Associate prior unlinked submissions in a space with a member by email
 // (case-insensitive, ILIKE-escaped so `_`/`%` in an address are literal).
@@ -530,7 +531,7 @@ export async function submitForm(input: unknown) {
       space_id: form.space_id,
       member_id: linkedMemberId,
       submitter_email: submitterEmail,
-      answers: answers.value,
+      answers: answers.value as Json,
       form_snapshot: form.schema,
       legal_text_snapshot: form.legal_text ?? null,
       form_version: form.version,

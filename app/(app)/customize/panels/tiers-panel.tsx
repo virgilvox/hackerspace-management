@@ -26,7 +26,7 @@ export function TiersPanel({ isAdmin, tiers: initial }: { isAdmin: boolean; tier
           onSubmit={async e => {
             e.preventDefault()
             const cents = Math.round(parseFloat(d.dollars || '0') * 100)
-            const result = await createTier({ slug: d.slug.trim().toLowerCase(), name: d.name.trim(), description: d.description.trim() || undefined, monthly_price_cents: isNaN(cents) ? 0 : cents, billing_cadence: d.cadence })
+            const result = await createTier({ slug: d.slug.trim().toLowerCase(), name: d.name.trim(), description: d.description.trim() || undefined, monthly_price_cents: isNaN(cents) ? 0 : cents, billing_cadence: d.cadence as 'monthly' | 'quarterly' | 'annual' | 'one_time' | 'custom' })
             if ('error' in result && result.error) { toast.error(result.error); return }
             toast.success('Tier created')
             setTiers(prev => [...prev, { id: (result as { id: string }).id, slug: d.slug.trim().toLowerCase(), name: d.name.trim(), description: d.description.trim() || null, monthly_price_cents: isNaN(cents) ? 0 : cents, billing_cadence: d.cadence, is_system: false, is_archived: false, sort_order: 100 }])
