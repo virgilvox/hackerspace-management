@@ -8,6 +8,22 @@ import { canAssignInviteRole } from '@/lib/invite-logic'
 
 const INVITE_ADMIN_ROLES = ['admin', 'board'] as const
 
+// Whether `next` lets the invite be redeemed more times than `current`.
+// null = unlimited, which is wider than any finite cap.
+function widensUses(current: number | null, next: number | null): boolean {
+  if (next === null) return current !== null
+  if (current === null) return false
+  return next > current
+}
+
+// Whether `next` pushes the expiry later than `current`.
+// null = never expires, which is later than any date.
+function extendsExpiry(current: string | null, next: string | null): boolean {
+  if (next === null) return current !== null
+  if (current === null) return false
+  return new Date(next).getTime() > new Date(current).getTime()
+}
+
 function generateInviteCode(length = 8): string {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
   let out = ''
@@ -86,8 +102,31 @@ export async function updateInvite(inviteId: string, updates: {
   if (!auth.ok) return { error: auth.error }
   const { member } = auth
 
-  if (v.data.role !== undefined && !canAssignInviteRole(member.role, v.data.role)) {
-    return { error: `You cannot set an invite to grant the "${v.data.role}" role.` }
+  // Load the current row (scoped to the caller's space) so the privilege guard
+  // applies even when the payload omits `role`. Setting the role, re-enabling,
+  // widening max_uses, or extending expiry all (re-)distribute whatever role the
+  // invite already grants — so a board member must not be able to re-arm an
+  // exhausted/disabled admin invite they could never have minted.
+  const { data: existing, error: loadError } = await supabase
+    .from('space_invites')
+    .select('role, is_enabled, max_uses, expires_at')
+    .eq('id', idCheck.data)
+    .eq('space_id', member.space_id)
+    .maybeSingle()
+  if (loadError) return { error: loadError.message }
+  if (!existing) return { error: 'Invite not found' }
+
+  // The role the invite grants after this update: the explicit new role, or the
+  // current role when the payload leaves it untouched.
+  const effectiveRole = v.data.role ?? existing.role
+  const rearms =
+    v.data.role !== undefined ||
+    (v.data.is_enabled === true && existing.is_enabled !== true) ||
+    (v.data.max_uses !== undefined && widensUses(existing.max_uses, v.data.max_uses)) ||
+    (v.data.expires_at !== undefined && extendsExpiry(existing.expires_at, v.data.expires_at))
+
+  if (rearms && !canAssignInviteRole(member.role, effectiveRole)) {
+    return { error: `You cannot modify an invite that grants the "${effectiveRole}" role.` }
   }
 
   const patch: Record<string, unknown> = {}
