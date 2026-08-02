@@ -106,10 +106,14 @@ export function MembersClient({ members: initialMembers, currentRole, areaLeadRo
       activeTab === 'unverified' ? m.status === 'unverified' :
       m.status === 'inactive'
 
+    // display_name and email are both nullable (e.g. imported members), so
+    // guard before .toLowerCase() — an unguarded access crashed the whole list
+    // the moment an admin typed into the search box.
+    const q = search.toLowerCase()
     const matchesSearch = !search ||
-      m.display_name.toLowerCase().includes(search.toLowerCase()) ||
-      m.email.toLowerCase().includes(search.toLowerCase()) ||
-      (m.handle?.toLowerCase().includes(search.toLowerCase()) ?? false)
+      (m.display_name?.toLowerCase().includes(q) ?? false) ||
+      (m.email?.toLowerCase().includes(q) ?? false) ||
+      (m.handle?.toLowerCase().includes(q) ?? false)
 
     const matchesTier = !tierFilter || m.tier === tierFilter
 
@@ -161,7 +165,7 @@ export function MembersClient({ members: initialMembers, currentRole, areaLeadRo
     setError('')
     const result = await updateMember(editMember.id, form)
     if (result.error) { setError(result.error); setLoading(false); return }
-    setMembers(prev => prev.map(m => m.id === editMember.id ? { ...m, ...form } : m))
+    setMembers(prev => prev.map(m => m.id === editMember.id ? { ...m, ...form } as Member : m))
     setEditMember(null)
     setLoading(false)
   }
@@ -182,8 +186,8 @@ export function MembersClient({ members: initialMembers, currentRole, areaLeadRo
   function openEdit(m: Member) {
     setEditMember(m)
     setForm({
-      display_name: m.display_name,
-      email: m.email,
+      display_name: m.display_name ?? '',
+      email: m.email ?? '',
       phone: m.phone ?? '',
       handle: m.handle ?? '',
       tier: m.tier,
