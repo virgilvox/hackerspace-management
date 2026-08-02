@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { checkRateLimit, sanitizeString, sanitizeSlug } from '@/lib/security'
 import { ACTIVE_STATUSES } from '@/lib/permissions'
+import { claimInviteUse } from '@/lib/invite-claim'
 
 function generateInviteCode() {
   // Cryptographically random, and wider (8 chars) so the code space is not
@@ -176,6 +177,15 @@ export async function joinSpace(formData: {
     return { error: 'You are already a member of a space.' }
   }
 
+  // Claim an invite use ATOMICALLY before creating the membership, so a
+  // single-use invite can never be redeemed twice under concurrent joins.
+  // (The pre-check above is a fast UX reject; this is the authoritative guard.)
+  let claimedCount: number | null = null
+  if (invite) {
+    claimedCount = await claimInviteUse(admin, invite.id, invite.uses_count, invite.max_uses)
+    if (claimedCount === null) return { error: 'This invite has reached its use cap.' }
+  }
+
   const { data: newMember, error: memberErr } = await admin
     .from('space_members')
     .insert({
@@ -191,7 +201,18 @@ export async function joinSpace(formData: {
     .select('id')
     .single()
 
-  if (memberErr) return { error: memberErr.message }
+  if (memberErr) {
+    // Roll back the claimed use (best-effort, CAS-guarded) so a failed join
+    // does not burn an invite slot.
+    if (invite && claimedCount !== null) {
+      await admin
+        .from('space_invites')
+        .update({ uses_count: claimedCount - 1 })
+        .eq('id', invite.id)
+        .eq('uses_count', claimedCount)
+    }
+    return { error: memberErr.message }
+  }
 
   // Retro-link prior anonymous form/waiver submissions in this space to the
   // new member, but only for a verified email (locked decision). Best-effort:
@@ -203,14 +224,6 @@ export async function joinSpace(formData: {
       .eq('space_id', space.id)
       .is('member_id', null)
       .eq('submitter_email', user.email.toLowerCase())
-  }
-
-  // Increment invite usage counter for the multi-code path.
-  if (invite) {
-    await admin
-      .from('space_invites')
-      .update({ uses_count: invite.uses_count + 1 })
-      .eq('id', invite.id)
   }
 
   return { success: true }
