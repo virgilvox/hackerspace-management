@@ -1,3 +1,19 @@
+// =============================================================================
+// GENERATED FILE — do not edit by hand.
+//
+// This is the Supabase-generated database type surface. Regenerate it wholesale
+// from the live schema rather than hand-editing:
+//
+//     supabase gen types typescript --schema public > types/database.ts
+//
+// Hand-written domain types live in types/domain/* (aliases, composites), NOT
+// here. A few entries (the class_signup_tx / class_cancel_tx RPCs) are
+// currently hand-added to match scripts/*.sql until the next regeneration; some
+// embedded-select relationships are also missing from this file, which is why a
+// handful of call sites carry `as unknown as <T>  // TODO(types)` casts — those
+// disappear once this is regenerated against the real database.
+// =============================================================================
+
 export type Json =
   | string
   | number
