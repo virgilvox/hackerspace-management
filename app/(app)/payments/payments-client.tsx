@@ -96,7 +96,7 @@ export function PaymentsClient({ payments: initialPayments, members, integration
       setPayments(prev => [{
         ...result.data as Payment,
         space_members: linkedMember ? { display_name: linkedMember.display_name } : null,
-      }, ...prev])
+      } as Payment, ...prev])
     }
     setShowLogCash(false)
     setCashForm({ amount: '', from_note: '', member_id: '', date: '' })
@@ -113,7 +113,7 @@ export function PaymentsClient({ payments: initialPayments, members, integration
       member_id: memberId,
       link_status: 'linked',
       space_members: linkedMember ? { display_name: linkedMember.display_name } : null,
-    } : p))
+    } as Payment : p))
     setLinkingPayment(null)
     setLoading(false)
   }
@@ -374,7 +374,7 @@ export function PaymentsClient({ payments: initialPayments, members, integration
                 className="w-full flex items-center gap-3 py-3 hover:bg-muted/30 transition text-left disabled:opacity-50"
               >
                 <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center text-[10px] font-mono font-bold text-primary flex-shrink-0">
-                  {m.display_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                  {(m.display_name ?? m.email ?? '?').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
                 </div>
                 <div>
                   <p className="font-sans text-sm text-foreground">{m.display_name}</p>
