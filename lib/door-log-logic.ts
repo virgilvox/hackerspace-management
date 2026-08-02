@@ -75,6 +75,9 @@ export function parseHeatSyncLog(text: string, opts?: { maxEvents?: number }): D
   let h: number | null = null
   let mi: number | null = null
   let e: number | null = null
+  // High-half tokens already paired to a low half. Each g/d belongs to exactly
+  // one grant/deny, so a consumed index must not be borrowed by a later event.
+  const usedHi = new Set<number>()
   for (let i = 0; i < toks.length && events.length < max; i++) {
     const t = toks[i]
     if (t.key === 'H') { h = t.val; continue }
@@ -89,7 +92,7 @@ export function parseHeatSyncLog(text: string, opts?: { maxEvents?: number }): D
     // pairing a G with a distant unrelated g when this event's half is missing.
     let hiTok: Tok | undefined
     for (let j = i + 1; j < toks.length && j <= i + 3; j++) {
-      if (toks[j].key === hiKey) { hiTok = toks[j]; break }
+      if (toks[j].key === hiKey && !usedHi.has(j)) { hiTok = toks[j]; usedHi.add(j); break }
     }
     const low = t.val >= 0 ? BigInt(t.val) : 0n
     const high = hiTok && hiTok.val >= 0 ? BigInt(hiTok.val) : 0n
@@ -105,6 +108,9 @@ export function parseHeatSyncLog(text: string, opts?: { maxEvents?: number }): D
       detail: tod ? `${result} card #${cardNumber} at ${tod}` : `${result} card #${cardNumber}`,
       dedupeKey: `hs:${t.slot}:${t.key}:${cardNumber}:${tod ?? ''}`,
     })
+    // Time-of-day applies only to the event it immediately preceded; clear it so
+    // a later event without its own H/M/E does not inherit a stale timestamp.
+    h = mi = e = null
   }
   return events
 }
