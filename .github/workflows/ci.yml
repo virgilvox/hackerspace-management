@@ -1,0 +1,50 @@
+name: CI
+
+# Checks only — completely separate from deploy.yml (which SSHes to the droplet
+# on push to main). This never deploys; it runs typecheck, lint, and unit tests
+# on every PR and on main after merge, so a type/lint/test regression is caught
+# before (and independently of) a deploy.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Don't pile up redundant runs on a busy branch.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Unit tests
+        run: pnpm run test:run
+
+    # NOTE: the integration suite (pnpm test:integration) and Playwright e2e are
+    # not wired here yet — they need a Supabase/Postgres service in CI. Adding
+    # that (and failing the run if the integration suite executes 0 tests, so a
+    # missing DB can't masquerade as passing) is the next CI step.
