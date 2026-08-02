@@ -44,6 +44,18 @@ describe('isBlockedDoorIp (resolved-IP DNS-rebind guard)', () => {
       expect(isBlockedDoorIp(ip)).toBe(true)
     }
   })
+  it('blocks the HEX IPv4-mapped form (::ffff:HHHH:HHHH) too', () => {
+    // ::ffff:a9fe:a9fe == 169.254.169.254 (IMDS); ::ffff:7f00:1 == 127.0.0.1
+    for (const ip of ['::ffff:a9fe:a9fe', '::ffff:7f00:1', '::ffff:7f00:0001', '::ffff:a9fe:0102', '[::ffff:7f00:1]']) {
+      expect(isBlockedDoorIp(ip)).toBe(true)
+    }
+  })
+  it('ALLOWS non-blocked ranges in HEX IPv4-mapped form', () => {
+    // ::ffff:c0a8:0109 == 192.168.1.9 ; ::ffff:cb00:7107 == 203.0.113.7
+    for (const ip of ['::ffff:c0a8:0109', '::ffff:cb00:7107']) {
+      expect(isBlockedDoorIp(ip)).toBe(false)
+    }
+  })
   it('ALLOWS RFC1918 / LAN / ULA / public (door controllers live there)', () => {
     for (const ip of ['10.0.0.5', '172.16.4.4', '192.168.1.50', '203.0.113.7', 'fd12:3456::1', '2001:db8::1', '::ffff:192.168.1.9']) {
       expect(isBlockedDoorIp(ip)).toBe(false)
