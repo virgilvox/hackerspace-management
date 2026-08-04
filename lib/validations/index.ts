@@ -1,5 +1,4 @@
 export * from './primitives'
-export * from './auth'
 export * from './tasks'
 export * from './projects'
 export * from './members'

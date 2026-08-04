@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { redirect, notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import type { Proposal, ProposalVote } from '@/lib/types'
+import type { Proposal, ProposalVote } from '@/types/domain'
 import { ProposalStatusBadge } from '../proposal-badges'
 import { ProposalActions } from './proposal-actions'
 import { MarkdownBody } from '@/components/markdown'

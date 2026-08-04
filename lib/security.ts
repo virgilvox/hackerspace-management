@@ -140,18 +140,6 @@ export function checkRateLimit(
 }
 
 /**
- * Clear expired rate limit entries (call periodically)
- */
-export function cleanupRateLimits(): void {
-  const now = Date.now()
-  for (const [key, entry] of rateLimitStore.entries()) {
-    if (now > entry.resetTime) {
-      rateLimitStore.delete(key)
-    }
-  }
-}
-
-/**
  * Validate content length
  */
 export function validateContentLength(

@@ -24,11 +24,6 @@ export const createAreaLeadRoleSchema = z.object({
   color: z.string().max(20).optional().nullable(),
 })
 
-export const updateAreaLeadRoleSchema = z.object({
-  name: z.string().min(1).max(100).optional(),
-  color: z.string().max(20).optional().nullable(),
-})
-
 export const assignAreaLeadSchema = z.object({
   area_lead_role_id: z.string().uuid('Invalid role ID'),
   member_id: z.string().uuid('Invalid member ID'),

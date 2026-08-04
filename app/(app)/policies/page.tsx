@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import type { Policy, PolicyStatus } from '@/lib/types'
+import type { Policy, PolicyStatus } from '@/types/domain'
 import { PageTitle } from '@/components/ui/page-title'
 
 export const dynamic = 'force-dynamic'

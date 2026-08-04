@@ -4,7 +4,6 @@ import { flexibleDateTime } from './primitives'
 // ─── Governance: proposals ───────────────────────────────────────────────────
 
 export const proposalTypes = ['bylaw_change','board_action','membership_vote','advisory_poll','recall','budget'] as const
-export const proposalStatuses = ['draft','open','decided','withdrawn','expired'] as const
 export const thresholdRules = ['simple_majority','two_thirds','three_fourths','unanimous'] as const
 export const votePositions = ['yes','no','abstain','recused'] as const
 

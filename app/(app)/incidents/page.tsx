@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { ShieldCheck } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
-import type { Incident, IncidentStatus } from '@/lib/types'
+import type { Incident, IncidentStatus } from '@/types/domain'
 import { PageTitle } from '@/components/ui/page-title'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 

@@ -8,7 +8,7 @@ import {
   addIncidentUpdate,
   appealIncident,
 } from '@/lib/actions'
-import type { IncidentStatus } from '@/lib/types'
+import type { IncidentStatus } from '@/types/domain'
 import { incidentStatuses, incidentUpdateVisibilities } from '@/lib/validations'
 
 type Props = {

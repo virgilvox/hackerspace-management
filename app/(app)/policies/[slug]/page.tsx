@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { redirect, notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import type { Policy } from '@/lib/types'
+import type { Policy } from '@/types/domain'
 import { PolicyActions } from './policy-actions'
 import { MarkdownBody } from '@/components/markdown'
 import { CommentThread } from '@/components/comments/comment-thread'

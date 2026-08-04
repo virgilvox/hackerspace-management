@@ -1,4 +1,4 @@
-import type { ProposalStatus } from '@/lib/types'
+import type { ProposalStatus } from '@/types/domain'
 
 const STATUS_STYLE: Record<ProposalStatus, string> = {
   draft: 'text-muted-foreground bg-muted',

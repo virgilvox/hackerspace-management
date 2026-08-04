@@ -47,8 +47,3 @@ export async function getRoleLabelMap(
   return map
 }
 
-export function roleDisplayName(map: Record<string, RoleLabel> | null | undefined, role: string): string {
-  if (map && map[role]) return map[role].name
-  const d = DEFAULT_ROLE_LABELS[role as BuiltinRole]
-  return d ? d.name : role
-}
