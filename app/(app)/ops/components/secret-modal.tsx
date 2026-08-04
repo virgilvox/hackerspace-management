@@ -1,9 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createSecret } from '@/lib/actions'
 import { toast } from 'sonner'
-import type { TablesInsert } from '@/types/database'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import type { Secret } from '../types'
 
@@ -11,11 +10,9 @@ import type { Secret } from '../types'
 export function AddSecretModal({
   onClose,
   onSaved,
-  spaceId,
 }: {
   onClose: () => void
   onSaved: (s: Secret) => void
-  spaceId: string
 }) {
   const [title, setTitle] = useState('')
   const [area, setArea] = useState('')
@@ -26,22 +23,20 @@ export function AddSecretModal({
     e.preventDefault()
     if (!title.trim() || !value.trim()) return
     setSaving(true)
-    const supabase = createClient()
-    const { data, error } = await supabase.from('secrets').insert({
-      space_id: spaceId,
+    // Use the createSecret server action, which AES-encrypts the value at rest
+    // (and applies the admin/board authz gate + Zod validation + activity log).
+    // The previous direct browser insert wrote the value in PLAINTEXT — despite
+    // the "Stored encrypted at rest" promise — since the encryption key is
+    // server-only and never reaches the browser.
+    const result = await createSecret({
       title: title.trim(),
-      label: title.trim(),
-      area: area.trim() || null,
       value: value.trim(),
-      // `satisfies` keeps the payload type-checked; the trailing `as never`
-      // only bridges the typed browser client whose .insert() generic collapses
-      // to `never`.
-      // TODO(types): remove after regenerating types/database.ts (missing FK relationship metadata)
-    } satisfies TablesInsert<'secrets'> as never).select('id, title, area, created_at').single()
+      area: area.trim() || undefined,
+    })
     setSaving(false)
-    if (error) { toast.error(error.message); return }
+    if (result.error) { toast.error(result.error); return }
     toast.success('Secret saved')
-    onSaved(data as Secret)
+    onSaved(result.data as Secret)
     onClose()
   }
 

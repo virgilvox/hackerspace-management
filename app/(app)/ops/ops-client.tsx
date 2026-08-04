@@ -208,7 +208,6 @@ export function OpsClient({ spaceId, kbEntries: initial, areaLeads: initialLeads
         <AddSecretModal
           onClose={() => setShowSecretModal(false)}
           onSaved={s => setSecrets(prev => [s, ...prev])}
-          spaceId={spaceId}
         />
       )}
       {showLeadModal && (
