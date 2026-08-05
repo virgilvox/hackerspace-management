@@ -112,8 +112,17 @@ Items 5 (comms realtime dedup) and 6 (commit granularity) still stand as written
   `public/docs-media/` and are embedded as captioned figures. Docs prose contains no em-dashes by house style.
 - **Authoring notes:** add a page = add it to `DOC_CATEGORIES` in `lib/docs/nav.ts` and drop the matching
   `content/docs/<category>/<slug>.md`. No H1 in the body (the page chrome renders the title). Cross-link docs
-  as `/docs/<category>/<slug>` and app screens as `/route`. Every page was fact-checked against the code by an
-  adversarial verify pass; the permission gotcha that recurs: server actions often allow `board`, but the
-  space-config UI (`/settings`, `/customize` config panels, integrations) is admin-only.
+  as `/docs/<category>/<slug>` and app screens as `/route`. Screenshots go in `public/docs-media/` and embed
+  as `![caption](/docs-media/<name>.jpg)` (the alt text becomes the figure caption). House style: no em-dashes.
+  Every page was fact-checked against the code by an adversarial verify pass; the permission gotcha that
+  recurs: server actions often allow `board`, but the space-config UI (`/settings`, `/customize` config
+  panels, integrations) is admin-only.
+- **Middleware gotcha (bit the first deploy):** `proxy.ts` (the Next 16 middleware) redirects any path not in
+  its `PUBLIC_ROUTES` allowlist to `/login`. **Any new public route group must be added to `PUBLIC_ROUTES`**,
+  or it 307s unauthenticated visitors to login. `/docs` is now listed; `/docs-media/*` static images already
+  bypass via the image matcher. Test public pages with cookies cleared: a browser "new tab" keeps the session,
+  so it is NOT a signed-out test.
 
-Gates on this branch: `tsc` 0 · `lint` 0 errors · `build` ✓ (all 34 `/docs` pages prerendered).
+**Shipped:** merged via PR #8 (+ a `proxy.ts` public-route hotfix) and deployed. Live at `hackerspace.sh/docs`
+(verified public: `/docs` returns 200 with no session; `/dashboard` still redirects to `/login`). Gates:
+`tsc` 0 · `lint` 0 errors · `build` ✓ (all 34 `/docs` pages prerendered) · CI green · deploy ✓.
