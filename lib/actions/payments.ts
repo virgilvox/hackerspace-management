@@ -36,6 +36,19 @@ export async function logCashPayment(formData: {
 
   const transactionDate = v.data.transaction_date ?? new Date().toISOString()
 
+  // A supplied member_id must belong to the caller's space before we stamp it
+  // onto the payment, mirroring reserveEquipment. Without this a treasurer
+  // could link a cash payment to a member id from another space.
+  if (v.data.member_id) {
+    const { data: tgt } = await supabase
+      .from('space_members')
+      .select('id')
+      .eq('id', v.data.member_id)
+      .eq('space_id', member.space_id)
+      .maybeSingle()
+    if (!tgt) return { error: 'That member was not found in this space.' }
+  }
+
   const { data, error } = await supabase
     .from('payments')
     .insert({
@@ -91,6 +104,17 @@ export async function linkPaymentToMember(paymentId: string, memberId: string) {
   const auth = await requireMemberWithRole(supabase, TREASURER_ROLES, 'Treasurer access required')
   if (!auth.ok) return { error: auth.error }
   const { member: self } = auth
+
+  // The target member must belong to the caller's space before we link the
+  // payment to it, mirroring reserveEquipment. Without this a treasurer could
+  // link a payment to a member id from another space.
+  const { data: tgt } = await supabase
+    .from('space_members')
+    .select('id')
+    .eq('id', v.data.memberId)
+    .eq('space_id', self.space_id)
+    .maybeSingle()
+  if (!tgt) return { error: 'That member was not found in this space.' }
 
   const { data: payment } = await supabase
     .from('payments')
