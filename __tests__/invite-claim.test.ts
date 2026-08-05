@@ -54,7 +54,7 @@ describe('claimInviteUse (invite max_uses TOCTOU fix)', () => {
   it('claims a use when under the cap and returns the new count', async () => {
     const admin = makeAdmin({ uses_count: 0, max_uses: 1 })
     const result = await claimInviteUse(admin, 'inv-1', 0, 1)
-    expect(result).toBe(1)
+    expect(result).toEqual({ ok: true, count: 1 })
     expect(admin._row.uses_count).toBe(1)
   })
 
@@ -62,7 +62,7 @@ describe('claimInviteUse (invite max_uses TOCTOU fix)', () => {
     const admin = makeAdmin({ uses_count: 1, max_uses: 1 })
     // Second redeemer read uses_count=0 stale, but the row is already at 1.
     const result = await claimInviteUse(admin, 'inv-1', 0, 1)
-    expect(result).toBeNull()
+    expect(result).toEqual({ ok: false, reason: 'cap_reached' })
     expect(admin._row.uses_count).toBe(1) // unchanged — not incremented past cap
   })
 
@@ -70,23 +70,67 @@ describe('claimInviteUse (invite max_uses TOCTOU fix)', () => {
     // max_uses=5, another redeemer already bumped it to 1 after our stale read of 0.
     const admin = makeAdmin({ uses_count: 1, max_uses: 5 })
     const result = await claimInviteUse(admin, 'inv-1', 0, 5)
-    expect(result).toBe(2) // re-read to 1, then CAS-claimed to 2
+    expect(result).toEqual({ ok: true, count: 2 }) // re-read to 1, then CAS-claimed to 2
     expect(admin._row.uses_count).toBe(2)
   })
 
   it('treats an unlimited invite (max_uses null) as always claimable', async () => {
     const admin = makeAdmin({ uses_count: 99, max_uses: null })
     const result = await claimInviteUse(admin, 'inv-1', 99, null)
-    expect(result).toBe(100)
+    expect(result).toEqual({ ok: true, count: 100 })
   })
 
-  it('gives up (null) if it cannot win the CAS within the attempt budget', async () => {
+  it('reports contention (not cap_reached) when it loses the CAS every attempt under a high cap', async () => {
+    // A perpetually-contended invite with plenty of headroom (cap 1000): every
+    // CAS loses because a competing writer keeps advancing the row between our
+    // re-read and our next update, so we never win within the attempt budget.
+    // The row stays well under cap, so the failure is contention — a false
+    // 'cap_reached' here would wrongly turn away a legitimate joiner.
+    const row = { uses_count: 5, max_uses: 1000 as number | null }
+    const admin = {
+      from() {
+        return {
+          update() {
+            const builder: Record<string, unknown> = {
+              eq() {
+                return builder
+              },
+              select() {
+                // Always lose the CAS: a competitor also bumped the row.
+                row.uses_count += 1
+                return Promise.resolve({ data: [] })
+              },
+            }
+            return builder
+          },
+          select() {
+            const builder: Record<string, unknown> = {
+              eq() {
+                return builder
+              },
+              maybeSingle() {
+                return Promise.resolve({ data: { uses_count: row.uses_count } })
+              },
+            }
+            return builder
+          },
+        }
+      },
+    } as unknown as Parameters<typeof claimInviteUse>[0]
+
+    const result = await claimInviteUse(admin, 'inv-1', 5, 1000, 5)
+    expect(result).toEqual({ ok: false, reason: 'contention' })
+    expect(row.uses_count).toBeLessThan(1000) // never hit the cap
+  })
+
+  it('gives up (contention) if it cannot win the CAS within the attempt budget', async () => {
     // Caller's known count (0) is behind the live row (3), so the first CAS
     // guard misses; with a 1-attempt budget it re-reads and then gives up
-    // rather than looping — proving the retry is bounded, not infinite.
+    // rather than looping — proving the retry is bounded, not infinite. Cap is
+    // far off (10), so this is contention, not a reached cap.
     const admin = makeAdmin({ uses_count: 3, max_uses: 10 })
     const result = await claimInviteUse(admin, 'inv-1', 0, 10, 1)
-    expect(result).toBeNull()
+    expect(result).toEqual({ ok: false, reason: 'contention' })
     expect(admin._row.uses_count).toBe(3) // untouched
   })
 })

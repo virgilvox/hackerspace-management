@@ -182,8 +182,16 @@ export async function joinSpace(formData: {
   // (The pre-check above is a fast UX reject; this is the authoritative guard.)
   let claimedCount: number | null = null
   if (invite) {
-    claimedCount = await claimInviteUse(admin, invite.id, invite.uses_count, invite.max_uses)
-    if (claimedCount === null) return { error: 'This invite has reached its use cap.' }
+    const claim = await claimInviteUse(admin, invite.id, invite.uses_count, invite.max_uses)
+    if (!claim.ok) {
+      return {
+        error:
+          claim.reason === 'contention'
+            ? 'Too many people are joining at once — please try again.'
+            : 'This invite has reached its use cap.',
+      }
+    }
+    claimedCount = claim.count
   }
 
   const { data: newMember, error: memberErr } = await admin
