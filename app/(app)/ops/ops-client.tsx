@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { Plus, Search, Lock, Users2 } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
+import { deleteAreaLead } from '@/lib/actions'
 import { toast } from 'sonner'
 import { PageTitle } from '@/components/ui/page-title'
 import { KbModal } from './components/kb-modal'
@@ -15,7 +15,7 @@ import { TABS } from './types'
 import type { OpsClientProps, Tab, KbEntry, AreaLead, Secret } from './types'
 
 // ─── Main Component ────────────────────────────────────────────────────────────
-export function OpsClient({ spaceId, kbEntries: initial, areaLeads: initialLeads, secrets: initialSecrets, canSeeSecrets, canManageAcl = false, aclRoleOptions = [], aclByEntity = {} }: OpsClientProps) {
+export function OpsClient({ kbEntries: initial, areaLeads: initialLeads, secrets: initialSecrets, canSeeSecrets, canManageAcl = false, aclRoleOptions = [], aclByEntity = {} }: OpsClientProps) {
   const [activeTab, setActiveTab] = useState<Tab>('kb')
   const [search, setSearch] = useState('')
   const [kbEntries, setKbEntries] = useState<KbEntry[]>(initial)
@@ -64,9 +64,8 @@ export function OpsClient({ spaceId, kbEntries: initial, areaLeads: initialLeads
   }, [areaLeads, search])
 
   async function deleteLeadFn(id: string) {
-    const supabase = createClient()
-    const { error } = await supabase.from('area_leads').delete().eq('id', id)
-    if (error) { toast.error(error.message); return }
+    const result = await deleteAreaLead(id)
+    if ('error' in result) { toast.error(result.error); return }
     setAreaLeads(prev => prev.filter(l => l.id !== id))
     toast.success('Area lead removed')
   }
@@ -221,7 +220,6 @@ export function OpsClient({ spaceId, kbEntries: initial, areaLeads: initialLeads
                 : [...prev, saved].sort((a, b) => a.area_name.localeCompare(b.area_name)),
             )
           }}
-          spaceId={spaceId}
         />
       )}
     </div>

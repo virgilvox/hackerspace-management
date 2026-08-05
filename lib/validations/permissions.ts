@@ -28,3 +28,15 @@ export const assignAreaLeadSchema = z.object({
   area_lead_role_id: z.string().uuid('Invalid role ID'),
   member_id: z.string().uuid('Invalid member ID'),
 })
+
+// The ops-managed area-lead roster (area_name-keyed, distinct from the
+// area_code-keyed upsertAreaLead role interface above).
+export const createAreaLeadSchema = z.object({
+  area_name: z.string().min(1).max(100),
+  lead_handle: z.string().min(1).max(100),
+  description: z.string().max(2000).optional().nullable(),
+})
+
+export const updateAreaLeadSchema = createAreaLeadSchema.extend({
+  id: z.string().uuid('Invalid area lead ID'),
+})

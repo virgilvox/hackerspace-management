@@ -1,9 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createAreaLead, updateAreaLead } from '@/lib/actions'
 import { toast } from 'sonner'
-import type { TablesInsert, TablesUpdate } from '@/types/database'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import type { AreaLead } from '../types'
 
@@ -12,12 +11,10 @@ export function AreaLeadModal({
   lead,
   onClose,
   onSaved,
-  spaceId,
 }: {
   lead: AreaLead | null
   onClose: () => void
   onSaved: (l: AreaLead) => void
-  spaceId: string
 }) {
   const isEdit = !!lead
   const [areaName, setAreaName] = useState(lead?.area_name ?? '')
@@ -29,26 +26,16 @@ export function AreaLeadModal({
     e.preventDefault()
     if (!areaName.trim() || !memberName.trim()) return
     setSaving(true)
-    const supabase = createClient()
-    let result
-    if (isEdit) {
-      result = await supabase.from('area_leads').update({
-        area_name: areaName.trim(),
-        lead_handle: memberName.trim(),
-        description: contactInfo.trim() || null,
-        // TODO(types): remove `as never` after regenerating types/database.ts (missing FK relationship metadata)
-      } satisfies TablesUpdate<'area_leads'> as never).eq('id', lead.id).select('*').single()
-    } else {
-      result = await supabase.from('area_leads').insert({
-        space_id: spaceId,
-        area_name: areaName.trim(),
-        lead_handle: memberName.trim(),
-        description: contactInfo.trim() || null,
-        // TODO(types): remove `as never` after regenerating types/database.ts (missing FK relationship metadata)
-      } satisfies TablesInsert<'area_leads'> as never).select('*').single()
+    const fields = {
+      area_name: areaName.trim(),
+      lead_handle: memberName.trim(),
+      description: contactInfo.trim() || null,
     }
+    const result = isEdit
+      ? await updateAreaLead(lead.id, fields)
+      : await createAreaLead(fields)
     setSaving(false)
-    if (result.error) { toast.error(result.error.message); return }
+    if ('error' in result) { toast.error(result.error); return }
     toast.success(isEdit ? 'Area lead updated' : 'Area lead added')
     onSaved(result.data as AreaLead)
     onClose()
