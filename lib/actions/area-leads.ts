@@ -121,9 +121,11 @@ export async function updateAreaLead(
     .eq('id', v.data.id)
     .eq('space_id', member.space_id)
     .select()
-    .single()
+    .maybeSingle()
 
   if (error) return { error: error.message }
+  // A cross-space / missing id matches 0 rows; surface the friendly message
+  // (maybeSingle returns null rather than erroring, unlike single()).
   if (!data) return { error: 'Area lead not found' }
 
   await logActivity(supabase, member, 'updated', 'area_lead', v.data.id)
