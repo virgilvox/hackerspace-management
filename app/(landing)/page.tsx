@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { BrandMark } from '@/components/brand-mark'
 import { GithubIcon, ArrowIcon } from '@/components/landing/icons'
@@ -30,10 +29,11 @@ const STEPS = [
 export default async function LandingPage() {
   // `/` resolves here (route group adds no path segment), so this page is
   // wrapped by (landing)/layout.tsx which supplies the .landing-root theme,
-  // fonts, and landing.css. Logged-in visitors skip the marketing page.
+  // fonts, and landing.css. Signed-in visitors can still browse the marketing
+  // site and docs; their CTAs point to the dashboard instead of signup/login.
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (user) redirect('/dashboard')
+  const signedIn = !!user
 
   return (
     <>
@@ -44,6 +44,7 @@ export default async function LandingPage() {
             <span>hackerspace<span style={{ color: 'var(--ln-accent)' }}>.sh</span></span>
           </Link>
           <div className="landing-nav-links">
+            <Link href="/docs" className="hidden sm:inline">Docs</Link>
             <Link href="/resources" className="hidden sm:inline">Resources</Link>
             <a
               href="https://github.com/virgilvox/hackerspace-management"
@@ -54,8 +55,14 @@ export default async function LandingPage() {
             >
               <GithubIcon className="w-[18px] h-[18px]" />
             </a>
-            <Link href="/login">Log in</Link>
-            <Link href="/signup" className="landing-btn-accent">Get started</Link>
+            {signedIn ? (
+              <Link href="/dashboard" className="landing-btn-accent">Dashboard</Link>
+            ) : (
+              <>
+                <Link href="/login">Log in</Link>
+                <Link href="/signup" className="landing-btn-accent">Get started</Link>
+              </>
+            )}
           </div>
         </div>
       </nav>
@@ -73,10 +80,18 @@ export default async function LandingPage() {
               people who keep them running.
             </p>
             <div className="landing-cta-row">
-              <Link href="/signup" className="landing-btn-accent">
-                Get started <ArrowIcon className="w-3.5 h-3.5" />
-              </Link>
-              <Link href="/login" className="landing-btn">Log in</Link>
+              {signedIn ? (
+                <Link href="/dashboard" className="landing-btn-accent">
+                  Go to dashboard <ArrowIcon className="w-3.5 h-3.5" />
+                </Link>
+              ) : (
+                <>
+                  <Link href="/signup" className="landing-btn-accent">
+                    Get started <ArrowIcon className="w-3.5 h-3.5" />
+                  </Link>
+                  <Link href="/login" className="landing-btn">Log in</Link>
+                </>
+              )}
             </div>
           </div>
           <div className="landing-hero-visual">
@@ -132,10 +147,18 @@ export default async function LandingPage() {
         <div className="landing-container">
           <h2 className="landing-cta-title">Stop running your space from memory.</h2>
           <div className="landing-cta-row">
-            <Link href="/signup" className="landing-btn-accent">
-              Get started <ArrowIcon className="w-3.5 h-3.5" />
-            </Link>
-            <Link href="/login" className="landing-btn">Log in</Link>
+            {signedIn ? (
+              <Link href="/dashboard" className="landing-btn-accent">
+                Go to dashboard <ArrowIcon className="w-3.5 h-3.5" />
+              </Link>
+            ) : (
+              <>
+                <Link href="/signup" className="landing-btn-accent">
+                  Get started <ArrowIcon className="w-3.5 h-3.5" />
+                </Link>
+                <Link href="/login" className="landing-btn">Log in</Link>
+              </>
+            )}
           </div>
           <p className="landing-cta-foot">
             Not running a space? Read the{' '}
