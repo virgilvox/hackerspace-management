@@ -1655,6 +1655,41 @@ CREATE INDEX IF NOT EXISTS idx_onboarding_steps_space ON public.space_onboarding
 ALTER TABLE public.space_members ADD COLUMN IF NOT EXISTS onboarding_completed_at timestamptz;
 ALTER TABLE public.space_members ADD COLUMN IF NOT EXISTS onboarding_progress jsonb NOT NULL DEFAULT '{}';
 
+-- Atomic, concurrency-safe step completion (migration 055). Single-statement
+-- dedup-append into onboarding_progress.completed_step_ids so two concurrent
+-- completions can't lose an update (the old read-modify-write in
+-- markOnboardingStepDone could). Ownership-guarded: with a JWT it only touches
+-- the caller's own row; the no-JWT service path is trusted and scoped by
+-- p_member_id.
+CREATE OR REPLACE FUNCTION public.mark_onboarding_step_done(
+  p_member_id uuid, p_step_id uuid
+) RETURNS jsonb
+  LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_completed jsonb;
+BEGIN
+  UPDATE public.space_members m
+  SET onboarding_progress = jsonb_set(
+        coalesce(m.onboarding_progress, '{}'::jsonb),
+        '{completed_step_ids}',
+        CASE
+          WHEN coalesce(m.onboarding_progress -> 'completed_step_ids', '[]'::jsonb)
+                 @> to_jsonb(p_step_id::text)
+            THEN m.onboarding_progress -> 'completed_step_ids'
+          ELSE coalesce(m.onboarding_progress -> 'completed_step_ids', '[]'::jsonb)
+                 || to_jsonb(p_step_id::text)
+        END
+      )
+  WHERE m.id = p_member_id
+    AND (auth.uid() IS NULL OR m.user_id = auth.uid())
+  RETURNING m.onboarding_progress -> 'completed_step_ids' INTO v_completed;
+
+  RETURN v_completed;
+END;
+$$;
+REVOKE EXECUTE ON FUNCTION public.mark_onboarding_step_done(uuid, uuid) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION public.mark_onboarding_step_done(uuid, uuid) TO authenticated, service_role;
+
 CREATE OR REPLACE FUNCTION public.seed_default_onboarding_steps()
   RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
 AS $$

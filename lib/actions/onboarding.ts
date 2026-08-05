@@ -130,20 +130,15 @@ export async function markOnboardingStepDone(stepId: string) {
   if (!auth.ok) return { error: auth.error }
   const { member } = auth
 
-  const { data: row } = await supabase
-    .from('space_members')
-    .select('onboarding_progress')
-    .eq('id', member.id)
-    .single()
-
-  const progress = (row?.onboarding_progress ?? {}) as { completed_step_ids?: string[] }
-  const done = new Set(progress.completed_step_ids ?? [])
-  done.add(v.data)
-
-  const { error } = await supabase
-    .from('space_members')
-    .update({ onboarding_progress: { ...progress, completed_step_ids: Array.from(done) } })
-    .eq('id', member.id)
+  // Atomic dedup-append in the DB (migration 055). The old read-modify-write on
+  // onboarding_progress had a lost-update race: two near-simultaneous
+  // completions both read the same base array and the second write clobbered
+  // the first, silently dropping a step. The RPC pins the write to the caller's
+  // own row via auth.uid().
+  const { error } = await supabase.rpc('mark_onboarding_step_done', {
+    p_member_id: member.id,
+    p_step_id: v.data,
+  })
 
   if (error) return { error: error.message }
   return { success: true as const }

@@ -3462,6 +3462,10 @@ export type Database = {
       }
       expire_proposals: { Args: never; Returns: number }
       get_user_space_ids: { Args: { uid: string }; Returns: string[] }
+      mark_onboarding_step_done: {
+        Args: { p_member_id: string; p_step_id: string }
+        Returns: Json
+      }
       members_with_permission: {
         Args: { perm: string; sid: string }
         Returns: {
