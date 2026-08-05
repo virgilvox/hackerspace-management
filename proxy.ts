@@ -1,6 +1,7 @@
 import { updateSession } from '@/lib/supabase/proxy'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { tenantConfig, isMarketingPath } from '@/lib/tenant'
 
 /** Shape `@supabase/ssr` passes to `setAll` (typing lost to the ssr/js version drift). */
 type CookiesToSet = { name: string; value: string; options: CookieOptions }[]
@@ -63,6 +64,15 @@ const PUBLIC_ROUTES = [
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
+
+  // Single-tenant instances hide the hackerspace.sh marketing shell (the
+  // landing page and the /resources subsite). Those paths are otherwise public;
+  // when marketing is disabled we send them to the app's login entry instead of
+  // rendering platform content. Authenticated users get bounced on to the app
+  // by /login itself.
+  if (!tenantConfig().showMarketing && isMarketingPath(pathname)) {
+    return NextResponse.redirect(new URL('/login', request.url))
+  }
 
   // Always update session to refresh cookies
   const response = await updateSession(request)

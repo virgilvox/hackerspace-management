@@ -1,13 +1,16 @@
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Toaster } from 'sonner'
+import { tenantConfig } from '@/lib/tenant'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
+const _tenant = tenantConfig()
+
 export const metadata: Metadata = {
-  title: 'hackerspace.sh — Manage Your Space',
+  title: `${_tenant.siteName} — Manage Your Space`,
   description: 'The operating system for hackerspaces: members, tasks, projects, ops, payments, and comms.',
   icons: {
     icon: [{ url: '/logo.svg', type: 'image/svg+xml' }],

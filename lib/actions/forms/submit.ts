@@ -17,6 +17,7 @@ import {
   deriveSubmitterEmail,
 } from '@/lib/forms-logic'
 import { renderFormEmail, formDedupeKey } from '@/lib/notifications-logic'
+import { appBaseUrl } from '@/lib/tenant'
 import {
   enqueueNotification,
   resolveMemberContact,
@@ -193,7 +194,7 @@ export async function submitForm(input: unknown) {
       new Set(((admins ?? []) as Array<{ member_id: string }>).map(a => a.member_id)),
     )
     if (adminMemberIds.length > 0) {
-      const resultsUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://hackerspace.sh'}/forms/${form.id}/results`
+      const resultsUrl = `${appBaseUrl()}/forms/${form.id}/results`
       const submitterLabel = await deriveSubmitterLabel(admin, form.space_id, {
         linkedMemberId,
         submitterEmail,

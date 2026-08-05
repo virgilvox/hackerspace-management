@@ -11,6 +11,7 @@ import {
   parseInput,
 } from '@/lib/auth-helpers'
 import { ADMIN_ROLES } from '@/lib/permissions'
+import { appBaseUrl } from '@/lib/tenant'
 import {
   addMemberSchema,
   updateMemberSchema,
@@ -242,7 +243,7 @@ export async function requestEmailChange(input: { email: string }) {
   // Origin from trusted server config ONLY — never request headers. A forged
   // Host/X-Forwarded-Host could otherwise point the confirmation link at an
   // attacker origin and capture the victim's token_hash.
-  const origin = process.env.NEXT_PUBLIC_APP_URL || 'https://hackerspace.sh'
+  const origin = appBaseUrl()
 
   const { error } = await supabase.auth.updateUser(
     { email: v.data.email },

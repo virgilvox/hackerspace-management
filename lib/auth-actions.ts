@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation'
 import { checkRateLimit, sanitizeString, sanitizeSlug } from '@/lib/security'
 import { ACTIVE_STATUSES } from '@/lib/permissions'
 import { claimInviteUse } from '@/lib/invite-claim'
+import { tenantConfig } from '@/lib/tenant'
 
 function generateInviteCode() {
   // Cryptographically random, and wider (8 chars) so the code space is not
@@ -26,6 +27,13 @@ export async function createSpace(formData: {
   spaceCity?: string
   displayName: string
 }) {
+  // Single-tenant instances host exactly one space; the app must not be able to
+  // grow a second tenant. This is the authoritative server-side guard — the
+  // signup UI also hides the "create a space" path, but that is UX only.
+  if (!tenantConfig().allowSpaceCreation) {
+    return { error: 'Space creation is disabled on this instance.' }
+  }
+
   // Verify user is authenticated using regular client
   const supabase = await createClient()
   const { data: { user }, error: userErr } = await supabase.auth.getUser()
@@ -120,32 +128,56 @@ export async function joinSpace(formData: {
 
   // Use admin client for operations
   const admin = createAdminClient()
+  const tenant = tenantConfig()
 
   const code = formData.inviteCode.trim().toUpperCase()
 
-  // Try the new multi-code invites table first. Falls back to the legacy
-  // spaces.invite_code (a permanent default) if the code isn't found there.
-  const { data: inviteRow } = await admin
-    .from('space_invites')
-    .select('id, space_id, max_uses, uses_count, expires_at, is_enabled, role')
-    .eq('code', code)
-    .maybeSingle()
-  const invite = inviteRow
+  // Single-tenant open-join: when this instance permits joining its one space
+  // without an invite code, resolve that space directly (by configured slug, or
+  // the sole space if no slug is set). require_approval is still honored below,
+  // so new members land 'unverified' when the space demands approval.
+  const openJoin = tenant.singleTenant && tenant.openJoin && code === ''
 
+  type InviteRow = {
+    id: string; space_id: string; max_uses: number | null
+    uses_count: number; expires_at: string | null; is_enabled: boolean
+    role: 'admin' | 'board' | 'treasurer' | 'member' | 'associate'
+  }
+  let invite: InviteRow | null = null
   let spaceId: string | null = null
-  if (invite) {
-    if (!invite.is_enabled) return { error: 'This invite is disabled.' }
-    if (invite.expires_at && new Date(invite.expires_at) < new Date()) return { error: 'This invite has expired.' }
-    if (invite.max_uses !== null && invite.uses_count >= invite.max_uses) return { error: 'This invite has reached its use cap.' }
-    spaceId = invite.space_id
+
+  if (openJoin) {
+    const { data: target } = tenant.spaceSlug
+      ? await admin.from('spaces').select('id').eq('slug', tenant.spaceSlug).maybeSingle()
+      : await admin.from('spaces').select('id').order('created_at', { ascending: true }).limit(1).maybeSingle()
+    if (!target) {
+      return { error: 'This instance is not set up yet. Ask an administrator to finish setup.' }
+    }
+    spaceId = target.id
   } else {
-    const { data: legacy } = await admin
-      .from('spaces')
-      .select('id')
-      .eq('invite_code', code)
+    // Try the new multi-code invites table first. Falls back to the legacy
+    // spaces.invite_code (a permanent default) if the code isn't found there.
+    const { data: inviteRow } = await admin
+      .from('space_invites')
+      .select('id, space_id, max_uses, uses_count, expires_at, is_enabled, role')
+      .eq('code', code)
       .maybeSingle()
-    if (!legacy) return { error: 'Invalid invite code' }
-    spaceId = legacy.id
+    invite = inviteRow
+
+    if (invite) {
+      if (!invite.is_enabled) return { error: 'This invite is disabled.' }
+      if (invite.expires_at && new Date(invite.expires_at) < new Date()) return { error: 'This invite has expired.' }
+      if (invite.max_uses !== null && invite.uses_count >= invite.max_uses) return { error: 'This invite has reached its use cap.' }
+      spaceId = invite.space_id
+    } else {
+      const { data: legacy } = await admin
+        .from('spaces')
+        .select('id')
+        .eq('invite_code', code)
+        .maybeSingle()
+      if (!legacy) return { error: 'Invalid invite code' }
+      spaceId = legacy.id
+    }
   }
 
   const { data: space, error: lookupErr } = await admin

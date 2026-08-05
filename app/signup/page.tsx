@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { createSpace, joinSpace } from '@/lib/auth-actions'
+import { tenantConfig } from '@/lib/tenant'
 
 function generateInviteCode() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
@@ -19,9 +20,13 @@ function generateInviteCode() {
 
 export default function SignupPage() {
   const router = useRouter()
+  // Single-tenant instances host one space: there is no "create a space" path,
+  // so signup always means "join THE space". Preselect join and hide the
+  // chooser. createSpace is also refused server-side (defense in depth).
+  const tenant = tenantConfig()
   const [step, setStep] = useState<'account' | 'space'>('account')
   const [isReturningUser, setIsReturningUser] = useState(false)
-  const [mode, setMode] = useState<'create' | 'join' | null>(null)
+  const [mode, setMode] = useState<'create' | 'join' | null>(tenant.singleTenant ? 'join' : null)
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -158,7 +163,7 @@ export default function SignupPage() {
           <div className="mb-8">
             <span className="font-mono text-2xl font-bold">
               <span className="text-[#d4f53c]">{'{'}</span>
-              <span className="text-white">hackerspace.sh</span>
+              <span className="text-white">{tenant.siteName}</span>
               <span className="text-[#d4f53c]">{'}'}</span>
             </span>
           </div>
@@ -216,6 +221,8 @@ export default function SignupPage() {
                 />
               </div>
 
+              {!tenant.singleTenant && (
+              <>
               <p className="font-mono text-[10px] tracking-widest text-zinc-500 uppercase mb-3">
                 What are you doing?
               </p>
@@ -257,6 +264,8 @@ export default function SignupPage() {
                   <p className="font-mono text-xs text-zinc-500">use an invite code</p>
                 </button>
               </div>
+              </>
+              )}
 
               {error && <p className="font-mono text-xs text-red-400 mb-4">{error}</p>}
 
@@ -355,6 +364,15 @@ export default function SignupPage() {
                     <p className="font-mono text-[10px] text-zinc-500 mb-1">You&apos;ll be the admin of this space.</p>
                     <p className="font-mono text-[10px] text-zinc-500">Default channels (general, announcements, ops) will be created automatically.</p>
                   </div>
+                </div>
+              ) : tenant.singleTenant && tenant.openJoin ? (
+                <div className="mb-6 bg-[#232323] border border-[#333] rounded p-4">
+                  <p className="font-mono text-[10px] text-zinc-500 mb-1">
+                    You&apos;re joining <span className="text-white">{tenant.siteName}</span>.
+                  </p>
+                  <p className="font-mono text-[10px] text-zinc-500">
+                    An administrator may need to approve your membership before you gain full access.
+                  </p>
                 </div>
               ) : (
                 <div className="mb-6">

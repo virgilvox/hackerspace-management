@@ -12,6 +12,7 @@
 
 import type { createAdminClient } from '@/lib/supabase/admin'
 import { captureException } from '@/lib/observability/capture'
+import { appBaseUrl } from '@/lib/tenant'
 
 type AdminClient = ReturnType<typeof createAdminClient>
 
@@ -122,9 +123,9 @@ export async function getSpaceName(admin: AdminClient, spaceId: string): Promise
 
 // Build the member portal URL the way every enqueue site does. Header host
 // takes precedence (lets a request to a non-canonical host link back to
-// itself); otherwise falls back to NEXT_PUBLIC_APP_URL and finally the prod
-// default. Same shape as the existing dues path.
+// itself); otherwise falls back to the configured base URL (appBaseUrl, which
+// resolves NEXT_PUBLIC_APP_URL). Same shape as the existing dues path.
 export function buildManageUrl(host?: string | null, proto?: string | null): string {
   if (host) return `${proto || 'https'}://${host}/me`
-  return `${process.env.NEXT_PUBLIC_APP_URL || 'https://hackerspace.sh'}/me`
+  return `${appBaseUrl()}/me`
 }

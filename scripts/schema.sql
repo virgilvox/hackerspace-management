@@ -2978,3 +2978,17 @@ DROP TRIGGER IF EXISTS trg_dues_payment_methods_touch ON public.dues_payment_met
 CREATE TRIGGER trg_dues_payment_methods_touch
   BEFORE UPDATE ON public.dues_payment_methods
   FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
+
+
+-- -----------------------------------------------------------------------------
+-- MIGRATION TRACKING
+-- -----------------------------------------------------------------------------
+-- The deploy script (deploy/deploy.sh) applies each numbered scripts/0NN_*.sql
+-- exactly once and records the filename here. Defined in the canonical schema so
+-- a fresh instance is fully reproducible from this file alone (previously this
+-- table was created ad hoc on the production host and existed nowhere in-repo).
+-- Not a tenant table: it holds no member data and needs no RLS.
+CREATE TABLE IF NOT EXISTS public._migrations_applied (
+  filename    text PRIMARY KEY,
+  applied_at  timestamptz NOT NULL DEFAULT now()
+);
