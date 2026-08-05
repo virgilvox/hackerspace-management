@@ -212,27 +212,8 @@ export async function listUpcomingSessions() {
     .order('starts_at', { ascending: true })
   if (error) return { error: error.message }
 
-  // TODO(types): remove after regenerating types/database.ts (missing FK relationship metadata)
-  const rows = ((sessions ?? []) as unknown as Array<{
-    id: string
-    class_id: string
-    starts_at: string
-    ends_at: string | null
-    location: string | null
-    capacity: number | null
-    status: string
-    notes: string | null
-    classes: {
-      title: string
-      description: string | null
-      payment_link: string | null
-      capacity: number | null
-      is_active: boolean
-      grants_certification_id: string | null
-      required_form_id: string | null
-    } | null
-  }>).filter(
-    (s: { classes?: { is_active?: boolean } | null }) => s.classes?.is_active !== false,
+  const rows = (sessions ?? []).filter(
+    (s) => s.classes?.is_active !== false,
   )
   const ids = rows.map((s: { id: string }) => s.id)
 

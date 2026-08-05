@@ -80,7 +80,8 @@ export async function markAttendance(input: unknown) {
 export async function completeSession(input: unknown) {
   const gate = await requirePermission('classes.instruct')
   if (!gate.ok) return { error: gate.error }
-  const { supabase, member } = gate
+  const { member } = gate
+  const supabase = await createClient()
 
   const v = parseInput(sessionIdSchema, input)
   if (!v.ok) return { error: v.error }
@@ -105,8 +106,7 @@ export async function completeSession(input: unknown) {
     .eq('space_id', member.space_id)
   if (upErr) return { error: upErr.message }
 
-  // TODO(types): remove after regenerating types/database.ts (missing FK relationship metadata)
-  const cls = (session as unknown as { classes?: { title: string; grants_certification_id: string | null } | null }).classes
+  const cls = session.classes
   let issued = 0
   let certSkipped = false
   if (cls?.grants_certification_id) {

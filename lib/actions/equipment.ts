@@ -450,14 +450,15 @@ export async function cancelReservation(input: unknown) {
 export async function listEquipmentReservations(input: unknown) {
   const gate = await requireEquipmentManager()
   if (!gate.ok) return { error: gate.error }
-  const { supabase, member } = gate
+  const { member } = gate
+  const supabase = await createClient()
 
   const v = parseInput(listEquipmentReservationsSchema, input)
   if (!v.ok) return { error: v.error }
 
   const { data, error } = await supabase
     .from('equipment_reservations')
-    .select('id, member_id, starts_at, ends_at, status, notes, space_members(display_name, email)')
+    .select('id, member_id, starts_at, ends_at, status, notes, space_members!equipment_reservations_member_id_fkey(display_name, email)')
     .eq('space_id', member.space_id)
     .eq('equipment_id', v.data.equipmentId)
     .order('starts_at', { ascending: true })

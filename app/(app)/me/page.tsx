@@ -98,12 +98,10 @@ export default async function MePage() {
   }))
 
   const signupRes = await getMyClassSignups()
-  // TODO(types): remove after regenerating types/database.ts (missing FK relationship metadata)
-  const classSignups: ClassSignup[] = 'data' in signupRes ? (signupRes.data as unknown as ClassSignup[]) : []
+  const classSignups: ClassSignup[] = 'data' in signupRes ? (signupRes.data ?? []) : []
 
   const reservationRes = await getMyReservations()
-  // TODO(types): remove after regenerating types/database.ts (missing FK relationship metadata)
-  const reservations: Reservation[] = 'data' in reservationRes ? (reservationRes.data as unknown as Reservation[]) : []
+  const reservations: Reservation[] = 'data' in reservationRes ? (reservationRes.data ?? []) : []
 
   const cardsRes = await getMyCards()
   const myCards: MyCard[] = 'data' in cardsRes ? (cardsRes.data as MyCard[]) : []

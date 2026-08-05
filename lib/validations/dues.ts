@@ -6,7 +6,7 @@ import { DUES_LINK_PLATFORMS, isSafeDuesUrl } from '../dues-payments-logic'
 // member-clickable anchor. instructions is an optional memo hint (e.g. "put
 // your member name in the note") to help the treasurer reconcile later.
 export const duesPaymentMethodSchema = z.object({
-  platform: z.enum(DUES_LINK_PLATFORMS as unknown as [string, ...string[]]),
+  platform: z.enum(DUES_LINK_PLATFORMS),
   url: z
     .string()
     .trim()

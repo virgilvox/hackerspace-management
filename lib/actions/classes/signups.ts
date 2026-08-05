@@ -43,10 +43,7 @@ export async function signUpForClass(input: unknown) {
     .eq('space_id', member.space_id)
     .maybeSingle()
   if (!session) return { error: 'Session not found' }
-  // TODO(types): remove after regenerating types/database.ts (missing FK relationship metadata)
-  const cls = (session as unknown as {
-    classes?: { title: string | null; capacity: number | null; is_active: boolean; required_form_id: string | null } | null
-  }).classes
+  const cls = session.classes
   if (cls && cls.is_active === false) return { error: 'This class is no longer available.' }
 
   const { data: isMgr } = await supabase.rpc('user_has_permission', {
