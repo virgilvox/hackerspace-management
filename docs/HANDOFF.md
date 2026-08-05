@@ -4,6 +4,49 @@ Append-only. Newest entries on top. Keep each entry to one screen.
 
 ---
 
+## 2026-08-05 (single-tenant mode + setup CLI + security fix)
+
+Shipped **single-tenant deployment mode** so a hackerspace can run its own private instance (own DB, own
+domain, one space) from the same codebase, with no schema fork. Also patched a pre-existing critical auth
+vuln found during review. Branch `feat/single-tenant-mode` (2 commits); merging to main.
+
+**Approach.** The app is pooled multi-tenant (many spaces per deploy, `space_id`-scoped) and already single
+active space per user; resolution is membership-only (no subdomain routing). So single-tenant = a config-gated
+MODE, not a rewrite. Decided AGAINST forking or stripping `space_id`.
+
+**Tier 1 (core).** `lib/tenant.ts` is the single source of truth (pure `resolveTenantConfig` + `tenantConfig()`
++ `appBaseUrl()`, mirrors `lib/auth-config.ts`). New NEXT_PUBLIC_ flags (server re-enforced, never trusted from
+the client): `NEXT_PUBLIC_SINGLE_TENANT`, `_SITE_NAME`, `_SINGLE_TENANT_SPACE_SLUG`, `_SINGLE_TENANT_OPEN_JOIN`,
+`_SHOW_MARKETING`. `createSpace` refused when `!allowSpaceCreation`; `joinSpace` open-join resolves the
+configured/sole space with an empty invite code (still honors `require_approval` + already-a-member guard);
+`proxy.ts` hides the marketing shell; signup UI drops the create/join chooser and uses `siteName`. The four
+`|| 'https://hackerspace.sh'` base-URL fallbacks now go through `appBaseUrl()` (default localhost) so a fork
+never leaks the platform domain. **All no-ops when the env is unset, so hackerspace.sh (multi-tenant) is
+unchanged.**
+
+**Tier 2 (productize).** `pnpm setup` (`scripts/setup.mjs`): doctor / provision / create-admin / all-in-one,
+idempotent, creates the **first admin via the Supabase Admin API** (`createUser email_confirm`, then the admin
+`space_members` row); flag > env > `.env.local` precedence; masked prompts; `--yes`/`--force` (force also
+resets an existing admin's password). `scripts/apply-migrations.sh` + `deploy/deploy.sh` commit the previously
+droplet-only CD glue; `_migrations_applied` folded into `schema.sql`. `docker-compose.full.yml` +
+`.env.full.example` = bundled app + self-hosted Supabase. `docs/SINGLE_TENANT.md` + `docs/CUSTOMIZE.md`
+(the documented `lib/tenant.ts` pattern for white-labeling) + README pointer. `__tests__/tenant.test.ts` (19).
+
+**SECURITY (pre-existing, migration 055 -> 056).** Dropped the stale `handle_space_signup()` AFTER-INSERT auth
+trigger. It was SECURITY DEFINER and read `role`+`space_id` from client-controlled `raw_user_meta_data`, so a
+crafted `supabase.auth.signUp({options:{data:{role:'admin',space_id:'<uuid>'}}})` could self-insert an approved
+admin member (surviving approval, since `approveMember` does not reset role), bypassing createSpace/joinSpace.
+Real signups never set those keys (membership comes from the server actions), so it was dead code AND a
+takeover vector. `scripts/056_drop_stale_signup_trigger.sql` (idempotent) drops it; the droplet deploy applies
+pending `scripts/0*.sql` via `_migrations_applied`, so 056 lands in prod on this merge.
+
+**Gates.** tsc 0, lint 0 errors, **664 unit tests** (was 626; +tenant + fixed enqueue test), `next build` ok.
+Verified by a 10-agent review workflow (build + gates + 4 adversarial lenses); all findings fixed. NOT
+browser-smoke-tested against a live single-tenant DB (needs `pnpm setup` against real Supabase); compose is
+syntax-validated only. Follow-up if desired: a live `pnpm setup` proof + an authed e2e for open-join.
+
+---
+
 ## SESSION CLOSEOUT 2026-05-21 (read this first)
 
 **What this arc shipped (passes 63-70, all DEPLOYED).** The **door epic is now complete (P1-P5)**. P4 inbound access-log ingest: a `CRON_SECRET`-guarded HeatSync `?z` poll (now parallelized via `Promise.allSettled`) PLUS a per-connection bearer-authenticated webhook (`/api/door/inbound/[connection]`), both matching the presented card to a member via the HeatSync hex-uid model (`cardMatchesEvent`) and deduping on `(connection_id, dedupe_key)`; config on `/door/manage`. P5 universal API-call button builder: admins define permission-gated `api_buttons` (any HTTP verb + headers + body + vault secret, default the new `apicall.invoke` code) fired through ONE shared hardened egress (`callDoor` + `callApi` over an internal `egress`), builder at `/door/buttons`, members press from `/doors`, every press in `api_call_log`. Migrations **053** (ingest) + **054** (buttons + perm). Plus: dashboard + comms + form-builder **mobile-overflow fixes** (`min-w-0` on flex-truncate rows), the **`docs/SPINE_VALIDATION.md`** owner runbook, and a **privilege-escalation RLS** integration test.

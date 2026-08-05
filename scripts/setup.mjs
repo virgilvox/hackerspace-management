@@ -489,6 +489,21 @@ async function cmdCreateAdmin(cfg) {
 
   if (authUser) {
     console.log(ok('Auth user already exists') + ` (${email}) — reusing it.`)
+    // --force lets you reset the password on an existing admin account (recover a
+    // lost login). Only acts when a password is actually supplied; without --force
+    // an existing user's password is never touched.
+    if (cfg.flags.force) {
+      let newPw = cfg.pick('admin-password', 'SETUP_ADMIN_PASSWORD')
+      if ((!newPw || newPw.trim() === '') && canPrompt(cfg.flags)) {
+        const typed = await promptFor('New admin password (blank to skip reset)', { secret: true })
+        newPw = typed === '' ? null : typed
+      }
+      if (newPw && newPw.trim() !== '') {
+        const { error: updErr } = await admin.auth.admin.updateUserById(authUser.id, { password: newPw })
+        if (updErr) throw new Error(`Failed to reset password: ${updErr.message}`)
+        console.log(ok('Reset admin password') + ` for ${email}.`)
+      }
+    }
   } else {
     // Resolve password: flag/env, else generate (and print once).
     let password = cfg.pick('admin-password', 'SETUP_ADMIN_PASSWORD')
