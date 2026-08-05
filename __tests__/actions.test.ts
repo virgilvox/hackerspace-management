@@ -70,7 +70,9 @@ vi.mock('@/lib/supabase/admin', () => ({
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 
 import { updateMember, removeMember } from '@/lib/actions/members'
-import { logCashPayment } from '@/lib/actions/payments'
+import { logCashPayment, linkPaymentToMember } from '@/lib/actions/payments'
+import { sendMessage } from '@/lib/actions/comms'
+import { createAreaLead, updateAreaLead, deleteAreaLead } from '@/lib/actions/area-leads'
 
 const UUID = '11111111-1111-1111-1111-111111111111'
 const user = { id: 'user-A', email: 'a@example.com' }
@@ -165,5 +167,176 @@ describe('server-action tenant scoping (IDOR guard)', () => {
     )
     expect(paymentInsert?.space_id).toBe('space-A')
     expect(paymentInsert?.platform).toBe('cash')
+  })
+
+  it('rejects a cash payment whose member_id belongs to another space', async () => {
+    currentClient = makeClient({
+      user,
+      queue: [
+        { data: memberRow('treasurer', 'space-A') }, // requireMember
+        { data: null }, // space_members scope lookup: foreign member -> not found
+      ],
+    })
+    const res = await logCashPayment({ amount: 25, from_note: 'dues', member_id: UUID })
+    expect(res).toHaveProperty('error')
+    expect((res as { error: string }).error).toMatch(/not found in this space/i)
+    // The IDOR write must never reach the payments table.
+    const inserts = currentClient._calls.filter(x => x.method === 'insert').map(x => x.args[0])
+    expect(inserts.some(o => !!o && typeof o === 'object' && 'platform' in (o as object))).toBe(false)
+    // The scope lookup was pinned to the caller's own space.
+    expect(eqCalls(currentClient)).toContainEqual(['space_id', 'space-A'])
+    expect(eqCalls(currentClient)).toContainEqual(['id', UUID])
+  })
+
+  it('rejects linking a payment to a member_id from another space', async () => {
+    currentClient = makeClient({
+      user,
+      queue: [
+        { data: memberRow('treasurer', 'space-A') }, // requireMember
+        { data: null }, // space_members scope lookup: foreign member -> not found
+      ],
+    })
+    const res = await linkPaymentToMember(UUID, UUID)
+    expect(res).toHaveProperty('error')
+    expect((res as { error: string }).error).toMatch(/not found in this space/i)
+    // No payments UPDATE was recorded (the guard returns before the link write).
+    expect(currentClient._calls.some(x => x.method === 'update')).toBe(false)
+    expect(eqCalls(currentClient)).toContainEqual(['space_id', 'space-A'])
+  })
+})
+
+describe('comms sendMessage anti-impersonation', () => {
+  const CHANNEL = '22222222-2222-2222-2222-222222222222'
+
+  it('stamps the message with session identity, ignoring client-supplied fields', async () => {
+    currentClient = makeClient({
+      user, // user-A — the authenticated sender
+      queue: [
+        { data: memberRow('member', 'space-A') }, // requireMember
+        { data: { id: CHANNEL } }, // channel scope lookup: belongs to space-A
+        { data: { id: 'msg-1' } }, // comms_messages insert().select().single()
+        { error: null }, // activity_log insert
+      ],
+    })
+    // Attacker tries to spoof identity + tenant through the input. The action
+    // types forbid these keys, so cast through unknown to simulate a hand-rolled
+    // client payload; Zod strips them and identity is derived from the session.
+    const spoofed = {
+      channel_id: CHANNEL,
+      content: 'hello',
+      user_id: 'attacker',
+      display_name: 'Someone Else',
+      handle: 'imposter',
+      space_id: 'space-VICTIM',
+    } as unknown as Parameters<typeof sendMessage>[0]
+    const res = await sendMessage(spoofed)
+    expect(res).not.toHaveProperty('error')
+
+    const inserts = currentClient._calls.filter(x => x.method === 'insert').map(x => x.args[0])
+    const msgInsert = inserts.find(
+      (o): o is Record<string, unknown> => !!o && typeof o === 'object' && 'content' in o,
+    )
+    // Identity + tenant come from the session/member, NOT the input.
+    expect(msgInsert?.user_id).toBe('user-A')
+    expect(msgInsert?.space_id).toBe('space-A')
+    expect(msgInsert?.display_name).toBe('Admin A')
+    expect(msgInsert?.handle).toBe('admin-a')
+    // The spoofed values must never survive.
+    expect(msgInsert?.user_id).not.toBe('attacker')
+    expect(msgInsert?.space_id).not.toBe('space-VICTIM')
+    expect(msgInsert?.display_name).not.toBe('Someone Else')
+  })
+
+  it('rejects posting to a channel_id from another space and writes nothing', async () => {
+    currentClient = makeClient({
+      user,
+      queue: [
+        { data: memberRow('member', 'space-A') }, // requireMember
+        { data: null }, // channel scope lookup: foreign channel -> not found
+      ],
+    })
+    const res = await sendMessage({ channel_id: CHANNEL, content: 'hello' })
+    expect(res).toHaveProperty('error')
+    // No message ever reached comms_messages.
+    const inserts = currentClient._calls.filter(x => x.method === 'insert').map(x => x.args[0])
+    expect(inserts.some(o => !!o && typeof o === 'object' && 'content' in (o as object))).toBe(false)
+    // The channel lookup was pinned to the caller's own space.
+    expect(eqCalls(currentClient)).toContainEqual(['space_id', 'space-A'])
+    expect(eqCalls(currentClient)).toContainEqual(['id', CHANNEL])
+  })
+})
+
+describe('area-leads roster actions (admin-gated, space-scoped)', () => {
+  const fields = { area_name: 'Woodshop', lead_handle: 'alice', description: null }
+
+  it('rejects a non-admin from creating an area lead and writes nothing', async () => {
+    currentClient = makeClient({ user, queue: [{ data: memberRow('member') }] })
+    const res = await createAreaLead(fields)
+    expect(res).toHaveProperty('error')
+    expect((res as { error: string }).error).toMatch(/admin/i)
+    // The insert must never reach area_leads.
+    const inserts = currentClient._calls.filter(x => x.method === 'insert').map(x => x.args[0])
+    expect(inserts.some(o => !!o && typeof o === 'object' && 'area_name' in (o as object))).toBe(false)
+  })
+
+  it('stamps a created area lead with the caller’s space_id', async () => {
+    currentClient = makeClient({
+      user,
+      queue: [
+        { data: memberRow('admin', 'space-A') }, // requireMemberWithRole
+        { data: { id: 'al-1' } }, // area_leads insert().select().single()
+        { error: null }, // activity_log insert
+      ],
+    })
+    const res = await createAreaLead(fields)
+    expect(res).not.toHaveProperty('error')
+    const inserts = currentClient._calls.filter(x => x.method === 'insert').map(x => x.args[0])
+    const leadInsert = inserts.find(
+      (o): o is Record<string, unknown> => !!o && typeof o === 'object' && 'area_name' in o,
+    )
+    // Tenant is derived from the session member, never the client.
+    expect(leadInsert?.space_id).toBe('space-A')
+    expect(leadInsert?.area_name).toBe('Woodshop')
+    // area_code stays null for this roster interface.
+    expect(leadInsert?.area_code).toBeUndefined()
+  })
+
+  it('scopes an admin updateAreaLead to the caller’s space_id and id', async () => {
+    currentClient = makeClient({
+      user,
+      queue: [
+        { data: memberRow('admin', 'space-A') }, // requireMemberWithRole
+        { data: { id: UUID } }, // area_leads update().select().single()
+        { error: null }, // activity_log insert
+      ],
+    })
+    // Attacker-style call: a lead id that might belong to another space.
+    const res = await updateAreaLead(UUID, { area_name: 'Metal', lead_handle: 'bob' })
+    expect(res).not.toHaveProperty('error')
+    expect(eqCalls(currentClient)).toContainEqual(['space_id', 'space-A'])
+    expect(eqCalls(currentClient)).toContainEqual(['id', UUID])
+  })
+
+  it('scopes an admin deleteAreaLead to the caller’s space_id', async () => {
+    currentClient = makeClient({
+      user,
+      queue: [
+        { data: memberRow('admin', 'space-A') }, // requireMemberWithRole
+        { error: null }, // area_leads delete({ count: 'exact' }) -> row deleted
+        { error: null }, // activity_log insert
+      ],
+    })
+    const res = await deleteAreaLead(UUID)
+    expect(res).not.toHaveProperty('error')
+    expect(eqCalls(currentClient)).toContainEqual(['space_id', 'space-A'])
+    expect(eqCalls(currentClient)).toContainEqual(['id', UUID])
+  })
+
+  it('rejects a non-admin from deleting an area lead and writes nothing', async () => {
+    currentClient = makeClient({ user, queue: [{ data: memberRow('member') }] })
+    const res = await deleteAreaLead(UUID)
+    expect(res).toHaveProperty('error')
+    // No space-scoped delete ever ran.
+    expect(eqCalls(currentClient).some(a => a[0] === 'space_id')).toBe(false)
   })
 })
