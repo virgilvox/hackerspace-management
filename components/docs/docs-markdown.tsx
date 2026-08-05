@@ -21,6 +21,17 @@ export function DocsMarkdown({ content }: { content: string }) {
           h2: ({ children }) => <h2 id={slug(children)}>{children}</h2>,
           h3: ({ children }) => <h3 id={slug(children)}>{children}</h3>,
           h4: ({ children }) => <h4 id={slug(children)}>{children}</h4>,
+          // Render images as captioned figures. Uses spans (valid inside the
+          // <p> react-markdown wraps a lone image in) styled as blocks; the alt
+          // text doubles as the caption.
+          img: ({ src, alt }) =>
+            typeof src === 'string' ? (
+              <span className="docs-figure">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={src} alt={alt ?? ''} loading="lazy" />
+                {alt ? <span className="docs-figcaption">{alt}</span> : null}
+              </span>
+            ) : null,
           a: ({ href, children }) =>
             isInDocumentHref(href) ? (
               <a href={href}>{children}</a>

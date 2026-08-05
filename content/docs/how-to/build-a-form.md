@@ -6,9 +6,9 @@ This is an admin-side task. You need the `forms.manage` permission, which is gra
 
 1. Go to [/forms](/forms) and choose **New form**. You land in the builder at [/forms/new](/forms/new).
 2. Set the **Type**:
-   - **Form** — a plain form (surveys, interest lists, equipment requests).
-   - **Waiver** — a form that requires the signer to agree to legal/consent text before submitting.
-3. Enter a **Title**. As you type, a **Link slug** is generated for you; edit it if you want. The slug is lowercase letters, digits, and hyphens (1–80 characters) and must be unique within your space. It becomes the public address `/f/<space>/<slug>`. The slug and the Type cannot change after creation, so pick them deliberately.
+   - **Form**, a plain form (surveys, interest lists, equipment requests).
+   - **Waiver**, a form that requires the signer to agree to legal/consent text before submitting.
+3. Enter a **Title**. As you type, a **Link slug** is generated for you; edit it if you want. The slug is lowercase letters, digits, and hyphens (1-80 characters) and must be unique within your space. It becomes the public address `/f/<space>/<slug>`. The slug and the Type cannot change after creation, so pick them deliberately.
 4. Optionally add a **Description** shown above the fields.
 5. For a **Waiver**, fill in **Waiver / consent text**. This is the exact text the signer must agree to, and it is snapshotted into every signature (see [Immutable submissions](#immutable-submissions)).
 
@@ -44,7 +44,7 @@ The **Who can submit** setting controls visibility:
 
 | Option | Stored value | Who can submit | Public link |
 | --- | --- | --- | --- |
-| Members only | `members` | Signed-in members of your space | No — filled inside the app |
+| Members only | `members` | Signed-in members of your space | No, filled inside the app |
 | Anyone signed in | `public_auth` | Any signed-in user | Yes |
 | Anyone (no account) | `public_anon` | Anyone, no account needed | Yes |
 
@@ -67,12 +67,12 @@ Deleting a form is permanent and cascades to every response, including signed wa
 
 ## Immutable submissions
 
-Every submission is an append-only snapshot. At submit time the platform stores a copy of the field schema, the waiver text, and the form version alongside the answers. Later edits to the form never alter past submissions, so a signed waiver stays valid against exactly what that signer saw. Submissions cannot be edited by anyone — only deleted.
+Every submission is an append-only snapshot. At submit time the platform stores a copy of the field schema, the waiver text, and the form version alongside the answers. Later edits to the form never alter past submissions, so a signed waiver stays valid against exactly what that signer saw. Submissions cannot be edited by anyone, only deleted.
 
 Editing a published waiver's legal text or fields bumps its version. Existing signatures remain valid against their own snapshot; only new signers see the new version.
 
 ## Related
 
-- [Forms](/forms) — manage your forms and waivers
-- [Members](/members) — see a member's linked form submissions
+- [Forms](/forms), manage your forms and waivers
+- [Members](/members), see a member's linked form submissions
 - [Invite links](/docs/how-to/invite-links)

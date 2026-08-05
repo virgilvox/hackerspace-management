@@ -11,9 +11,9 @@ These control delivery and cron authentication. The ones that govern integration
 | `CRON_SECRET` | Shared secret guarding both cron endpoints. Generate with `openssl rand -hex 32`. | Both cron routes return `503` and never run. |
 | `SENTRY_DSN` | Optional Sentry-compatible error backend; both cron dispatchers and the webhook report to it. | Capture seam no-ops. |
 
-The two cron endpoints reuse the same `CRON_SECRET`. The door webhook does not use it — it authenticates on a per-connection secret from the vault.
+The two cron endpoints reuse the same `CRON_SECRET`. The door webhook does not use it, it authenticates on a per-connection secret from the vault.
 
-## Notification dispatcher — `POST /api/cron/notifications`
+## Notification dispatcher, `POST /api/cron/notifications`
 
 Transactional email is an outbox (the `notifications` table). The Stripe webhook and other server actions only enqueue rows; nothing sends inline. This endpoint drains the outbox and is meant to be hit once a minute by the droplet crontab.
 
@@ -46,13 +46,13 @@ Members opt out of muteable categories from their profile at [/me](/me); the tog
 | `forms` | Yes | `form_submission_received` |
 | `admin_alerts` | Yes | `form_submission_admin` |
 
-The model is opt-out: an absent preference row means enabled. A type with no category mapping is treated as always-on (fail-open). When the dispatcher marks an email `skipped`, the notification still appears unread in the member's in-app inbox on [/me](/me) — the `read_at` marker is independent of email delivery.
+The model is opt-out: an absent preference row means enabled. A type with no category mapping is treated as always-on (fail-open). When the dispatcher marks an email `skipped`, the notification still appears unread in the member's in-app inbox on [/me](/me), the `read_at` marker is independent of email delivery.
 
-## Door inbound — poll vs. webhook
+## Door inbound, poll vs. webhook
 
-A space that runs a door controller can pull real entry/denied events into the access log through one of two transports, both configured per connection on [/door/manage](/door/manage) (requires the `door.manage` permission — see [Access control](/docs/reference/access-control) and [Connect a door](/docs/how-to/connect-a-door)). Both share one ingest core; ingested rows dedupe on `(connection_id, dedupe_key)`.
+A space that runs a door controller can pull real entry/denied events into the access log through one of two transports, both configured per connection on [/door/manage](/door/manage) (requires the `door.manage` permission, see [Access control](/docs/reference/access-control) and [Connect a door](/docs/how-to/connect-a-door)). Both share one ingest core; ingested rows dedupe on `(connection_id, dedupe_key)`.
 
-### Poll — `POST /api/cron/door-ingest`
+### Poll, `POST /api/cron/door-ingest`
 
 For native-HeatSync controllers only. A once-a-minute crontab call reads each enabled connection's `?z` log through the hardened outbound executor and matches each card to a member.
 
@@ -60,12 +60,12 @@ For native-HeatSync controllers only. A once-a-minute crontab call reads each en
 - Polls only connections with `is_enabled`, `inbound_enabled`, and `adapter = 'native_heatsync'`, up to 50 per run, concurrently.
 - Idempotent: overlapping or missed minutes are harmless.
 
-### Webhook — `POST /api/door/inbound/[connection]`
+### Webhook, `POST /api/door/inbound/[connection]`
 
 For generic (non-HeatSync) controllers or a LAN relay that pushes normalized events. This is the reliable transport: each event carries a caller-supplied stable id, so retries are idempotent.
 
 - `[connection]` is the connection's UUID; a malformed id returns a generic `404`.
-- Auth: `Authorization: Bearer <inbound secret>` — the per-connection secret from the AES-256-GCM vault (`inbound_secret_ref`), distinct from the outbound door password. A missing connection, disabled inbound, or bad secret all return the same `401`. The webhook URL is shown on [/door/manage](/door/manage) once inbound is enabled.
+- Auth: `Authorization: Bearer <inbound secret>`, the per-connection secret from the AES-256-GCM vault (`inbound_secret_ref`), distinct from the outbound door password. A missing connection, disabled inbound, or bad secret all return the same `401`. The webhook URL is shown on [/door/manage](/door/manage) once inbound is enabled.
 - Rate limited to 120 requests/minute per connection (`429` over that). Bodies over 64 KB are rejected `413`.
 
 Request body:
@@ -84,7 +84,7 @@ Request body:
 }
 ```
 
-`events` holds 1–100 items. `result` is one of `granted`, `denied`, `unknown`. Provide `card_uid` and/or `card_number` (digits only) to resolve the event to a member. Valid requests return `{ "received": true, ... }` with per-batch insert counts; malformed JSON or a schema failure returns `400`.
+`events` holds 1-100 items. `result` is one of `granted`, `denied`, `unknown`. Provide `card_uid` and/or `card_number` (digits only) to resolve the event to a member. Valid requests return `{ "received": true, ... }` with per-batch insert counts; malformed JSON or a schema failure returns `400`.
 
 ## Email transport (Resend)
 

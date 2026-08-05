@@ -23,63 +23,63 @@ Several modules span more than one screen. The primary route above is the main e
 
 ### Members
 
-- `/members` — the member roster, dues statuses, and contact info.
-- `/customize` — where membership tiers, custom roles, and the permissions matrix are configured (admin only; board can open `/customize` but these panels are read-only for board).
-- `/contacts` — non-member contacts.
-- `/me` — a member's own membership record ("My membership").
-- `/recruitment` — prospective-member pipeline (admin only).
+- `/members`, the member roster, dues statuses, and contact info.
+- `/customize`, where membership tiers, custom roles, and the permissions matrix are configured (admin only; board can open `/customize` but these panels are read-only for board).
+- `/contacts`, non-member contacts.
+- `/me`, a member's own membership record ("My membership").
+- `/recruitment`, prospective-member pipeline (admin only).
 
 ### Tasks, projects, and ops
 
-- `/tasks` — tasks and chores.
-- `/projects` — the project board.
-- `/ops` — ops and facilities docs, area leads, and the secrets vault. Individual docs open at `/ops/[id]`.
+- `/tasks`, tasks and chores.
+- `/projects`, the project board.
+- `/ops`, ops and facilities docs, area leads, and the secrets vault. Individual docs open at `/ops/[id]`.
 
 ### Payments and finance
 
-- `/payments` — transaction import and reconciliation.
-- `/financials` — financial reporting.
-- `/import` — import and sync (admin only).
+- `/payments`, transaction import and reconciliation.
+- `/financials`, financial reporting.
+- `/import`, import and sync (admin only).
 
 See [Connect payments](/docs/how-to/connect-payments) and [Import members](/docs/how-to/import-members).
 
 ### Governance
 
-- `/proposals` — proposals, with detail at `/proposals/[id]` and creation at `/proposals/new`.
-- `/incidents` — incident reports (`/incidents/new`, `/incidents/[id]`).
-- `/policies` — the policy library (`/policies/new`, `/policies/[slug]`).
-- `/forum` — the member forum (`/forum/new`, `/forum/[id]`).
+- `/proposals`, proposals, with detail at `/proposals/[id]` and creation at `/proposals/new`.
+- `/incidents`, incident reports (`/incidents/new`, `/incidents/[id]`).
+- `/policies`, the policy library (`/policies/new`, `/policies/[slug]`).
+- `/forum`, the member forum (`/forum/new`, `/forum/[id]`).
 
 See [Run a proposal](/docs/how-to/run-a-proposal).
 
 ### Forms and waivers
 
-- `/my-forms` — forms available to you to fill out and sign.
-- `/forms` — the form and waiver builder (`/forms/new`, `/forms/[id]`), gated by the `forms.manage` permission.
+- `/my-forms`, forms available to you to fill out and sign.
+- `/forms`, the form and waiver builder (`/forms/new`, `/forms/[id]`), gated by the `forms.manage` permission.
 
 See [Build a form](/docs/how-to/build-a-form).
 
 ### Classes, certifications, and equipment
 
-- `/classes` — the class schedule; `/classes/manage` for scheduling and rosters.
-- `/certifications` — certification records, gated by `certifications.manage`.
-- `/equipment` — the tool registry and reservations; `/equipment/manage` for the registry.
-- `/attendance` — attendance records.
+- `/classes`, the class schedule; `/classes/manage` for scheduling and rosters.
+- `/certifications`, certification records, gated by `certifications.manage`.
+- `/equipment`, the tool registry and reservations; `/equipment/manage` for the registry.
+- `/attendance`, attendance records.
 
 See [Your first class](/docs/tutorials/first-class) and [Equipment reservations](/docs/how-to/equipment-reservations).
 
 ### Access control
 
-- `/doors` — the member-facing door and card view.
-- `/door/manage` — door connections, cards, and the access log (`door.manage`).
-- `/door/buttons` — API buttons for door actions.
+- `/doors`, the member-facing door and card view.
+- `/door/manage`, door connections, cards, and the access log (`door.manage`).
+- `/door/buttons`, API buttons for door actions.
 
 See [Connect a door](/docs/how-to/connect-a-door).
 
 ### Onboarding and invites
 
-- `/customize` — the onboarding flow builder and invite-link management (admin only).
-- `/settings` — space settings (admin only).
+- `/customize`, the onboarding flow builder and invite-link management (admin only).
+- `/settings`, space settings (admin only).
 
 See [Configure onboarding](/docs/how-to/configure-onboarding) and [Invite links](/docs/how-to/invite-links).
 

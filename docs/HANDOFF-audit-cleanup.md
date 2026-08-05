@@ -76,3 +76,44 @@ pnpm build           # compiles + type-checks all routes
 Review Phases A + B + CI first (low-risk, high-value: type safety, bug fixes, tests). Then the refactor
 slices (structural, verified by tsc + build + tests). Then the SoC pass. Merge via PR; a squash or
 merge-commit is fine. After merge to `main` it deploys — have the manual UI smoke-test done first.
+
+---
+
+## Update — 2026-08-05 (merged to `main`, live)
+
+The audit/cleanup branch was merged (PR #7) and deployed. The four residual items above are now resolved:
+
+1. **Manual UI smoke-test — DONE.** The decomposed ops/settings/members screens (plus onboarding, dashboard,
+   /me) were clicked through against a real seeded backend; a live mutation (area-lead create) and the
+   certifications dialog were exercised. Zero console/server errors.
+2. **`types/database.ts` regenerated — DONE.** Regenerated from the canonical `scripts/schema.sql` (built on
+   a local Supabase). All 11 `// TODO(types)` join casts removed, hand-added RPCs now native, and
+   `types/domain/governance.ts` collapsed to `Tables<>`/`Enums<>`. Two embeds that resolved to `any[]` were
+   traced to the deliberately-wide `ServerSupabase` gate type and fixed by using `createClient()` directly.
+3. **Deferred bug L3 — FIXED.** `markOnboardingStepDone` now routes through `mark_onboarding_step_done`
+   (migration `055`): a single atomic, ownership-guarded dedup-append into `onboarding_progress`. Covered by
+   `integration/onboarding-progress.test.ts` (incl. a 12-way concurrency case).
+4. **CI DB-backed suites — DONE.** `.github/workflows/ci.yml` now has an `integration-e2e` job that stands up
+   a Supabase service, runs the integration suite and Playwright e2e, and **fails if the integration suite
+   executes 0 tests** (so a missing DB can't masquerade as passing).
+
+Items 5 (comms realtime dedup) and 6 (commit granularity) still stand as written.
+
+## Docs section + homepage fix (branch `feat/docs-and-homepage-fix`)
+
+- **Homepage redirect fix** (`app/(landing)/page.tsx`): it used to `redirect('/dashboard')` for any signed-in
+  visitor, so the marketing site (and the new docs) were unreachable while logged in. The redirect is gone;
+  the nav/hero/closing CTAs are now auth-aware (signed-in shows a "Dashboard" button).
+- **Public `/docs` section** organized by Diátaxis (tutorials / how-to / reference / explanation), **34 pages**
+  covering every module. Source of truth is `lib/docs/nav.ts`; content is markdown under
+  `content/docs/<category>/<slug>.md`, read at build time (the routes are statically generated) and rendered
+  by `components/docs/docs-markdown.tsx` (reuses the existing `react-markdown` stack, no new deps). The
+  `(docs)` route group has its own theme (`docs.css`) matching the public site. Screenshots live in
+  `public/docs-media/` and are embedded as captioned figures. Docs prose contains no em-dashes by house style.
+- **Authoring notes:** add a page = add it to `DOC_CATEGORIES` in `lib/docs/nav.ts` and drop the matching
+  `content/docs/<category>/<slug>.md`. No H1 in the body (the page chrome renders the title). Cross-link docs
+  as `/docs/<category>/<slug>` and app screens as `/route`. Every page was fact-checked against the code by an
+  adversarial verify pass; the permission gotcha that recurs: server actions often allow `board`, but the
+  space-config UI (`/settings`, `/customize` config panels, integrations) is admin-only.
+
+Gates on this branch: `tsc` 0 · `lint` 0 errors · `build` ✓ (all 34 `/docs` pages prerendered).

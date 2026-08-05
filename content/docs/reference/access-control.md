@@ -14,7 +14,7 @@ Managers configure at [/door/manage](/door/manage) and [/door/buttons](/door/but
 
 ## Member cards
 
-`member_cards` maps a physical card UID to a member. The raw UID is treated as a credential: only `door.manage` holders can read the table, and a member's own view returns a per-card list (`card_type`, `label`, `is_active`, and the last four characters of the UID, rendered `••••ABCD`) — never more than the last four of the UID.
+`member_cards` maps a physical card UID to a member. The raw UID is treated as a credential: only `door.manage` holders can read the table, and a member's own view returns a per-card list (`card_type`, `label`, `is_active`, and the last four characters of the UID, rendered `••••ABCD`), never more than the last four of the UID.
 
 | Field | Type | Notes |
 | --- | --- | --- |
@@ -44,7 +44,7 @@ Native HeatSync encodes fixed-width query strings: grant `?m<slot>&p<perm>&t<tag
 
 ## Card slots
 
-`door_card_slots` is the platform's allocation map. Controllers key cards by an integer `slot` (HeatSync range 0–200), scoped per connection.
+`door_card_slots` is the platform's allocation map. Controllers key cards by an integer `slot` (HeatSync range 0-200), scoped per connection.
 
 - `UNIQUE (connection_id, slot)` arbitrates concurrent grants racing for a slot.
 - `UNIQUE (connection_id, card_id)` makes re-granting idempotent.
@@ -77,8 +77,8 @@ Two transports pull entry/denied events into the log and share one core. Ingeste
 | --- | --- | --- |
 | `label` / `button_group` | text | Grouped and ordered by `sort_order` |
 | `method` | `GET`, `POST`, `PUT`, `PATCH`, `DELETE` | Default `POST` |
-| `base_url` / `pinned_host` | — | Per-button SSRF pin |
-| `url_template` / `body_template` / `headers` | — | With `secret_ref` injected server-side |
+| `base_url` / `pinned_host` |, | Per-button SSRF pin |
+| `url_template` / `body_template` / `headers` |, | With `secret_ref` injected server-side |
 | `required_permission` | catalog code | Default `apicall.invoke`; a member sees only buttons whose permission they hold |
 | `confirm` | boolean | Prompt before firing (default true) |
 

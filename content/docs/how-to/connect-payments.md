@@ -1,6 +1,6 @@
-Dues that arrive off-platform — PayPal, Venmo, Zeffy, or cash handed to the treasurer — land in the [/payments](/payments) ledger as transactions, where you match each one to the member who paid. This recipe covers getting those transactions in and reconciling them by hand.
+Dues that arrive off-platform (PayPal, Venmo, Zeffy, or cash handed to the treasurer) land in the [/payments](/payments) ledger as transactions, where you match each one to the member who paid. This recipe covers getting those transactions in and reconciling them by hand.
 
-If you want dues that reconcile themselves, set up recurring Stripe billing instead — see [Dues end to end](/docs/tutorials/dues-end-to-end). This page is for everything that is *not* an automatic Stripe subscription.
+If you want dues that reconcile themselves, set up recurring Stripe billing instead. See [Set up recurring Stripe dues](/docs/how-to/stripe-dues). This page is for everything that is *not* an automatic Stripe subscription.
 
 ## Roles you need
 
@@ -17,7 +17,7 @@ Give members a button to pay you directly. In [/settings](/settings) open the **
 2. Add optional instructions, e.g. "put your member name in the note."
 3. Leave the toggle on **shown** and click **Save**.
 
-Members see active links on their [/me](/me) page. These links do not record anything — money paid through them still has to be reconciled in [/payments](/payments) later.
+Members see active links on their [/me](/me) page. These links do not record anything, money paid through them still has to be reconciled in [/payments](/payments) later.
 
 ## Connect PayPal to sync transactions
 
@@ -34,11 +34,11 @@ For any platform, upload a spreadsheet export at [/import](/import):
 3. Confirm the mapping. Required fields: **Amount**, **Sender / From Name**, **Date**. Optional: **Platform** (`venmo`/`paypal`/`cash`) and **Note / Memo**.
 4. Click **Preview Import**, then **Import**.
 
-Rows with a bad amount, date, or platform are skipped and counted in the results — they are not silently dropped. Imported rows land **unlinked**.
+Rows with a bad amount, date, or platform are skipped and counted in the results, they are not silently dropped. Imported rows land **unlinked**.
 
 ## Log a cash payment
 
-For cash handed over in person, click **Log Cash** on [/payments](/payments). Enter the amount, a note (e.g. "John Smith — March dues"), an optional date, and optionally pick the member from **Link to Member** to link it immediately.
+For cash handed over in person, click **Log Cash** on [/payments](/payments). Enter the amount, a note (e.g. "John Smith, March dues"), an optional date, and optionally pick the member from **Link to Member** to link it immediately.
 
 ## Reconcile: match payments to members
 

@@ -10,8 +10,8 @@ Each form is one row in the `forms` table.
 
 | Field | Type | Notes |
 | --- | --- | --- |
-| `slug` | text | Unique per space. Lowercase letters, numbers, and internal hyphens; 1–80 chars. Immutable after creation. |
-| `title` | text | 1–200 chars. |
+| `slug` | text | Unique per space. Lowercase letters, numbers, and internal hyphens; 1-80 chars. Immutable after creation. |
+| `title` | text | 1-200 chars. |
 | `description` | text | Optional, up to 2000 chars. |
 | `kind` | enum | `form` or `waiver`. |
 | `visibility` | enum | `public_anon`, `public_auth`, or `members`. |
@@ -24,7 +24,7 @@ The slug is unique per space (`UNIQUE (space_id, slug)`), not globally, so two s
 
 ## Field types
 
-The `schema` is an ordered array of fields. Each field has a `key` (lowercase letters, numbers, underscores; 1–60 chars; unique within the form), a `label`, an optional `help` string, and an optional `required` flag (default `false`). A form may have up to 200 fields.
+The `schema` is an ordered array of fields. Each field has a `key` (lowercase letters, numbers, underscores; 1-60 chars; unique within the form), a `label`, an optional `help` string, and an optional `required` flag (default `false`). A form may have up to 200 fields.
 
 | `type` | Answer stored as | Server validation |
 | --- | --- | --- |
@@ -37,7 +37,7 @@ The `schema` is an ordered array of fields. Each field has a `key` (lowercase le
 | `select` | string | must be one of `options` |
 | `radio` | string | must be one of `options` |
 
-`select` and `radio` fields require an `options` array (each option 1–200 chars, up to 100 options). Answers are validated server-side against the stored schema on submit: unknown keys are discarded, empty required fields are rejected, and only known fields are persisted.
+`select` and `radio` fields require an `options` array (each option 1-200 chars, up to 100 options). Answers are validated server-side against the stored schema on submit: unknown keys are discarded, empty required fields are rejected, and only known fields are persisted.
 
 ## Member linking
 

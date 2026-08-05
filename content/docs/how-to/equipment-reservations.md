@@ -2,7 +2,7 @@ Register your tools and machines, let members book time on them without double-b
 
 ## Before you start
 
-Managing the registry requires the `equipment.manage` permission. By default the **board** role holds it; a space can grant it to other roles under [/customize](/customize). Reserving a tool needs no special permission — any member in good standing (status `current`, `unverified`, or `late`) can book from the catalog.
+Managing the registry requires the `equipment.manage` permission. By default the **board** role holds it; a space can grant it to other roles under [/customize](/customize). Reserving a tool needs no special permission, so any active member (status `current`, `late`, or `unverified`) can book from the catalog. Reserving is not one of the privileged, permission-gated actions, so it is available even to `unverified` members who are still pending approval.
 
 If you plan to gate a tool behind a certification, create that certification first at [/certifications](/certifications) so it appears in the requirement dropdown.
 
@@ -38,7 +38,7 @@ To require that a member hold a certification before they can reserve or use a t
 
 The certification must belong to your space or the save is rejected. Once set, members who do not hold an active certification see a **Requires `<name>`** badge on [/equipment](/equipment) and the **Reserve** button is disabled for them. Members who hold it see a **Certified: `<name>`** badge and can book normally.
 
-A revoked or expired certification does not count as active, so it will not satisfy the gate. An `equipment.manage` holder can override the certification gate — including booking on another member's behalf — but the override never bypasses an operational status block (a `maintenance` or `retired` tool still cannot be reserved).
+A revoked or expired certification does not count as active, so it will not satisfy the gate. An `equipment.manage` holder can override the certification gate, including booking on another member's behalf, but the override never bypasses an operational status block (a `maintenance` or `retired` tool still cannot be reserved).
 
 ## Reserve a tool (member view)
 
@@ -50,7 +50,7 @@ Members can review their own bookings on [/me](/me). A member can cancel their o
 
 ## How overlaps are prevented
 
-Two reservations for the same tool cannot overlap. Time windows are half-open, so a booking that ends exactly when the next one begins is allowed (they touch but do not conflict). Only active (`reserved`) reservations block a slot — `cancelled` and `completed` ones never do.
+Two reservations for the same tool cannot overlap. Time windows are half-open, so a booking that ends exactly when the next one begins is allowed (they touch but do not conflict). Only active (`reserved`) reservations block a slot, `cancelled` and `completed` ones never do.
 
 This is enforced two ways: the action checks for conflicts before inserting, and a database exclusion constraint (`equipment_reservations_no_overlap`) is the final arbiter, so two people booking the same slot at the same instant cannot both succeed. The losing request sees `That time overlaps an existing reservation.`
 
@@ -58,7 +58,7 @@ This is enforced two ways: the action checks for conflicts before inserting, and
 
 On [/equipment/manage](/equipment/manage) each item offers:
 
-- **Reservations** — view the booking list for that tool.
-- **Edit** — change any field, including status and the required certification.
-- **Archive** / **Restore** — archived items are hidden from the member catalog but keep their history. Use this instead of deleting once a tool has bookings.
-- **Delete** — permanently removes the item. This is blocked if the tool has any reservations; archive it instead.
+- **Reservations**, view the booking list for that tool.
+- **Edit**, change any field, including status and the required certification.
+- **Archive** / **Restore**, archived items are hidden from the member catalog but keep their history. Use this instead of deleting once a tool has bookings.
+- **Delete**, permanently removes the item. This is blocked if the tool has any reservations; archive it instead.

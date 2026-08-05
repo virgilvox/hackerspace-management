@@ -1,8 +1,8 @@
-Invite codes let new people join your space through a shareable code or one-click link. Each code can grant a specific role, cap how many times it is used, and expire on a date you choose — so you can hand out a permanent public code and a single-use admin link from the same screen.
+Invite codes let new people join your space through a shareable code or one-click link. Each code can grant a specific role, cap how many times it is used, and expire on a date you choose, so you can hand out a permanent public code and a single-use admin link from the same screen.
 
 ## Before you start
 
-- You need the **admin** role. In the UI, creating, editing, disabling, and deleting invites is admin-only. A **board** member can open the **Invite codes** panel — it is visible to admin and board — but sees only the read-only **Copy code** and **Copy link** buttons; the **+ New invite**, **Disable/Enable**, and **Delete** controls are hidden. (The underlying `createInvite` server action also permits board, but the panel does not expose it.)
+- You need the **admin** role. In the UI, creating, editing, disabling, and deleting invites is admin-only. A **board** member can open the **Invite codes** panel, it is visible to admin and board, but sees only the read-only **Copy code** and **Copy link** buttons; the **+ New invite**, **Disable/Enable**, and **Delete** controls are hidden. (The underlying `createInvite` server action also permits board, but the panel does not expose it.)
 - As the admin, you can grant any role with an invite, including **admin**.
 - Invite codes live in the **Invite codes** panel on the [`/customize`](/customize) screen.
 
@@ -14,7 +14,7 @@ Invite codes let new people join your space through a shareable code or one-clic
 
 | Field | What it does |
 | --- | --- |
-| Code | The code people redeem. Leave blank to auto-generate an 8-character code. Typed codes are uppercased and limited to `A–Z`, `0–9`, and `-`, 4–32 characters, and must be unique across all spaces. |
+| Code | The code people redeem. Leave blank to auto-generate an 8-character code. Typed codes are uppercased and limited to `A-Z`, `0-9`, and `-`, 4-32 characters, and must be unique across all spaces. |
 | Label | A private note to remember what the code is for (for example, "Open house 2026"). |
 | Expiry | A date and time after which the code stops working. Leave blank for no expiry. |
 | Max uses | How many times the code may be redeemed. Leave blank for unlimited. Must be a positive number. |
@@ -27,8 +27,8 @@ Invite codes let new people join your space through a shareable code or one-clic
 
 Each row has two buttons:
 
-- **Copy code** — copies the raw code (for example, `K7P2R9QT`) to paste into a message.
-- **Copy link** — copies a one-click join link in the form:
+- **Copy code**, copies the raw code (for example, `K7P2R9QT`) to paste into a message.
+- **Copy link**, copies a one-click join link in the form:
 
 ```
 https://your-space.example/join/<space-slug>?code=<CODE>
@@ -48,4 +48,4 @@ A code also stops working on its own once it is disabled, past its expiry, or at
 ## Notes and edge cases
 
 - Disabling and deleting affect only future joins. Members who already joined keep their role; change it from [`/members`](/members).
-- If your space requires approval, new joiners still land as unverified pending an admin's review. See [`/docs/reference/roles`](/docs/reference/roles) for what each granted role can do.
+- If your space requires approval, new joiners still land as unverified pending an admin's review. See [Roles and permissions](/docs/reference/roles-and-permissions) for what each granted role can do.

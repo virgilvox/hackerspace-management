@@ -1,5 +1,7 @@
 A member is one person's record in your space, stored in the `space_members` table. This page lists every member status and tier, the fields on the member record, and the settings that control who can see the directory. Manage members at [/members](/members); members edit their own record at [/me](/me).
 
+![The member roster with tier, status, and per-member actions.](/docs-media/members.jpg)
+
 ## Statuses
 
 `status` is the `member_status` enum. It defaults to `unverified`. It governs whether a member can act in the app and whether they hold their role's privileges.
@@ -8,13 +10,13 @@ A member is one person's record in your space, stored in the `space_members` tab
 | --- | --- | --- | --- |
 | `current` | Yes | Yes | All members |
 | `late` | Yes | Yes | All members (dues lapsed) |
-| `unverified` | Yes | No — pending approval | Pending Approval tab |
-| `inactive` | No — blocked from all actions | No | Inactive tab |
+| `unverified` | Yes | No, pending approval | Pending Approval tab |
+| `inactive` | No, blocked from all actions | No | Inactive tab |
 
 Notes:
 
 - The active set is `current`, `unverified`, and `late`. Only these three are loaded as a member's active membership; `inactive` members are blocked from every server action.
-- `late` is a dues state, not an authorization downgrade — a late member keeps their role and privileges.
+- `late` is a dues state, not an authorization downgrade, a late member keeps their role and privileges.
 - `unverified` is the approval gate. In a `require_approval` space, a new member stays `unverified` and holds **no** privileged capability until an admin approves them, even if they redeemed a role-bearing invite. Approving sets `status` to `current` and `approved` to `true`.
 - The [/members](/members) page tabs are All, Payment Issues, Pending Approval (`unverified`), and Inactive. The All tab hides `inactive` members.
 
@@ -79,6 +81,6 @@ Who can see the member directory is set per space by `member_directory_visibilit
 | `members_visible` | Any authenticated member (default) |
 | `public_members_visible` | Any authenticated member; behaves identically to `members_visible` (there is no public, unauthenticated directory route) |
 | `board_only` | Elevated roles only (`admin`, `board`, `treasurer`) |
-| `member_count_visible` | Elevated roles only; treated identically to `board_only` — non-elevated members get the same restricted notice (no count is shown) |
+| `member_count_visible` | Elevated roles only; treated identically to `board_only`, non-elevated members get the same restricted notice (no count is shown) |
 
 When a member is not permitted to see the directory, [/members](/members) shows a "restricted in this space" notice instead of the table.

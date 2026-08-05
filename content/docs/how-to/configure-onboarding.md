@@ -14,7 +14,7 @@ Board members can open [/customize](/customize) and see the onboarding steps, bu
 
 ## Understand the built-in steps
 
-Every space is seeded with four built-in steps when it is created. They are marked **built-in** and cannot be deleted — only disabled or reordered.
+Every space is seeded with four built-in steps when it is created. They are marked **built-in** and cannot be deleted, only disabled or reordered.
 
 | Step | Type | Seeded as | Notes |
 | --- | --- | --- | --- |
@@ -29,11 +29,11 @@ There are six step types. The four above are built-in; the two you can add yours
 
 | Type | Body editable | Extra config | Deletable |
 | --- | --- | --- | --- |
-| `welcome` | yes | — | no (built-in) |
+| `welcome` | yes |, | no (built-in) |
 | `code_of_conduct` | yes | `require_ack`, `ack_label` | no (built-in) |
-| `profile` | no | — | no (built-in) |
+| `profile` | no |, | no (built-in) |
 | `payment` | yes | `payment_url` (link button) | no (built-in) |
-| `content` | yes | — | yes |
+| `content` | yes |, | yes |
 | `form` | yes | `form_id` (published form) | yes |
 
 Body fields accept markdown and a safe subset of HTML.
@@ -50,20 +50,20 @@ Use this to make members sign a waiver or fill out a form as part of joining.
 
 1. First create and **publish** the form under [/forms](/forms) (Forms & waivers). Only published forms can be linked.
 2. In the **Onboarding** section, click **+ Form step**.
-3. In the new step, use the **Select a form…** dropdown to pick the published form. Waivers are labelled `(waiver)`. The choice is stored as `form_id` on the step.
+3. In the new step, use the **Select a form...** dropdown to pick the published form. Waivers are labelled `(waiver)`. The choice is stored as `form_id` on the step.
 
 If there are no published forms yet, the step shows a prompt to create one first instead of a dropdown.
 
 ## Reorder steps
 
-Each step row starts with a small number field — its `sort_order`. Type a new number and click away; steps re-sort by ascending order. Lower numbers run first. New steps are added with an order one higher than the current maximum.
+Each step row starts with a small number field, its `sort_order`. Type a new number and click away; steps re-sort by ascending order. Lower numbers run first. New steps are added with an order one higher than the current maximum.
 
 ## Toggle required and enabled
 
 Each step has two checkboxes:
 
-- **Enabled** — unchecked steps are hidden from the flow entirely.
-- **Required** — the member cannot finish onboarding until every *enabled and required* step is completed.
+- **Enabled**, unchecked steps are hidden from the flow entirely.
+- **Required**, the member cannot finish onboarding until every *enabled and required* step is completed.
 
 Edge cases worth knowing:
 
@@ -72,7 +72,7 @@ Edge cases worth knowing:
 
 ## Delete a step
 
-Only custom (`content`) and `form` steps show a **Delete** button, and only for admins. Built-in steps have no delete control — disable them instead. Deleting asks for confirmation and is permanent.
+Only custom (`content`) and `form` steps show a **Delete** button, and only for admins. Built-in steps have no delete control, disable them instead. Deleting asks for confirmation and is permanent.
 
 ## Related
 

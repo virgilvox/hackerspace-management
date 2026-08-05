@@ -19,7 +19,7 @@ You need the `admin` or `board` role. Every member can read policies at [/polici
 
 A draft is not yet in force. It has no `effective_at` date and does not count as the space's governing text until you activate it.
 
-The slug must be unique within your space. If you try to create a second policy with a slug that already exists, you get an error telling you to supersede the existing one instead — that is how new versions are made.
+The slug must be unique within your space. If you try to create a second policy with a slug that already exists, you get an error telling you to supersede the existing one instead, that is how new versions are made.
 
 ## Publish (activate) the policy
 
@@ -35,7 +35,7 @@ The detail page's primary view always shows the active version (falling back to 
 
 ## Supersede with a new version
 
-When the text needs to change, you do not edit the active version in place — you publish a new version and swap it in.
+When the text needs to change, you do not edit the active version in place, you publish a new version and swap it in.
 
 1. Open the active policy and click `Supersede with new version` in the `Manage` panel.
 2. The formal text and plain-language fields open pre-filled with the current version's content. Edit them.

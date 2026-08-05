@@ -1,4 +1,4 @@
-The governance kernel is three linked entities — proposals, incidents, and policies — plus the enums and computed fields that drive async voting, code-of-conduct tracking, and versioned bylaws. This page enumerates every enum value, field, and lifecycle state defined in the schema. It backs the app screens at [/proposals](/proposals), [/incidents](/incidents), and [/policies](/policies), and the how-to guides [Run a proposal](/docs/how-to/run-a-proposal), [Handle incidents](/docs/how-to/handle-incidents), and [Publish a policy](/docs/how-to/publish-a-policy).
+The governance kernel is three linked entities (proposals, incidents, and policies) plus the enums and computed fields that drive async voting, code-of-conduct tracking, and versioned bylaws. This page enumerates every enum value, field, and lifecycle state defined in the schema. It backs the app screens at [/proposals](/proposals), [/incidents](/incidents), and [/policies](/policies), and the how-to guides [Run a proposal](/docs/how-to/run-a-proposal), [Handle incidents](/docs/how-to/handle-incidents), and [Publish a policy](/docs/how-to/publish-a-policy).
 
 ## Proposals
 
@@ -117,7 +117,7 @@ Each entry in an incident's update thread carries its own visibility. Admin and 
 
 ## Policies
 
-A policy is a versioned document — bylaws, code of conduct, station rules. Members read; admin and board create. Rows are immutable: a new version is a new row pointing back via `prior_version_id`, uniqueness enforced by `UNIQUE (space_id, slug, version)`.
+A policy is a versioned document, bylaws, code of conduct, station rules. Members read; admin and board create. Rows are immutable: a new version is a new row pointing back via `prior_version_id`, uniqueness enforced by `UNIQUE (space_id, slug, version)`.
 
 ### `policy_status`
 

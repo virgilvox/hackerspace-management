@@ -8,7 +8,7 @@ A class is a per-space offering; a session is a scheduled occurrence; a signup i
 
 | Field | Notes |
 | --- | --- |
-| `title` | 1–200 chars, required |
+| `title` | 1-200 chars, required |
 | `description` | optional |
 | `payment_link` | optional `http(s)` URL only; a manual link, no live payment integration |
 | `capacity` | optional default per-session capacity; `> 0`; null = unlimited |
@@ -62,7 +62,7 @@ A certification is a per-space type (name unique case-insensitive, `description`
 - `expires_at` is computed and stored **at grant time** from the type's `validity_months` (null = never expires). Later edits to the type never change existing grants.
 - At most one active (non-revoked) grant per member per type; revoked grants stay as history and a re-grant is allowed.
 - Revoking is a soft revoke (`revoked_at`, `revoked_by`, `revoked_reason`); grants are never hard-deleted by clients.
-- Renewing a non-revoked grant resets `granted_at` and recomputes expiry. A revoked grant is terminal — issue a fresh grant.
+- Renewing a non-revoked grant resets `granted_at` and recomputes expiry. A revoked grant is terminal, issue a fresh grant.
 
 | Cert status | Rule |
 | --- | --- |
@@ -80,7 +80,7 @@ A certification is a per-space type (name unique case-insensitive, `description`
 
 Equipment is a per-space tool record; a reservation is one member's time window on one tool. Members browse and reserve at [/equipment](/equipment); managers maintain the registry at [/equipment/manage](/equipment/manage). See [Reserve equipment](/docs/how-to/equipment-reservations) for the task walkthrough.
 
-Equipment fields: `name` (1–200), `description`, `location`, `asset_tag`, `is_active`, an optional `required_certification_id`, and an operational status.
+Equipment fields: `name` (1-200), `description`, `location`, `asset_tag`, `is_active`, an optional `required_certification_id`, and an operational status.
 
 | Equipment status | Reservable? |
 | --- | --- |

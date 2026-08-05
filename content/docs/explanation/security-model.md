@@ -1,4 +1,4 @@
-hackerspace.sh treats every space as an isolated tenant and assumes the network is hostile: the browser is never trusted to say who you are or what you may do. This page explains the layers that enforce that assumption — Postgres Row Level Security, server-derived identity, the encrypted secrets vault, the authorization gates inside every server action, and input validation — and why each layer exists even when another already covers it.
+hackerspace.sh treats every space as an isolated tenant and assumes the network is hostile: the browser is never trusted to say who you are or what you may do. This page explains the layers that enforce that assumption, Postgres Row Level Security, server-derived identity, the encrypted secrets vault, the authorization gates inside every server action, and input validation, and why each layer exists even when another already covers it.
 
 ## Defense in depth, not a single wall
 
@@ -19,7 +19,7 @@ The browser never tells the server who the caller is. Every server action starts
 const { data: { user } } = await supabase.auth.getUser()
 ```
 
-From that verified `user.id`, `getAuthMember` (in `lib/auth-helpers.ts`) loads the caller's active `space_members` row and returns their real `role`, `status`, and `space_id`. Client code cannot supply any of these. If a request body contained a `space_id` or `role` field, it would be ignored — the action uses the derived membership, not the payload.
+From that verified `user.id`, `getAuthMember` (in `lib/auth-helpers.ts`) loads the caller's active `space_members` row and returns their real `role`, `status`, and `space_id`. Client code cannot supply any of these. If a request body contained a `space_id` or `role` field, it would be ignored, the action uses the derived membership, not the payload.
 
 Two details harden this:
 
@@ -32,10 +32,10 @@ See [The permissions model](/docs/explanation/permissions-model) for how a role 
 
 Once identity is derived, the action authorizes it. `requireMemberWithRole(supabase, allowed)` enforces two conditions before returning the member:
 
-1. The member's status is privilege-eligible — `PRIVILEGE_STATUSES` is `current` and `late` only. An `unverified` member awaiting approval in a `require_approval` space holds **no** privileged capability, even if they redeemed a role-bearing invite code. Without this gate, redeeming an admin invite would grant instant admin.
+1. The member's status is privilege-eligible, `PRIVILEGE_STATUSES` is `current` and `late` only. An `unverified` member awaiting approval in a `require_approval` space holds **no** privileged capability, even if they redeemed a role-bearing invite code. Without this gate, redeeming an admin invite would grant instant admin.
 2. The member's role is in the `allowed` set.
 
-Only then does the action run its query, and it must scope that query to the caller's own space with `.eq('space_id', member.space_id)`. This scope is mandatory on the `admin` (service-role) client, which bypasses RLS entirely — there, the code-side scope is the only thing standing between the caller and a cross-tenant (IDOR) leak.
+Only then does the action run its query, and it must scope that query to the caller's own space with `.eq('space_id', member.space_id)`. This scope is mandatory on the `admin` (service-role) client, which bypasses RLS entirely, there, the code-side scope is the only thing standing between the caller and a cross-tenant (IDOR) leak.
 
 ## Row Level Security as the backstop
 
@@ -45,7 +45,7 @@ RLS is enabled on every tenant table. The RLS-bound `server` and `client` client
 USING (space_id IN (SELECT public.get_user_space_ids(auth.uid())))
 ```
 
-Sensitive tables narrow further by role via `user_has_role_in_space(...)` — `secrets` are admin/board only, `payments` is treasurer and up, and the `knowledge_base` `visibility` column (`all_members`, `board`, `admin_only`) is enforced in the SELECT policy itself.
+Sensitive tables narrow further by role via `user_has_role_in_space(...)`, `secrets` are admin/board only, `payments` is treasurer and up, and the `knowledge_base` `visibility` column (`all_members`, `board`, `admin_only`) is enforced in the SELECT policy itself.
 
 ### The self-role-change trap
 
@@ -53,7 +53,7 @@ RLS deliberately lets a member update *their own* `space_members` row so they ca
 
 ## The encrypted secrets vault
 
-Third-party credentials — Stripe keys, door-controller bearer tokens, API keys — are never stored in plaintext. `lib/secrets/crypto.ts` encrypts them with **AES-256-GCM**:
+Third-party credentials (Stripe keys, door-controller bearer tokens, API keys) are never stored in plaintext. `lib/secrets/crypto.ts` encrypts them with **AES-256-GCM**:
 
 - The master key comes from `SECRETS_ENCRYPTION_KEY` (64 hex characters, 32 bytes). The module is server-only; the key is never reachable from the browser.
 - Each secret gets a fresh 12-byte IV on every encrypt. The stored `encrypted_value` is `iv (12) || ciphertext || authTag (16)`, tagged with `encryption_version = 1`.
@@ -67,4 +67,4 @@ Before authorization even runs, every action validates its input with a Zod sche
 
 ## Public endpoints self-authenticate
 
-A handful of routes are intentionally session-less — Stripe webhooks, inbound door events, cron jobs, public forms under `/f/*`, and `/track`. Each carries its own proof instead of a cookie: Stripe verifies a per-space signing secret with a replay guard, door callbacks compare a per-connection vault bearer with `timingSafeEqual`, crons check `CRON_SECRET`, and `/track` uses a 192-bit token.
+A handful of routes are intentionally session-less, Stripe webhooks, inbound door events, cron jobs, public forms under `/f/*`, and `/track`. Each carries its own proof instead of a cookie: Stripe verifies a per-space signing secret with a replay guard, door callbacks compare a per-connection vault bearer with `timingSafeEqual`, crons check `CRON_SECRET`, and `/track` uses a 192-bit token.

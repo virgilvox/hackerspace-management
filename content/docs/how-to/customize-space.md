@@ -1,16 +1,18 @@
 The [/customize](/customize) screen is where you bend the platform's built-in vocabulary to fit your space. From one place you can rename and recolor the five built-in roles, tune the per-space permission matrix, add display-only custom roles, define membership tiers, and set up shop areas and area leads.
 
-Operational settings (space identity, integrations, webhooks) live under [Settings](/docs/how-to/space-settings), not here.
+Operational settings (space identity, integrations, webhooks) live under Settings ([/settings](/settings)), not here.
+
+![The Customize screen: panels down the left, the built-in roles ready to rename and recolor.](/docs-media/customize.jpg)
 
 ## Before you start
 
-You need the **board** or **admin** role to open [/customize](/customize) at all. Most panels let board members read the current configuration, but the changes that alter authorization — editing the permission matrix, creating roles, changing tiers, assigning area leads — are **admin-only**. When you are a board member, those controls render as view-only.
+You need the **board** or **admin** role to open [/customize](/customize) at all. Most panels let board members read the current configuration, but the changes that alter authorization (editing the permission matrix, creating roles, changing tiers, assigning area leads) are **admin-only**. When you are a board member, those controls render as view-only.
 
 Open [/customize](/customize) and use the left-hand nav to move between panels: Roles, Permissions, Membership tiers, Areas, Area leads, Invite codes, and Onboarding. This page covers the first five.
 
 ## Rename and recolor the built-in roles
 
-The five roles — `admin`, `board`, `treasurer`, `member`, `associate` — are fixed and drive every permission check. You cannot add or remove them, but you can change how they are displayed everywhere in the app.
+The five roles (`admin`, `board`, `treasurer`, `member`, `associate`) are fixed and drive every permission check. You cannot add or remove them, but you can change how they are displayed everywhere in the app.
 
 1. Go to the **Roles** panel.
 2. Under **Built-in roles**, each row shows the fixed role code, an editable display name, a badge color, and an optional short description.
@@ -20,7 +22,7 @@ The new label appears anywhere the role is shown. The underlying role code never
 
 ## Add a custom role
 
-Custom roles are extra labels for org structure — committees, mentors, working groups. They are **display-only and do not grant any permissions** on their own. (They can, however, appear as subjects in the permission matrix; see below.)
+Custom roles are extra labels for org structure, committees, mentors, working groups. They are **display-only and do not grant any permissions** on their own. (They can, however, appear as subjects in the permission matrix; see below.)
 
 1. In the **Roles** panel, under **Custom roles**, choose **+ Custom role** (admin only).
 2. Enter a `slug` (lowercase, kebab/underscore), a display name, a color, and an optional description.
@@ -30,9 +32,9 @@ Custom roles are extra labels for org structure — committees, mentors, working
 
 The **Permissions** panel is a grid: capabilities down the side, role subjects across the top. Checking a box grants that permission to that role for this space.
 
-- **`admin` is never listed** — it implicitly holds every permission and cannot be locked out.
+- **`admin` is never listed**, it implicitly holds every permission and cannot be locked out.
 - Subjects are the built-in roles (except admin) plus any custom roles you created.
-- Toggles save immediately per subject; a "…" indicator shows while saving, and a failed save reverts.
+- Toggles save immediately per subject; a "..." indicator shows while saving, and a failed save reverts.
 
 Permissions are **additive**. A grant only widens what a role can do through the surfaces that consult permissions; it never overrides the database tenant isolation (RLS) that keeps spaces separate. The available capabilities include, among others:
 
@@ -61,7 +63,7 @@ Built-in tiers are marked **built-in** and can be **archived** (hidden) but not 
 
 ## Set up areas and area leads
 
-Areas tag tasks, projects, and [knowledge base](/docs/reference/knowledge-base) entries by shop space. New spaces come seeded with areas like `woodshop`, `electronics`, `laser`, and `3d-printing`.
+Areas tag tasks, projects, and knowledge base entries by shop space. New spaces come seeded with areas like `woodshop`, `electronics`, `laser`, and `3d-printing`.
 
 To manage areas:
 
@@ -79,5 +81,5 @@ The assigned member effectively holds that area-lead role, so any Ops item whose
 
 ## Related
 
-- [Invite codes](/docs/how-to/invite-links) and [Onboarding](/docs/how-to/configure-onboarding) — the remaining Customize panels.
-- [Members](/members) — where roles and tiers are applied to people.
+- [Invite codes](/docs/how-to/invite-links) and [Onboarding](/docs/how-to/configure-onboarding), the remaining Customize panels.
+- [Members](/members), where roles and tiers are applied to people.

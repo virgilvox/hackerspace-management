@@ -9,6 +9,8 @@ Set aside about fifteen minutes. You will need the `classes.manage` permission t
 
 ## Step 1: Create a class
 
+![The class management screen. A new space starts empty; begin by creating a class, then schedule sessions members can sign up for.](/docs-media/classes-manage.jpg)
+
 A class is the reusable offering ("Woodshop Basics"). Sessions are the individual scheduled occurrences you will add later.
 
 1. Go to [/classes/manage](/classes/manage).
@@ -33,6 +35,8 @@ The session appears under the class with its start time and a **Scheduled** stat
 
 ## Step 3: Members sign up
 
+![The member class view: each upcoming session shows its time, location, spots left, and a Sign up button.](/docs-media/classes.jpg)
+
 Members do not need any special permission to sign up, only membership in the space.
 
 1. As a member, go to [/classes](/classes). Upcoming, non-cancelled sessions appear with "X of N spots left" (or "open" when unlimited).
@@ -42,7 +46,7 @@ When registered signups reach capacity, the button reads **Join waitlist** inste
 
 ## Step 4: Mark attendance
 
-Now switch back to someone with `classes.instruct`. (A user with only `classes.manage` can open the roster and see who signed up, but cannot check **attended** or run **Complete session** — both require `classes.instruct`.)
+Now switch back to someone with `classes.instruct`. (A user with only `classes.manage` can open the roster and see who signed up, but cannot check **attended** or run **Complete session**, both require `classes.instruct`.)
 
 1. On [/classes/manage](/classes/manage), find the session and select **Signups**. (Instructors browsing [/classes](/classes) can use **Attendees** on the session instead.)
 2. The roster lists each signup with its status. Check the **attended** box next to each member who showed up.
@@ -54,7 +58,7 @@ Attendance is what determines who receives a certification in the next step, so 
 1. In the same attendees panel, select **Complete session**.
 2. The session status changes to **Completed**.
 
-If the class grants a certification, completion awards it to every member you marked as attended. The result confirms how many certificates were issued. If the instructor lacks `certifications.grant`, the session still completes but you will see "Certificates were NOT issued (requires the certifications.grant permission)" — grant that permission and the members can be certified through [/certifications](/certifications).
+If the class grants a certification, completion awards it to every member you marked as attended. The result confirms how many certificates were issued. If the instructor lacks `certifications.grant`, the session still completes but you will see "Certificates were NOT issued (requires the certifications.grant permission)", grant that permission and the members can be certified through [/certifications](/certifications).
 
 Members can see their signups and completed sessions on their own page at [/me](/me), and any certification they earned appears in their certifications.
 
@@ -62,8 +66,8 @@ Members can see their signups and completed sessions on their own page at [/me](
 
 You now have a class with one completed session, an attendance record, and (optionally) certifications awarded to attendees. From here you can:
 
-- Schedule more sessions of the same class — the offering is reusable.
+- Schedule more sessions of the same class, the offering is reusable.
 - **Archive** a class you no longer offer instead of deleting it (deleting is only allowed when a class has no sessions).
 - **Cancel** a session instead of deleting it to keep the signup history; every signed-up member is emailed when you do.
 
-See the [classes reference](/docs/reference/classes) for every field, status, and permission, and [manage certifications](/docs/how-to/manage-certifications) for setting up the certification types classes can grant.
+See the [classes, certifications & equipment reference](/docs/reference/classes-and-equipment) for every field, status, and permission, including how certification types are defined and granted on class completion.

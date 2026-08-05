@@ -12,7 +12,7 @@ The `payment_platform` enum tags every payment and every pay-here link with its 
 | `cash` | Cash logged by a treasurer | No | No |
 | `stripe` | In-app recurring dues integration | No | Yes |
 
-The url-based subset — `paypal`, `zeffy`, `venmo` — is the only set allowed for external pay-here links (`DUES_LINK_PLATFORMS`). `cash` and `stripe` cannot be configured as external dues links.
+The url-based subset (`paypal`, `zeffy`, `venmo`) is the only set allowed for external pay-here links (`DUES_LINK_PLATFORMS`). `cash` and `stripe` cannot be configured as external dues links.
 
 ## Link status
 
@@ -36,7 +36,7 @@ A backdated or historical payment therefore never moves a member's dues state ba
 
 ## Pay-here links (`dues_payment_methods`)
 
-Admins configure external pay-here links so members can pay dues off-platform; a treasurer reconciles the payment manually later through the [/payments](/payments) flow (the platform tag pre-types that reconcile). Configuration is link-only — no automated payment record is created.
+Admins configure external pay-here links so members can pay dues off-platform; a treasurer reconciles the payment manually later through the [/payments](/payments) flow (the platform tag pre-types that reconcile). Configuration is link-only, no automated payment record is created.
 
 | Column | Type | Notes |
 | --- | --- | --- |
@@ -44,7 +44,7 @@ Admins configure external pay-here links so members can pay dues off-platform; a
 | `url` | text | Must be an absolute `https://` URL (DB CHECK `url ~* '^https://'`) |
 | `instructions` | text | Optional memo hint, e.g. "put your member name in the note" |
 | `is_active` | boolean | Only active links render to members; defaults to `true` |
-| `sort_order` | integer | Display order, `0`–`999`; defaults to `0` |
+| `sort_order` | integer | Display order, `0`-`999`; defaults to `0` |
 
 There is at most one link per `(space, platform)`; saving is an idempotent upsert on that pair. The [/me](/me) self-view shows only active links, in `sort_order`; the [/settings](/settings) admin UI shows every configured method, active and inactive.
 
@@ -74,7 +74,7 @@ Two service-client paths write this table: the Stripe webhook, and `startDuesChe
 
 ### Status mapping
 
-Raw Stripe `subscription.status` maps to a member status. Dues lapse tops out at `late` — it never auto-sets `inactive`; an admin decides inactivation manually.
+Raw Stripe `subscription.status` maps to a member status. Dues lapse tops out at `late`, it never auto-sets `inactive`; an admin decides inactivation manually.
 
 | Stripe status | Member status |
 | --- | --- |
@@ -83,11 +83,11 @@ Raw Stripe `subscription.status` maps to a member status. Dues lapse tops out at
 | `past_due` (grace exceeded) | `late` |
 | `canceled`, `unpaid`, `incomplete`, `incomplete_expired` | `late` |
 
-The grace window is `current_period_end` plus the configured `grace_days` (default `7`). Stripe settings — `mode` (`test`/`live`), publishable key, the tier-to-price map, `grace_days`, and the secret/webhook refs — live in `integrations.config`; the secret key and webhook signing secret are stored in the [secrets vault](/docs/reference/secrets-vault), not in `config`. See [/settings](/settings) to configure Stripe.
+The grace window is `current_period_end` plus the configured `grace_days` (default `7`). Stripe settings live in `integrations.config`: `mode` (`test`/`live`), publishable key, the tier-to-price map, `grace_days`, and the secret/webhook refs. The secret key and webhook signing secret are stored in the encrypted [secrets vault](/docs/explanation/security-model), not in `config`. See [/settings](/settings) to configure Stripe.
 
 ## Related pages
 
-- [/payments](/payments) — log, import, link, and reconcile payments
-- [/me](/me) — member dues self-view, pay-here links, and Stripe checkout
-- [/settings](/settings) — configure Stripe and pay-here links
-- [/docs/reference/members-and-roles](/docs/reference/members-and-roles) — member statuses and roles
+- [/payments](/payments), log, import, link, and reconcile payments
+- [/me](/me), member dues self-view, pay-here links, and Stripe checkout
+- [/settings](/settings), configure Stripe and pay-here links
+- [Members: statuses, tiers & fields](/docs/reference/members), member statuses, tiers, and fields
