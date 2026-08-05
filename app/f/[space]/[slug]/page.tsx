@@ -25,6 +25,16 @@ export default async function PublicFormPage({
   }
 
   const form = res.data
+  if (!form) {
+    return (
+      <main className="mx-auto flex min-h-screen max-w-xl flex-col items-center justify-center p-6 text-center">
+        <h1 className="text-xl font-semibold">This form is not available</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          It may be unpublished, closed, or the link is wrong.
+        </p>
+      </main>
+    )
+  }
   const supabase = await createClient()
   const {
     data: { user },

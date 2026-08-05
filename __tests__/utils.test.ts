@@ -74,7 +74,7 @@ describe('String Utilities', () => {
     })
 
     it('should handle empty name', () => {
-      const name = ''
+      const name: string = ''
       const initials = name ? name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '??'
       expect(initials).toBe('??')
     })

@@ -265,15 +265,18 @@ export async function POST(
           .eq('external_id', inv.id)
           .maybeSingle()
         if (!dupe) {
-          await admin.from('payments').insert(
-            stripeInvoiceToPaymentRow({
-              inv,
-              spaceId,
-              memberId,
-              eventId: event.id,
-              nowIso: new Date().toISOString(),
-            }),
-          )
+          const paymentRow = stripeInvoiceToPaymentRow({
+            inv,
+            spaceId,
+            memberId,
+            eventId: event.id,
+            nowIso: new Date().toISOString(),
+          })
+          await admin.from('payments').insert({
+            ...paymentRow,
+            status: paymentRow.status as 'linked' | 'unlinked',
+            link_status: paymentRow.link_status as 'linked' | 'unlinked',
+          })
         }
         if (memberId) {
           await admin

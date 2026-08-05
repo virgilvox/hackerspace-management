@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { supersedePolicy, updatePolicyStatus } from '@/lib/actions'
 import { policyStatuses } from '@/lib/validations'
-import type { Policy } from '@/lib/types'
+import type { Policy } from '@/types/domain'
 
 export function PolicyActions({ policy }: { policy: Policy }) {
   const router = useRouter()

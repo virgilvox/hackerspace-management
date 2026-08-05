@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { checkRateLimit, sanitizeString, sanitizeSlug } from '@/lib/security'
 import { ACTIVE_STATUSES } from '@/lib/permissions'
+import { claimInviteUse } from '@/lib/invite-claim'
 
 function generateInviteCode() {
   // Cryptographically random, and wider (8 chars) so the code space is not
@@ -124,13 +125,12 @@ export async function joinSpace(formData: {
 
   // Try the new multi-code invites table first. Falls back to the legacy
   // spaces.invite_code (a permanent default) if the code isn't found there.
-  let invite: { id: string; space_id: string; max_uses: number | null; uses_count: number; expires_at: string | null; is_enabled: boolean; role: string } | null = null
   const { data: inviteRow } = await admin
     .from('space_invites')
     .select('id, space_id, max_uses, uses_count, expires_at, is_enabled, role')
     .eq('code', code)
     .maybeSingle()
-  if (inviteRow) invite = inviteRow as typeof invite
+  const invite = inviteRow
 
   let spaceId: string | null = null
   if (invite) {
@@ -171,10 +171,27 @@ export async function joinSpace(formData: {
     .from('space_members')
     .select('id')
     .eq('user_id', user.id)
-    .in('status', ACTIVE_STATUSES as unknown as string[])
+    .in('status', ACTIVE_STATUSES)
     .maybeSingle()
   if (existingMembership) {
     return { error: 'You are already a member of a space.' }
+  }
+
+  // Claim an invite use ATOMICALLY before creating the membership, so a
+  // single-use invite can never be redeemed twice under concurrent joins.
+  // (The pre-check above is a fast UX reject; this is the authoritative guard.)
+  let claimedCount: number | null = null
+  if (invite) {
+    const claim = await claimInviteUse(admin, invite.id, invite.uses_count, invite.max_uses)
+    if (!claim.ok) {
+      return {
+        error:
+          claim.reason === 'contention'
+            ? 'Too many people are joining at once — please try again.'
+            : 'This invite has reached its use cap.',
+      }
+    }
+    claimedCount = claim.count
   }
 
   const { data: newMember, error: memberErr } = await admin
@@ -192,7 +209,18 @@ export async function joinSpace(formData: {
     .select('id')
     .single()
 
-  if (memberErr) return { error: memberErr.message }
+  if (memberErr) {
+    // Roll back the claimed use (best-effort, CAS-guarded) so a failed join
+    // does not burn an invite slot.
+    if (invite && claimedCount !== null) {
+      await admin
+        .from('space_invites')
+        .update({ uses_count: claimedCount - 1 })
+        .eq('id', invite.id)
+        .eq('uses_count', claimedCount)
+    }
+    return { error: memberErr.message }
+  }
 
   // Retro-link prior anonymous form/waiver submissions in this space to the
   // new member, but only for a verified email (locked decision). Best-effort:
@@ -204,14 +232,6 @@ export async function joinSpace(formData: {
       .eq('space_id', space.id)
       .is('member_id', null)
       .eq('submitter_email', user.email.toLowerCase())
-  }
-
-  // Increment invite usage counter for the multi-code path.
-  if (invite) {
-    await admin
-      .from('space_invites')
-      .update({ uses_count: invite.uses_count + 1 })
-      .eq('id', invite.id)
   }
 
   return { success: true }

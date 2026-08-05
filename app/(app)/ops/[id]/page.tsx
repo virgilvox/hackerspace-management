@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import KbEntryEditor from './kb-entry-editor'
+import type { Tables } from '@/types/database'
 
 export default async function OpsEntryPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -19,5 +20,5 @@ export default async function OpsEntryPage({ params }: { params: Promise<{ id: s
 
   if (!entry) notFound()
 
-  return <KbEntryEditor entry={entry} member={member} />
+  return <KbEntryEditor entry={entry} member={member as Tables<'space_members'>} />
 }

@@ -4,6 +4,7 @@ import { useState, useRef, useCallback, useMemo } from 'react'
 import { Upload, CheckCircle, AlertCircle, X, ChevronDown, ArrowRight, FileText, RefreshCcw } from 'lucide-react'
 import { toast } from 'sonner'
 import { importPaymentsCsv, importMembers } from '@/lib/actions'
+import { parsePaymentRow, type ParsedPaymentRow } from '@/lib/import-logic'
 
 // ─── Lightweight CSV parser (handles quoted fields, no external deps) ──────────
 function parseCSV(text: string): { headers: string[]; rows: string[][] } {
@@ -196,85 +197,81 @@ export default function ImportClient({ role }: Props) {
     const errors: string[] = []
     let success = 0
 
-    if (mode === 'payments') {
-      const paymentRows = rows.map((row, i) => {
-        const obj: Record<string, string> = {}
-        headers.forEach((h, j) => {
-          if (columnMap[h] && columnMap[h] !== 'skip') obj[columnMap[h]] = row[j] ?? ''
+    // try/finally so a thrown error can never leave the button wedged on
+    // 'Importing...' — setImporting(false) always runs.
+    try {
+      if (mode === 'payments') {
+        const paymentRows: ParsedPaymentRow[] = []
+        rows.forEach((row, i) => {
+          const obj: Record<string, string> = {}
+          headers.forEach((h, j) => {
+            if (columnMap[h] && columnMap[h] !== 'skip') obj[columnMap[h]] = row[j] ?? ''
+          })
+          // Row 1 is the header, so rows[i] is spreadsheet row i + 2. The parse
+          // guards the date: 'N/A' and friends become a skipped row, not a throw.
+          const parsed = parsePaymentRow(obj, i + 2)
+          if (parsed.ok) paymentRows.push(parsed.value)
+          else errors.push(parsed.error)
         })
-        const amount = parseFloat((obj.amount ?? '').replace(/[$,\s]/g, ''))
-        if (isNaN(amount) || !obj.from_identifier || !obj.transaction_date) {
-          errors.push(`Row ${i + 2}: missing required fields`)
-          return null
-        }
-        return {
-          platform: (obj.platform || 'csv') as any,
-          amount,
-          from_identifier: obj.from_identifier,
-          from_note: obj.from_note,
-          transaction_date: new Date(obj.transaction_date).toISOString(),
-        }
-      }).filter(Boolean) as any[]
 
-      const result = await importPaymentsCsv(paymentRows)
-      if ('error' in result && result.error) {
-        toast.error(result.error)
-        setImporting(false)
-        return
-      }
-      success = (result as any).count ?? paymentRows.length
-
-    } else {
-      // Members import goes through the validated, admin-gated server action
-      // (Zod per row, batched upsert on (space_id,email), user_id left NULL
-      // for offline members). No direct client DB writes.
-      const tierMap: Record<string, 'plus' | 'basic' | 'associate'> = {
-        plus: 'plus', premium: 'plus', full: 'plus',
-        basic: 'basic', member: 'basic', standard: 'basic',
-        associate: 'associate', visitor: 'associate', guest: 'associate',
-      }
-      const memberRows = rows.map((row, i) => {
-        const obj: Record<string, string> = {}
-        headers.forEach((h, j) => {
-          if (columnMap[h] && columnMap[h] !== 'skip') obj[columnMap[h]] = row[j] ?? ''
-        })
-        if (!obj.display_name || !obj.email) {
-          errors.push(`Row ${i + 2}: missing name or email`)
-          return null
+        const result = await importPaymentsCsv(paymentRows)
+        if ('error' in result && result.error) {
+          toast.error(result.error)
+          return
         }
-        return {
-          display_name: obj.display_name,
-          email: obj.email,
-          phone: obj.phone || null,
-          tier: tierMap[(obj.tier || '').toLowerCase()] || 'basic',
-          joined_at: obj.joined_at || undefined,
-          last_paid_at: obj.last_paid_at || undefined,
-          has_card_access: /yes|true|1|y/i.test(obj.has_card_access ?? ''),
-        }
-      }).filter(Boolean) as Array<Record<string, unknown>>
+        success = result.count ?? paymentRows.length
 
-      if (memberRows.length === 0) {
-        toast.error('No valid rows to import')
-        setImporting(false)
-        return
+      } else {
+        // Members import goes through the validated, admin-gated server action
+        // (Zod per row, batched upsert on (space_id,email), user_id left NULL
+        // for offline members). No direct client DB writes.
+        const tierMap: Record<string, 'plus' | 'basic' | 'associate'> = {
+          plus: 'plus', premium: 'plus', full: 'plus',
+          basic: 'basic', member: 'basic', standard: 'basic',
+          associate: 'associate', visitor: 'associate', guest: 'associate',
+        }
+        const memberRows = rows.map((row, i) => {
+          const obj: Record<string, string> = {}
+          headers.forEach((h, j) => {
+            if (columnMap[h] && columnMap[h] !== 'skip') obj[columnMap[h]] = row[j] ?? ''
+          })
+          if (!obj.display_name || !obj.email) {
+            errors.push(`Row ${i + 2}: missing name or email`)
+            return null
+          }
+          return {
+            display_name: obj.display_name,
+            email: obj.email,
+            phone: obj.phone || null,
+            tier: tierMap[(obj.tier || '').toLowerCase()] || 'basic',
+            joined_at: obj.joined_at || undefined,
+            last_paid_at: obj.last_paid_at || undefined,
+            has_card_access: /yes|true|1|y/i.test(obj.has_card_access ?? ''),
+          }
+        }).filter(Boolean) as Array<Record<string, unknown>>
+
+        if (memberRows.length === 0) {
+          toast.error('No valid rows to import')
+          return
+        }
+
+        const result = await importMembers(memberRows)
+        if ('error' in result && result.error) {
+          toast.error(result.error)
+          return
+        }
+        const r = result as { count: number; skipped: number }
+        success = r.count
+        if (r.skipped > 0) errors.push(`${r.skipped} row(s) skipped (invalid email, name, tier, or date)`)
       }
 
-      const result = await importMembers(memberRows)
-      if ('error' in result && result.error) {
-        toast.error(result.error)
-        setImporting(false)
-        return
-      }
-      const r = result as { count: number; skipped: number }
-      success = r.count
-      if (r.skipped > 0) errors.push(`${r.skipped} row(s) skipped (invalid email, name, tier, or date)`)
+      setResult({ success, failed: errors.length, errors })
+      setStep(3)
+      if (success > 0) toast.success(`Imported ${success} ${mode === 'members' ? 'members' : 'payments'}`)
+      if (errors.length > 0) toast.error(`${errors.length} rows failed`)
+    } finally {
+      setImporting(false)
     }
-
-    setImporting(false)
-    setResult({ success, failed: errors.length, errors })
-    setStep(3)
-    if (success > 0) toast.success(`Imported ${success} ${mode === 'members' ? 'members' : 'payments'}`)
-    if (errors.length > 0) toast.error(`${errors.length} rows failed`)
   }
 
   function reset() {

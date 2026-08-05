@@ -8,7 +8,7 @@ import {
   logActivity,
   parseInput,
 } from '@/lib/auth-helpers'
-import { ADMIN_ROLES } from '@/lib/permissions'
+import { ADMIN_ROLES, isPrivilegeEligible } from '@/lib/permissions'
 import {
   createProposalSchema,
   openProposalSchema,
@@ -41,6 +41,11 @@ export async function createProposal(formData: {
   const auth = await requireMember(supabase)
   if (!auth.ok) return { error: auth.error }
   const { member } = auth
+  // require_approval gate: an 'unverified' member (pending admin approval)
+  // must not create or participate in governance. Mirrors requireMemberWithRole.
+  if (!isPrivilegeEligible(member.status)) {
+    return { error: 'Your membership is pending approval.' }
+  }
 
   const status = v.data.open_immediately ? 'open' : 'draft'
 
@@ -83,6 +88,11 @@ export async function openProposal(proposalId: string, voting_closes_at?: string
   const auth = await requireMember(supabase)
   if (!auth.ok) return { error: auth.error }
   const { member } = auth
+  // require_approval gate: an 'unverified' member (pending admin approval)
+  // must not create or participate in governance. Mirrors requireMemberWithRole.
+  if (!isPrivilegeEligible(member.status)) {
+    return { error: 'Your membership is pending approval.' }
+  }
 
   const updates: Record<string, unknown> = { status: 'open' }
   if (v.data.voting_closes_at) updates.voting_closes_at = v.data.voting_closes_at
@@ -115,6 +125,11 @@ export async function withdrawProposal(proposalId: string) {
   const auth = await requireMember(supabase)
   if (!auth.ok) return { error: auth.error }
   const { member } = auth
+  // require_approval gate: an 'unverified' member (pending admin approval)
+  // must not create or participate in governance. Mirrors requireMemberWithRole.
+  if (!isPrivilegeEligible(member.status)) {
+    return { error: 'Your membership is pending approval.' }
+  }
 
   const { error } = await supabase
     .from('proposals')
@@ -150,6 +165,11 @@ export async function castVote(formData: {
   const auth = await requireMember(supabase)
   if (!auth.ok) return { error: auth.error }
   const { member } = auth
+  // require_approval gate: an 'unverified' member (pending admin approval)
+  // must not create or participate in governance. Mirrors requireMemberWithRole.
+  if (!isPrivilegeEligible(member.status)) {
+    return { error: 'Your membership is pending approval.' }
+  }
 
   // Defense in depth: the votes RLS policies already enforce same-space,
   // open status and the voting window, but this is a sensitive mutation, so

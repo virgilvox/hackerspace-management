@@ -68,7 +68,7 @@ export function MemberCertificationsDialog({
     if ('error' in g && g.error) {
       toast.error(g.error)
     } else {
-      setGrants(((g as { data: Grant[] }).data) ?? [])
+      setGrants(('data' in g ? g.data : []) ?? [])
     }
     if (!('error' in t) || !t.error) {
       setTypes(((t as { data: CertType[] }).data ?? []).filter(c => c.is_active))

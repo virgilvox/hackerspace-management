@@ -34,10 +34,17 @@ export default async function MembersPage() {
   const isAdmin = self.role === 'admin'
   const isElevated = ELEVATED_ROLES.has(self.role)
 
+  // member_directory_visibility is the `directory_visibility` enum. The gate
+  // previously compared against 'board_visible'/'admin_only' — values from
+  // OTHER enums that never match — so every setting except 'members_visible'
+  // silently restricted the directory (including 'public_members_visible',
+  // which should be the most open). Map to the real enum values:
+  //  - members_visible / public_members_visible: any authenticated member
+  //  - board_only / member_count_visible: only elevated roles see the full list
   const allowed =
     visibility === 'members_visible' ||
-    (visibility === 'board_visible' && isElevated) ||
-    (visibility === 'admin_only' && isAdmin)
+    visibility === 'public_members_visible' ||
+    ((visibility === 'board_only' || visibility === 'member_count_visible') && isElevated)
 
   if (!allowed) {
     return (

@@ -21,6 +21,29 @@ export function isDuesLinkPlatform(p: string): p is DuesLinkPlatform {
   return (DUES_LINK_PLATFORMS as readonly string[]).includes(p)
 }
 
+// Advance-only dues state for a logged/linked payment. A payment — especially a
+// backdated or historical one being reconciled — must never move a member's
+// dues state backward. Given the member's current last_paid_at and the incoming
+// payment's transaction_date, keep whichever date is later, and only mark the
+// member 'current' when the incoming payment is actually the most recent one on
+// file. A payment older than what's already recorded changes nothing: we return
+// the existing date and omit payment_status so the caller leaves it untouched.
+// Both inputs are full ISO timestamps; comparison is by instant, not string,
+// so PostgREST offsets (`+00:00`) and toISOString `Z` never disagree.
+export function resolveDuesAdvance(
+  existing: string | null,
+  incoming: string,
+): { last_paid_at: string; payment_status?: 'current' } {
+  if (existing !== null) {
+    const existingT = new Date(existing).getTime()
+    const incomingT = new Date(incoming).getTime()
+    if (Number.isFinite(existingT) && Number.isFinite(incomingT) && incomingT < existingT) {
+      return { last_paid_at: existing }
+    }
+  }
+  return { last_paid_at: incoming, payment_status: 'current' }
+}
+
 // A payment link is only safe to render as a member-clickable anchor if it is
 // an absolute https URL. http (plaintext) and any non-web scheme
 // (javascript:, data:, mailto:, etc.) are rejected so an admin-entered value

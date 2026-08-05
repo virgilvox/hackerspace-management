@@ -2,9 +2,9 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { requireMemberWithRole, parseInput } from '@/lib/auth-helpers'
+import { requireMemberWithRole, parseInput, logActivity } from '@/lib/auth-helpers'
 import { ADMIN_ROLES } from '@/lib/permissions'
-import { upsertAreaLeadSchema } from '@/lib/validations'
+import { upsertAreaLeadSchema, createAreaLeadSchema, updateAreaLeadSchema, uuidSchema } from '@/lib/validations'
 
 export async function upsertAreaLead(formData: {
   area_code: string
@@ -61,4 +61,97 @@ export async function upsertAreaLead(formData: {
   if (error) return { error: error.message }
   revalidatePath('/ops')
   return { data }
+}
+
+// ─── Ops area-lead roster (area_name-keyed) ──────────────────────────────────
+// The Ops UI manages a plain roster of "who leads which area". These are a
+// separate concern from upsertAreaLead's area_code-keyed role interface above;
+// area_code is left null here.
+
+export async function createAreaLead(formData: {
+  area_name: string
+  lead_handle: string
+  description?: string | null
+}) {
+  const v = parseInput(createAreaLeadSchema, formData)
+  if (!v.ok) return { error: v.error }
+
+  const supabase = await createClient()
+  const auth = await requireMemberWithRole(supabase, ADMIN_ROLES, 'Admin access required')
+  if (!auth.ok) return { error: auth.error }
+  const { member } = auth
+
+  const { data, error } = await supabase
+    .from('area_leads')
+    .insert({
+      space_id: member.space_id,
+      area_name: v.data.area_name,
+      lead_handle: v.data.lead_handle,
+      description: v.data.description ?? null,
+    })
+    .select()
+    .single()
+
+  if (error) return { error: error.message }
+
+  await logActivity(supabase, member, 'created', 'area_lead', data.id as string)
+  revalidatePath('/ops')
+  return { data }
+}
+
+export async function updateAreaLead(
+  id: string,
+  updates: { area_name: string; lead_handle: string; description?: string | null },
+) {
+  const v = parseInput(updateAreaLeadSchema, { id, ...updates })
+  if (!v.ok) return { error: v.error }
+
+  const supabase = await createClient()
+  const auth = await requireMemberWithRole(supabase, ADMIN_ROLES, 'Admin access required')
+  if (!auth.ok) return { error: auth.error }
+  const { member } = auth
+
+  const { data, error } = await supabase
+    .from('area_leads')
+    .update({
+      area_name: v.data.area_name,
+      lead_handle: v.data.lead_handle,
+      description: v.data.description ?? null,
+    })
+    .eq('id', v.data.id)
+    .eq('space_id', member.space_id)
+    .select()
+    .maybeSingle()
+
+  if (error) return { error: error.message }
+  // A cross-space / missing id matches 0 rows; surface the friendly message
+  // (maybeSingle returns null rather than erroring, unlike single()).
+  if (!data) return { error: 'Area lead not found' }
+
+  await logActivity(supabase, member, 'updated', 'area_lead', v.data.id)
+  revalidatePath('/ops')
+  return { data }
+}
+
+export async function deleteAreaLead(id: string) {
+  const v = parseInput(uuidSchema, id)
+  if (!v.ok) return { error: 'Invalid area lead ID' }
+
+  const supabase = await createClient()
+  const auth = await requireMemberWithRole(supabase, ADMIN_ROLES, 'Admin access required')
+  if (!auth.ok) return { error: auth.error }
+  const { member } = auth
+
+  const { error, count } = await supabase
+    .from('area_leads')
+    .delete({ count: 'exact' })
+    .eq('id', v.data)
+    .eq('space_id', member.space_id)
+
+  if (error) return { error: error.message }
+  if (count === 0) return { error: 'Area lead not found' }
+
+  await logActivity(supabase, member, 'deleted', 'area_lead', v.data)
+  revalidatePath('/ops')
+  return { success: true as const }
 }

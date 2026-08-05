@@ -58,7 +58,7 @@ export function ProjectsClient({
   async function handleStatusChange(projectId: string, newStatus: string) {
     const result = await updateProjectStatus(projectId, newStatus)
     if (result?.error) { toast.error(result.error); return }
-    setProjects(prev => prev.map(p => p.id === projectId ? { ...p, status: newStatus } : p))
+    setProjects(prev => prev.map(p => p.id === projectId ? { ...p, status: newStatus as Project['status'] } : p))
   }
 
   async function handleDelete(projectId: string) {

@@ -33,7 +33,7 @@ export function EquipmentReservations({ equipmentId }: { equipmentId: string }) 
       toast.error(res.error)
       return
     }
-    setRows(((res as { data: Reservation[] }).data) ?? [])
+    setRows(('data' in res ? res.data : []) ?? [])
   }, [equipmentId])
 
   useEffect(() => {

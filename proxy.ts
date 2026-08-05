@@ -1,6 +1,9 @@
 import { updateSession } from '@/lib/supabase/proxy'
-import { createServerClient } from '@supabase/ssr'
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+
+/** Shape `@supabase/ssr` passes to `setAll` (typing lost to the ssr/js version drift). */
+type CookiesToSet = { name: string; value: string; options: CookieOptions }[]
 
 // Public routes are reachable without an authenticated session. The
 // /resources subsite is the legacy hackerspace.sh content baked in; the
@@ -77,7 +80,7 @@ export async function proxy(request: NextRequest) {
         getAll() {
           return request.cookies.getAll()
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet: CookiesToSet) {
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options)
           )

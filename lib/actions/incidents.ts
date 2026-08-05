@@ -200,8 +200,11 @@ export async function addIncidentUpdate(formData: {
 
 /**
  * Appeal a dismissed incident by spawning a membership-vote proposal.
- * The reporter or admin/board can trigger the appeal; the proposal goes
- * to draft status so the petitioner (or board) can review before opening.
+ * Admin/board only: the incident UPDATE below is RLS-restricted to
+ * admin/board, so a non-privileged caller could otherwise insert a draft
+ * proposal, update zero incident rows, and still see success — an orphan
+ * proposal that never links back. The proposal goes to draft status so the
+ * board can review before opening.
  */
 export async function appealIncident(formData: {
   incidentId: string
@@ -212,7 +215,7 @@ export async function appealIncident(formData: {
   if (!v.ok) return { error: v.error }
 
   const supabase = await createClient()
-  const auth = await requireMember(supabase)
+  const auth = await requireMemberWithRole(supabase, ADMIN_ROLES, 'Admin or board access required')
   if (!auth.ok) return { error: auth.error }
   const { member } = auth
 
@@ -243,12 +246,20 @@ export async function appealIncident(formData: {
     .single()
   if (proposalErr) return { error: proposalErr.message }
 
-  // Mark the incident as appealed and link it to the proposal.
-  const { error: linkErr } = await supabase
+  // Mark the incident as appealed and link it to the proposal. Assert the
+  // update actually touched a row via .select(): if RLS rejects the write
+  // (or the row is gone), roll back the draft proposal so we never leave an
+  // orphan that isn't linked from any incident.
+  const { data: linked, error: linkErr } = await supabase
     .from('incidents')
     .update({ status: 'appealed', appeal_proposal_id: proposal.id })
     .eq('id', v.data.incidentId)
-  if (linkErr) return { error: linkErr.message }
+    .eq('space_id', member.space_id)
+    .select('id')
+  if (linkErr || !linked || linked.length === 0) {
+    await supabase.from('proposals').delete().eq('id', proposal.id)
+    return { error: linkErr?.message ?? 'Could not link the appeal to the incident.' }
+  }
 
   await logActivity(supabase, member, 'appealed', 'incident', v.data.incidentId)
 

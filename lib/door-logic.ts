@@ -69,6 +69,15 @@ export function isBlockedDoorIp(ip: string): boolean {
   let h = ip.trim().toLowerCase().replace(/^\[|\]$/g, '')
   const mapped = h.match(/^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/)
   if (mapped) h = mapped[1]
+  // Hex IPv4-mapped form (::ffff:HHHH:HHHH, e.g. ::ffff:a9fe:a9fe == IMDS):
+  // decode the two 16-bit groups to a 32-bit IPv4 and run the same octet
+  // checks below, so it can't slip past the dotted-form guard.
+  const mappedHex = h.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/)
+  if (mappedHex) {
+    const hi = parseInt(mappedHex[1], 16)
+    const lo = parseInt(mappedHex[2], 16)
+    h = `${hi >> 8}.${hi & 0xff}.${lo >> 8}.${lo & 0xff}`
+  }
   if (h.includes(':')) {
     if (h === '::1' || h === '::' || h === '0:0:0:0:0:0:0:0') return true
     if (h === 'fd00:ec2::254') return true            // AWS IPv6 IMDS

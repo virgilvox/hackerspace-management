@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import type { Json } from '@/types/database'
 import { requireMember, requireMemberWithRole, parseInput } from '@/lib/auth-helpers'
 import {
   createOnboardingStepSchema,
@@ -45,7 +46,7 @@ export async function createOnboardingStep(input: {
       step_type: v.data.step_type,
       title: v.data.title,
       body: v.data.body ?? null,
-      config: v.data.config ?? {},
+      config: (v.data.config ?? {}) as Json,
       is_enabled: v.data.is_enabled ?? true,
       is_required: v.data.is_required ?? false,
       is_system: false,
@@ -55,7 +56,7 @@ export async function createOnboardingStep(input: {
     .single()
 
   if (error) return { error: error.message }
-  revalidatePath('/settings')
+  revalidatePath('/customize')
   return { id: data.id }
 }
 
@@ -92,7 +93,7 @@ export async function updateOnboardingStep(stepId: string, updates: {
     .eq('space_id', member.space_id)
 
   if (error) return { error: error.message }
-  revalidatePath('/settings')
+  revalidatePath('/customize')
   return { success: true as const }
 }
 
@@ -114,7 +115,7 @@ export async function deleteOnboardingStep(stepId: string) {
 
   if (error) return { error: error.message }
   if (count === 0) return { error: 'Built-in steps cannot be deleted. Disable it instead.' }
-  revalidatePath('/settings')
+  revalidatePath('/customize')
   return { success: true as const }
 }
 
@@ -129,20 +130,15 @@ export async function markOnboardingStepDone(stepId: string) {
   if (!auth.ok) return { error: auth.error }
   const { member } = auth
 
-  const { data: row } = await supabase
-    .from('space_members')
-    .select('onboarding_progress')
-    .eq('id', member.id)
-    .single()
-
-  const progress = (row?.onboarding_progress ?? {}) as { completed_step_ids?: string[] }
-  const done = new Set(progress.completed_step_ids ?? [])
-  done.add(v.data)
-
-  const { error } = await supabase
-    .from('space_members')
-    .update({ onboarding_progress: { ...progress, completed_step_ids: Array.from(done) } })
-    .eq('id', member.id)
+  // Atomic dedup-append in the DB (migration 055). The old read-modify-write on
+  // onboarding_progress had a lost-update race: two near-simultaneous
+  // completions both read the same base array and the second write clobbered
+  // the first, silently dropping a step. The RPC pins the write to the caller's
+  // own row via auth.uid().
+  const { error } = await supabase.rpc('mark_onboarding_step_done', {
+    p_member_id: member.id,
+    p_step_id: v.data,
+  })
 
   if (error) return { error: error.message }
   return { success: true as const }

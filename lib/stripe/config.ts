@@ -4,6 +4,7 @@
 // webhook signing secret live in the AES-256-GCM secrets vault, referenced
 // by id from config.
 import type { createAdminClient } from '@/lib/supabase/admin'
+import type { TablesInsert } from '@/types/database'
 import { encryptSecret, decryptSecret, encryptionAvailable } from '@/lib/secrets/crypto'
 
 type Admin = ReturnType<typeof createAdminClient>
@@ -42,7 +43,11 @@ export async function storeStripeSecret(
     row.value = value
     row.encryption_version = 0
   }
-  const { data, error } = await admin.from('secrets').insert(row).select('id').single()
+  const { data, error } = await admin
+    .from('secrets')
+    .insert(row as TablesInsert<'secrets'>)
+    .select('id')
+    .single()
   if (error || !data) return null
   return data.id as string
 }

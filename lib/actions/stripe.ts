@@ -257,7 +257,7 @@ export async function listMemberBilling() {
   if (error) return { error: error.message }
   return {
     data: (data ?? []).map(r => {
-      const sm = r.space_members as { display_name: string | null; email: string | null; tier: string | null } | { display_name: string | null; email: string | null; tier: string | null }[] | null
+      const sm = r.space_members
       const mem = Array.isArray(sm) ? sm[0] : sm
       return {
         memberId: r.member_id as string,

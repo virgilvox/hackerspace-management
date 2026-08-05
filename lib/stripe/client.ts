@@ -6,5 +6,5 @@ import Stripe from 'stripe'
 import { STRIPE_API_VERSION } from '@/lib/stripe-logic'
 
 export function getStripe(secretKey: string): Stripe {
-  return new Stripe(secretKey, { apiVersion: STRIPE_API_VERSION as Stripe.LatestApiVersion })
+  return new Stripe(secretKey, { apiVersion: STRIPE_API_VERSION })
 }

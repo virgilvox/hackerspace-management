@@ -98,10 +98,10 @@ export default async function MePage() {
   }))
 
   const signupRes = await getMyClassSignups()
-  const classSignups: ClassSignup[] = 'data' in signupRes ? (signupRes.data as ClassSignup[]) : []
+  const classSignups: ClassSignup[] = 'data' in signupRes ? (signupRes.data ?? []) : []
 
   const reservationRes = await getMyReservations()
-  const reservations: Reservation[] = 'data' in reservationRes ? (reservationRes.data as Reservation[]) : []
+  const reservations: Reservation[] = 'data' in reservationRes ? (reservationRes.data ?? []) : []
 
   const cardsRes = await getMyCards()
   const myCards: MyCard[] = 'data' in cardsRes ? (cardsRes.data as MyCard[]) : []
@@ -121,7 +121,7 @@ export default async function MePage() {
 
   const notifsRes = await getMyNotifications()
   const notifs: MyNotif[] = 'data' in notifsRes ? (notifsRes.data as MyNotif[]) : []
-  const unreadNotifs = 'unreadCount' in notifsRes ? notifsRes.unreadCount : 0
+  const unreadNotifs = 'unreadCount' in notifsRes ? (notifsRes.unreadCount ?? 0) : 0
 
   const notifPrefsRes = await getMyNotificationPreferences()
   const notifPrefs: PrefMap = 'data' in notifPrefsRes ? notifPrefsRes.data : {}

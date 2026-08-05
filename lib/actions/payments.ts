@@ -15,7 +15,8 @@ import {
   linkPaymentSchema,
   importPaymentsCsvSchema,
 } from '@/lib/validations'
-import type { Enums } from '@/types/database'
+import { resolveDuesAdvance } from '@/lib/dues-payments-logic'
+import type { Enums, TablesInsert } from '@/types/database'
 
 type PaymentPlatform = Enums<'payment_platform'>
 
@@ -35,6 +36,19 @@ export async function logCashPayment(formData: {
 
   const transactionDate = v.data.transaction_date ?? new Date().toISOString()
 
+  // A supplied member_id must belong to the caller's space before we stamp it
+  // onto the payment, mirroring reserveEquipment. Without this a treasurer
+  // could link a cash payment to a member id from another space.
+  if (v.data.member_id) {
+    const { data: tgt } = await supabase
+      .from('space_members')
+      .select('id')
+      .eq('id', v.data.member_id)
+      .eq('space_id', member.space_id)
+      .maybeSingle()
+    if (!tgt) return { error: 'That member was not found in this space.' }
+  }
+
   const { data, error } = await supabase
     .from('payments')
     .insert({
@@ -53,12 +67,17 @@ export async function logCashPayment(formData: {
   if (error) return { error: error.message }
 
   if (v.data.member_id) {
+    // Advance-only: a backdated cash payment must not move dues state backward.
+    const { data: existing } = await supabase
+      .from('space_members')
+      .select('last_paid_at')
+      .eq('id', v.data.member_id)
+      .eq('space_id', member.space_id)
+      .single()
+
     await supabase
       .from('space_members')
-      .update({
-        last_paid_at: transactionDate,
-        payment_status: 'current',
-      })
+      .update(resolveDuesAdvance(existing?.last_paid_at ?? null, transactionDate))
       .eq('id', v.data.member_id)
       .eq('space_id', member.space_id)
   }
@@ -86,6 +105,17 @@ export async function linkPaymentToMember(paymentId: string, memberId: string) {
   if (!auth.ok) return { error: auth.error }
   const { member: self } = auth
 
+  // The target member must belong to the caller's space before we link the
+  // payment to it, mirroring reserveEquipment. Without this a treasurer could
+  // link a payment to a member id from another space.
+  const { data: tgt } = await supabase
+    .from('space_members')
+    .select('id')
+    .eq('id', v.data.memberId)
+    .eq('space_id', self.space_id)
+    .maybeSingle()
+  if (!tgt) return { error: 'That member was not found in this space.' }
+
   const { data: payment } = await supabase
     .from('payments')
     .select('amount, transaction_date')
@@ -100,13 +130,19 @@ export async function linkPaymentToMember(paymentId: string, memberId: string) {
 
   if (error) return { error: error.message }
 
-  if (payment) {
+  if (payment?.transaction_date) {
+    // Advance-only: linking a historical payment must not move dues state
+    // backward if the member has a more recent payment on file.
+    const { data: existing } = await supabase
+      .from('space_members')
+      .select('last_paid_at')
+      .eq('id', v.data.memberId)
+      .eq('space_id', self.space_id)
+      .single()
+
     await supabase
       .from('space_members')
-      .update({
-        last_paid_at: payment.transaction_date,
-        payment_status: 'current',
-      })
+      .update(resolveDuesAdvance(existing?.last_paid_at ?? null, payment.transaction_date))
       .eq('id', v.data.memberId)
       .eq('space_id', self.space_id)
   }
@@ -131,7 +167,7 @@ export async function importPaymentsCsv(rows: unknown) {
   // transaction_date. Invalid rows are skipped and counted, not silently
   // dropped without feedback.
   const rowSchema = importPaymentsCsvSchema.element
-  const inserts: Array<Record<string, unknown>> = []
+  const inserts: Array<TablesInsert<'payments'>> = []
   let skipped = 0
   for (const raw of rows) {
     const r = rowSchema.safeParse(raw)

@@ -257,6 +257,20 @@ export async function reserveEquipment(input: unknown) {
   if (!equip) return { error: 'Equipment not found' }
 
   const admin = createAdminClient()
+
+  // When booking on someone else's behalf, the target must belong to the
+  // caller's space, mirroring signUpForClass. Without this a manager could
+  // pass a member id from another space and stamp a reservation there.
+  if (targetMemberId !== member.id) {
+    const { data: tgt } = await admin
+      .from('space_members')
+      .select('id')
+      .eq('id', targetMemberId)
+      .eq('space_id', member.space_id)
+      .maybeSingle()
+    if (!tgt) return { error: 'That member was not found in this space.' }
+  }
+
   const { data: existing } = await admin
     .from('equipment_reservations')
     .select('starts_at, ends_at, status')
@@ -436,14 +450,15 @@ export async function cancelReservation(input: unknown) {
 export async function listEquipmentReservations(input: unknown) {
   const gate = await requireEquipmentManager()
   if (!gate.ok) return { error: gate.error }
-  const { supabase, member } = gate
+  const { member } = gate
+  const supabase = await createClient()
 
   const v = parseInput(listEquipmentReservationsSchema, input)
   if (!v.ok) return { error: v.error }
 
   const { data, error } = await supabase
     .from('equipment_reservations')
-    .select('id, member_id, starts_at, ends_at, status, notes, space_members(display_name, email)')
+    .select('id, member_id, starts_at, ends_at, status, notes, space_members!equipment_reservations_member_id_fkey(display_name, email)')
     .eq('space_id', member.space_id)
     .eq('equipment_id', v.data.equipmentId)
     .order('starts_at', { ascending: true })

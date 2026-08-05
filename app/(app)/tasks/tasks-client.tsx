@@ -86,7 +86,7 @@ export function TasksClient({ tasks: initialTasks, members, currentUserId, space
     const member = members.find(m => m.user_id === currentUserId)
     setTasks(prev => prev.map(t =>
       t.id === taskId
-        ? { ...t, status: 'claimed', claimed_by: currentUserId, claimed_by_name: member?.display_name }
+        ? { ...t, status: 'claimed', claimed_by: currentUserId, claimed_by_name: member?.display_name } as Task
         : t
     ))
   }

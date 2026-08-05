@@ -4,6 +4,7 @@ import {
   DUES_PLATFORM_LABEL,
   isDuesLinkPlatform,
   isSafeDuesUrl,
+  resolveDuesAdvance,
 } from '@/lib/dues-payments-logic'
 
 describe('DUES_LINK_PLATFORMS', () => {
@@ -55,5 +56,49 @@ describe('isSafeDuesUrl', () => {
     expect(isSafeDuesUrl('https:/x')).toBe(false)
     // bare scheme with no host
     expect(isSafeDuesUrl('https://')).toBe(false)
+  })
+})
+
+describe('resolveDuesAdvance', () => {
+  const older = '2026-01-01T00:00:00.000Z'
+  const newer = '2026-06-01T00:00:00.000Z'
+
+  it('advances when there is no prior payment and marks current', () => {
+    expect(resolveDuesAdvance(null, newer)).toEqual({
+      last_paid_at: newer,
+      payment_status: 'current',
+    })
+  })
+
+  it('advances (and marks current) when the new payment is more recent', () => {
+    expect(resolveDuesAdvance(older, newer)).toEqual({
+      last_paid_at: newer,
+      payment_status: 'current',
+    })
+  })
+
+  it('advances (and marks current) when dates are equal — the common re-pay case', () => {
+    expect(resolveDuesAdvance(newer, newer)).toEqual({
+      last_paid_at: newer,
+      payment_status: 'current',
+    })
+  })
+
+  it('does NOT regress: a backdated payment keeps the newer date and omits payment_status', () => {
+    const result = resolveDuesAdvance(newer, older)
+    expect(result.last_paid_at).toBe(newer)
+    expect(result).not.toHaveProperty('payment_status')
+  })
+
+  it('compares by instant, so a +00:00 offset and a Z suffix for the same time still advance', () => {
+    // existing came back from PostgREST with an offset; incoming is toISOString()
+    expect(resolveDuesAdvance('2026-06-01T00:00:00+00:00', newer)).toEqual({
+      last_paid_at: newer,
+      payment_status: 'current',
+    })
+    // and a backdated one expressed with an offset still does not regress
+    const back = resolveDuesAdvance(newer, '2026-01-01T00:00:00+00:00')
+    expect(back.last_paid_at).toBe(newer)
+    expect(back).not.toHaveProperty('payment_status')
   })
 })

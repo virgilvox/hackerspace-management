@@ -8,7 +8,7 @@ import {
   openProposal,
   withdrawProposal,
 } from '@/lib/actions'
-import type { ProposalStatus, ProposalVote, VotePosition } from '@/lib/types'
+import type { ProposalStatus, ProposalVote, VotePosition } from '@/types/domain'
 import { votePositions } from '@/lib/validations'
 
 type Props = {

@@ -1,430 +1,342 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-// ─── Mock Supabase Client ─────────────────────────────────────────────────────
-const mockSupabase = {
-  auth: {
-    getUser: vi.fn(),
-    signInWithPassword: vi.fn(),
-    signOut: vi.fn(),
-  },
-  from: vi.fn(() => mockSupabase),
-  select: vi.fn(() => mockSupabase),
-  insert: vi.fn(() => mockSupabase),
-  update: vi.fn(() => mockSupabase),
-  delete: vi.fn(() => mockSupabase),
-  upsert: vi.fn(() => mockSupabase),
-  eq: vi.fn(() => mockSupabase),
-  in: vi.fn(() => mockSupabase),
-  single: vi.fn(),
+/**
+ * Real server-action authorization + tenant-scoping tests.
+ *
+ * The previous version of this file asserted on string literals it defined
+ * itself (e.g. `expect(".eq('space_id', ...)").toContain('space_id')`) and
+ * never invoked a single action — it stayed green no matter what the code did.
+ * These tests drive the ACTUAL actions through a recording mock Supabase client
+ * and assert the authz gate and the `.eq('space_id', …)` scoping that stop
+ * cross-tenant (IDOR) writes. Remove the scope or the role gate in a real
+ * action and one of these fails.
+ */
+
+// ─── Recording mock Supabase client ──────────────────────────────────────────
+type QueueItem = { data?: unknown; error?: unknown }
+
+function makeClient(opts: { user?: { id: string; email?: string } | null; queue?: QueueItem[] }) {
+  const calls: Array<{ method: string; args: unknown[] }> = []
+  const queue = [...(opts.queue ?? [])]
+  const next = (): QueueItem => (queue.length ? queue.shift()! : { data: null, error: null })
+
+  // A single chainable/awaitable recorder shared across every query on this
+  // client. Chain methods record their args and return the builder; terminal
+  // `.single()/.maybeSingle()` and awaiting the chain pull the next queued
+  // result, so a test scripts results in call order.
+  const builder: Record<string, unknown> = new Proxy(
+    {},
+    {
+      get(_t, prop: string) {
+        if (prop === 'then') {
+          return (resolve: (v: QueueItem) => void) => resolve(next())
+        }
+        if (prop === 'single' || prop === 'maybeSingle') {
+          return (...args: unknown[]) => {
+            calls.push({ method: prop, args })
+            return Promise.resolve(next())
+          }
+        }
+        return (...args: unknown[]) => {
+          calls.push({ method: prop, args })
+          return builder
+        }
+      },
+    },
+  )
+
+  const client = {
+    auth: {
+      getUser: vi.fn(() => Promise.resolve({ data: { user: opts.user ?? null } })),
+    },
+    from: (...args: unknown[]) => {
+      calls.push({ method: 'from', args })
+      return builder
+    },
+    _calls: calls,
+  }
+  return client
 }
+
+let currentClient: ReturnType<typeof makeClient>
 
 vi.mock('@/lib/supabase/server', () => ({
-  createClient: vi.fn(() => Promise.resolve(mockSupabase)),
+  createClient: () => Promise.resolve(currentClient),
 }))
+vi.mock('@/lib/supabase/admin', () => ({
+  // Permissive stand-in; the tests below avoid code paths that use it.
+  createAdminClient: () => makeClient({ user: null, queue: [] }),
+}))
+vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 
-// ─── Test Data ────────────────────────────────────────────────────────────────
-const VALID_STATUSES = ['current', 'unverified', 'late']
-const INVALID_STATUSES = ['inactive', 'suspended', 'banned']
+import { updateMember, removeMember } from '@/lib/actions/members'
+import { logCashPayment, linkPaymentToMember } from '@/lib/actions/payments'
+import { sendMessage } from '@/lib/actions/comms'
+import { createAreaLead, updateAreaLead, deleteAreaLead } from '@/lib/actions/area-leads'
 
-const mockUser = { id: 'user-123', email: 'test@example.com' }
-const mockMember = {
-  id: 'member-123',
-  space_id: 'space-123',
-  display_name: 'Test User',
-  role: 'member',
+const UUID = '11111111-1111-1111-1111-111111111111'
+const user = { id: 'user-A', email: 'a@example.com' }
+const memberRow = (role: string, space_id = 'space-A') => ({
+  id: 'member-A',
+  space_id,
+  user_id: user.id,
+  role,
   status: 'current',
-}
-const mockAdminMember = { ...mockMember, role: 'admin' }
-const mockBoardMember = { ...mockMember, role: 'board' }
-const mockTreasurer = { ...mockMember, role: 'treasurer' }
+  display_name: 'Admin A',
+  handle: 'admin-a',
+})
 
-// ─── Auth Tests ───────────────────────────────────────────────────────────────
-describe('Authentication', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
+/** Find recorded `.eq(col, val)` calls. */
+const eqCalls = (c: ReturnType<typeof makeClient>) =>
+  c._calls.filter(x => x.method === 'eq').map(x => x.args)
+
+beforeEach(() => {
+  vi.clearAllMocks()
+})
+
+describe('server-action authorization', () => {
+  it('rejects an unauthenticated caller and performs no write', async () => {
+    currentClient = makeClient({ user: null, queue: [] })
+    const res = await updateMember(UUID, { display_name: 'x' })
+    expect(res).toHaveProperty('error')
+    // No space_members UPDATE reached the client (only the auth lookup, if any).
+    expect(eqCalls(currentClient).some(a => a[0] === 'space_id')).toBe(false)
   })
 
-  it('should return user on successful authentication', async () => {
-    mockSupabase.auth.getUser.mockResolvedValue({ data: { user: mockUser } })
-    const result = await mockSupabase.auth.getUser()
-    expect(result.data.user).toEqual(mockUser)
+  it('rejects a non-privileged member from updating members', async () => {
+    currentClient = makeClient({ user, queue: [{ data: memberRow('member') }] })
+    const res = await updateMember(UUID, { display_name: 'x' })
+    expect(res).toHaveProperty('error')
+    expect((res as { error: string }).error).toMatch(/admin/i)
+    expect(eqCalls(currentClient).some(a => a[0] === 'space_id')).toBe(false)
   })
 
-  it('should return null when not authenticated', async () => {
-    mockSupabase.auth.getUser.mockResolvedValue({ data: { user: null } })
-    const result = await mockSupabase.auth.getUser()
-    expect(result.data.user).toBeNull()
+  it('rejects a board member from REMOVING a member (admin-only)', async () => {
+    currentClient = makeClient({ user, queue: [{ data: memberRow('board') }] })
+    const res = await removeMember(UUID)
+    expect(res).toHaveProperty('error')
+    expect(eqCalls(currentClient).some(a => a[0] === 'space_id')).toBe(false)
   })
 
-  it('should handle sign-in errors', async () => {
-    mockSupabase.auth.signInWithPassword.mockResolvedValue({
-      error: { message: 'Invalid credentials' },
-    })
-    const result = await mockSupabase.auth.signInWithPassword({
-      email: 'test@test.com',
-      password: 'wrong',
-    })
-    expect(result.error.message).toBe('Invalid credentials')
+  it('rejects a plain member from logging a cash payment (treasurer-gated)', async () => {
+    currentClient = makeClient({ user, queue: [{ data: memberRow('member') }] })
+    const res = await logCashPayment({ amount: 10, from_note: 'cash' })
+    expect(res).toHaveProperty('error')
   })
 })
 
-// ─── Member Status Tests ──────────────────────────────────────────────────────
-describe('Member Status Validation', () => {
-  it('should allow current members to perform actions', () => {
-    expect(VALID_STATUSES).toContain('current')
+describe('server-action tenant scoping (IDOR guard)', () => {
+  it('scopes an admin updateMember to the caller’s space_id', async () => {
+    currentClient = makeClient({
+      user,
+      queue: [{ data: memberRow('admin', 'space-A') }, { error: null }],
+    })
+    // Attacker-style call: a valid member id that might belong to another space.
+    const res = await updateMember(UUID, { display_name: 'x' })
+    expect(res).not.toHaveProperty('error')
+    // The UPDATE must be pinned to the caller's own space, so a row in another
+    // space can never be touched.
+    expect(eqCalls(currentClient)).toContainEqual(['space_id', 'space-A'])
+    expect(eqCalls(currentClient)).toContainEqual(['id', UUID])
   })
 
-  it('should allow unverified members to perform actions', () => {
-    expect(VALID_STATUSES).toContain('unverified')
+  it('scopes an admin removeMember to the caller’s space_id', async () => {
+    currentClient = makeClient({
+      user,
+      queue: [{ data: memberRow('admin', 'space-A') }, { error: null }],
+    })
+    const res = await removeMember(UUID)
+    expect(res).not.toHaveProperty('error')
+    expect(eqCalls(currentClient)).toContainEqual(['space_id', 'space-A'])
   })
 
-  it('should allow late members to perform actions', () => {
-    expect(VALID_STATUSES).toContain('late')
+  it('stamps a treasurer cash payment with the caller’s space_id', async () => {
+    currentClient = makeClient({
+      user,
+      queue: [
+        { data: memberRow('treasurer', 'space-A') }, // requireMember
+        { data: { id: 'pay-1' } }, // payments insert().select().single()
+        { error: null }, // activity_log insert
+      ],
+    })
+    const res = await logCashPayment({ amount: 25, from_note: 'dues' })
+    expect(res).not.toHaveProperty('error')
+    const inserts = currentClient._calls.filter(x => x.method === 'insert').map(x => x.args[0])
+    const paymentInsert = inserts.find(
+      (o): o is Record<string, unknown> => !!o && typeof o === 'object' && 'platform' in o,
+    )
+    expect(paymentInsert?.space_id).toBe('space-A')
+    expect(paymentInsert?.platform).toBe('cash')
   })
 
-  it('should NOT allow inactive members to perform actions', () => {
-    expect(VALID_STATUSES).not.toContain('inactive')
+  it('rejects a cash payment whose member_id belongs to another space', async () => {
+    currentClient = makeClient({
+      user,
+      queue: [
+        { data: memberRow('treasurer', 'space-A') }, // requireMember
+        { data: null }, // space_members scope lookup: foreign member -> not found
+      ],
+    })
+    const res = await logCashPayment({ amount: 25, from_note: 'dues', member_id: UUID })
+    expect(res).toHaveProperty('error')
+    expect((res as { error: string }).error).toMatch(/not found in this space/i)
+    // The IDOR write must never reach the payments table.
+    const inserts = currentClient._calls.filter(x => x.method === 'insert').map(x => x.args[0])
+    expect(inserts.some(o => !!o && typeof o === 'object' && 'platform' in (o as object))).toBe(false)
+    // The scope lookup was pinned to the caller's own space.
+    expect(eqCalls(currentClient)).toContainEqual(['space_id', 'space-A'])
+    expect(eqCalls(currentClient)).toContainEqual(['id', UUID])
   })
 
-  it('getMember helper should use .in() for status check', () => {
-    // This validates the fix was applied correctly
-    const statusCheck = `.in('status', ['current', 'unverified', 'late'])`
-    expect(statusCheck).toContain('unverified')
-    expect(statusCheck).toContain('late')
+  it('rejects linking a payment to a member_id from another space', async () => {
+    currentClient = makeClient({
+      user,
+      queue: [
+        { data: memberRow('treasurer', 'space-A') }, // requireMember
+        { data: null }, // space_members scope lookup: foreign member -> not found
+      ],
+    })
+    const res = await linkPaymentToMember(UUID, UUID)
+    expect(res).toHaveProperty('error')
+    expect((res as { error: string }).error).toMatch(/not found in this space/i)
+    // No payments UPDATE was recorded (the guard returns before the link write).
+    expect(currentClient._calls.some(x => x.method === 'update')).toBe(false)
+    expect(eqCalls(currentClient)).toContainEqual(['space_id', 'space-A'])
   })
 })
 
-// ─── Task Management Tests ────────────────────────────────────────────────────
-describe('Task Management', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    mockSupabase.auth.getUser.mockResolvedValue({ data: { user: mockUser } })
+describe('comms sendMessage anti-impersonation', () => {
+  const CHANNEL = '22222222-2222-2222-2222-222222222222'
+
+  it('stamps the message with session identity, ignoring client-supplied fields', async () => {
+    currentClient = makeClient({
+      user, // user-A — the authenticated sender
+      queue: [
+        { data: memberRow('member', 'space-A') }, // requireMember
+        { data: { id: CHANNEL } }, // channel scope lookup: belongs to space-A
+        { data: { id: 'msg-1' } }, // comms_messages insert().select().single()
+        { error: null }, // activity_log insert
+      ],
+    })
+    // Attacker tries to spoof identity + tenant through the input. The action
+    // types forbid these keys, so cast through unknown to simulate a hand-rolled
+    // client payload; Zod strips them and identity is derived from the session.
+    const spoofed = {
+      channel_id: CHANNEL,
+      content: 'hello',
+      user_id: 'attacker',
+      display_name: 'Someone Else',
+      handle: 'imposter',
+      space_id: 'space-VICTIM',
+    } as unknown as Parameters<typeof sendMessage>[0]
+    const res = await sendMessage(spoofed)
+    expect(res).not.toHaveProperty('error')
+
+    const inserts = currentClient._calls.filter(x => x.method === 'insert').map(x => x.args[0])
+    const msgInsert = inserts.find(
+      (o): o is Record<string, unknown> => !!o && typeof o === 'object' && 'content' in o,
+    )
+    // Identity + tenant come from the session/member, NOT the input.
+    expect(msgInsert?.user_id).toBe('user-A')
+    expect(msgInsert?.space_id).toBe('space-A')
+    expect(msgInsert?.display_name).toBe('Admin A')
+    expect(msgInsert?.handle).toBe('admin-a')
+    // The spoofed values must never survive.
+    expect(msgInsert?.user_id).not.toBe('attacker')
+    expect(msgInsert?.space_id).not.toBe('space-VICTIM')
+    expect(msgInsert?.display_name).not.toBe('Someone Else')
   })
 
-  describe('Task Creation', () => {
-    it('should create a task with required fields', () => {
-      const taskData = {
-        title: 'Test Task',
-        type: 'task',
-        space_id: 'space-123',
-      }
-      expect(taskData.title).toBeDefined()
-      expect(taskData.type).toBe('task')
+  it('rejects posting to a channel_id from another space and writes nothing', async () => {
+    currentClient = makeClient({
+      user,
+      queue: [
+        { data: memberRow('member', 'space-A') }, // requireMember
+        { data: null }, // channel scope lookup: foreign channel -> not found
+      ],
     })
-
-    it('should default task_type to "task" if not provided', () => {
-      const formData = { title: 'Test' }
-      const taskType = (formData as any).type || 'task'
-      expect(taskType).toBe('task')
-    })
-
-    it('should default recurrence to "none" if not provided', () => {
-      const formData = { title: 'Test' }
-      const recurrence = (formData as any).recurrence || 'none'
-      expect(recurrence).toBe('none')
-    })
-
-    it('should set status to "open" on creation', () => {
-      const newTask = { status: 'open' }
-      expect(newTask.status).toBe('open')
-    })
-  })
-
-  describe('Task Claiming', () => {
-    it('should update claimed_by on claim', () => {
-      const claimUpdate = {
-        claimed_by: mockUser.id,
-        claimed_by_name: mockMember.display_name,
-        status: 'claimed',
-      }
-      expect(claimUpdate.claimed_by).toBe(mockUser.id)
-      expect(claimUpdate.status).toBe('claimed')
-    })
-  })
-
-  describe('Task Completion', () => {
-    it('should set status to completed and add timestamps', () => {
-      const now = new Date().toISOString()
-      const completeUpdate = {
-        status: 'completed',
-        completed_at: now,
-        last_done_at: now,
-      }
-      expect(completeUpdate.status).toBe('completed')
-      expect(completeUpdate.completed_at).toBeDefined()
-    })
-  })
-
-  describe('Task Filtering', () => {
-    const tasks = [
-      { id: '1', task_type: 'task', status: 'open', recurrence: 'none' },
-      { id: '2', task_type: 'chore', status: 'open', recurrence: 'weekly' },
-      { id: '3', task_type: 'task', status: 'completed', recurrence: 'none' },
-      { id: '4', task_type: 'task', status: 'open', recurrence: 'daily' },
-      { id: '5', task_type: 'chore', status: 'open', recurrence: 'none' },
-    ]
-
-    const isDone = (t: any) => t.status === 'done' || t.status === 'completed'
-    const isOpen = (t: any) => !isDone(t)
-
-    it('should identify open tasks correctly', () => {
-      const openTasks = tasks.filter(isOpen)
-      expect(openTasks).toHaveLength(4)
-    })
-
-    it('should identify done tasks correctly', () => {
-      const doneTasks = tasks.filter(isDone)
-      expect(doneTasks).toHaveLength(1)
-    })
-
-    it('should filter open non-recurring tasks (Open Tasks tab)', () => {
-      const openNonRecurring = tasks.filter(
-        t => isOpen(t) && (!t.recurrence || t.recurrence === 'none')
-      )
-      expect(openNonRecurring).toHaveLength(2)
-      expect(openNonRecurring.map(t => t.id)).toEqual(['1', '5'])
-    })
-
-    it('should filter recurring tasks (Ongoing tab)', () => {
-      const ongoing = tasks.filter(
-        t => t.recurrence && t.recurrence !== 'none' && isOpen(t)
-      )
-      expect(ongoing).toHaveLength(2)
-      expect(ongoing.map(t => t.id)).toEqual(['2', '4'])
-    })
-
-    it('should filter tasks by assignee (My Tasks tab)', () => {
-      const userId = 'user-123'
-      const myTasks = [
-        { ...tasks[0], claimed_by: userId },
-        { ...tasks[1], assigned_to: 'other-user' },
-      ]
-      const mine = myTasks.filter(
-        t => (t.claimed_by === userId || t.assigned_to === userId) && isOpen(t)
-      )
-      expect(mine).toHaveLength(1)
-    })
+    const res = await sendMessage({ channel_id: CHANNEL, content: 'hello' })
+    expect(res).toHaveProperty('error')
+    // No message ever reached comms_messages.
+    const inserts = currentClient._calls.filter(x => x.method === 'insert').map(x => x.args[0])
+    expect(inserts.some(o => !!o && typeof o === 'object' && 'content' in (o as object))).toBe(false)
+    // The channel lookup was pinned to the caller's own space.
+    expect(eqCalls(currentClient)).toContainEqual(['space_id', 'space-A'])
+    expect(eqCalls(currentClient)).toContainEqual(['id', CHANNEL])
   })
 })
 
-// ─── Project Management Tests ─────────────────────────────────────────────────
-describe('Project Management', () => {
-  it('should create project with default status "backlog"', () => {
-    const newProject = { status: 'backlog' }
-    expect(newProject.status).toBe('backlog')
+describe('area-leads roster actions (admin-gated, space-scoped)', () => {
+  const fields = { area_name: 'Woodshop', lead_handle: 'alice', description: null }
+
+  it('rejects a non-admin from creating an area lead and writes nothing', async () => {
+    currentClient = makeClient({ user, queue: [{ data: memberRow('member') }] })
+    const res = await createAreaLead(fields)
+    expect(res).toHaveProperty('error')
+    expect((res as { error: string }).error).toMatch(/admin/i)
+    // The insert must never reach area_leads.
+    const inserts = currentClient._calls.filter(x => x.method === 'insert').map(x => x.args[0])
+    expect(inserts.some(o => !!o && typeof o === 'object' && 'area_name' in (o as object))).toBe(false)
   })
 
-  it('should support all project statuses', () => {
-    const statuses = ['backlog', 'active', 'paused', 'completed', 'cancelled']
-    expect(statuses).toHaveLength(5)
-  })
-
-  it('should update project status and timestamp', () => {
-    const update = {
-      status: 'active',
-      updated_at: new Date().toISOString(),
-    }
-    expect(update.status).toBe('active')
-    expect(update.updated_at).toBeDefined()
-  })
-})
-
-// ─── Member Management Tests ──────────────────────────────────────────────────
-describe('Member Management', () => {
-  describe('Role-Based Access', () => {
-    it('should allow admin to add members', () => {
-      const adminRoles = ['admin', 'board']
-      expect(adminRoles).toContain(mockAdminMember.role)
+  it('stamps a created area lead with the caller’s space_id', async () => {
+    currentClient = makeClient({
+      user,
+      queue: [
+        { data: memberRow('admin', 'space-A') }, // requireMemberWithRole
+        { data: { id: 'al-1' } }, // area_leads insert().select().single()
+        { error: null }, // activity_log insert
+      ],
     })
+    const res = await createAreaLead(fields)
+    expect(res).not.toHaveProperty('error')
+    const inserts = currentClient._calls.filter(x => x.method === 'insert').map(x => x.args[0])
+    const leadInsert = inserts.find(
+      (o): o is Record<string, unknown> => !!o && typeof o === 'object' && 'area_name' in o,
+    )
+    // Tenant is derived from the session member, never the client.
+    expect(leadInsert?.space_id).toBe('space-A')
+    expect(leadInsert?.area_name).toBe('Woodshop')
+    // area_code stays null for this roster interface.
+    expect(leadInsert?.area_code).toBeUndefined()
+  })
 
-    it('should allow board to add members', () => {
-      const adminRoles = ['admin', 'board']
-      expect(adminRoles).toContain(mockBoardMember.role)
+  it('scopes an admin updateAreaLead to the caller’s space_id and id', async () => {
+    currentClient = makeClient({
+      user,
+      queue: [
+        { data: memberRow('admin', 'space-A') }, // requireMemberWithRole
+        { data: { id: UUID } }, // area_leads update().select().single()
+        { error: null }, // activity_log insert
+      ],
     })
+    // Attacker-style call: a lead id that might belong to another space.
+    const res = await updateAreaLead(UUID, { area_name: 'Metal', lead_handle: 'bob' })
+    expect(res).not.toHaveProperty('error')
+    expect(eqCalls(currentClient)).toContainEqual(['space_id', 'space-A'])
+    expect(eqCalls(currentClient)).toContainEqual(['id', UUID])
+  })
 
-    it('should deny regular members from adding members', () => {
-      const adminRoles = ['admin', 'board']
-      expect(adminRoles).not.toContain('member')
+  it('scopes an admin deleteAreaLead to the caller’s space_id', async () => {
+    currentClient = makeClient({
+      user,
+      queue: [
+        { data: memberRow('admin', 'space-A') }, // requireMemberWithRole
+        { error: null }, // area_leads delete({ count: 'exact' }) -> row deleted
+        { error: null }, // activity_log insert
+      ],
     })
-
-    it('should only allow admin to remove members', () => {
-      expect(mockAdminMember.role).toBe('admin')
-    })
+    const res = await deleteAreaLead(UUID)
+    expect(res).not.toHaveProperty('error')
+    expect(eqCalls(currentClient)).toContainEqual(['space_id', 'space-A'])
+    expect(eqCalls(currentClient)).toContainEqual(['id', UUID])
   })
 
-  describe('Member Approval', () => {
-    it('should set status to current on approval', () => {
-      const approveUpdate = { status: 'current', approved: true }
-      expect(approveUpdate.status).toBe('current')
-      expect(approveUpdate.approved).toBe(true)
-    })
-  })
-
-  describe('Member Data', () => {
-    it('should create member with required fields', () => {
-      const memberData = {
-        display_name: 'New Member',
-        email: 'new@example.com',
-        tier: 'regular',
-        role: 'member',
-        status: 'current',
-      }
-      expect(memberData.display_name).toBeDefined()
-      expect(memberData.email).toBeDefined()
-    })
-  })
-})
-
-// ─── Payment Management Tests ─────────────────────────────────────────────────
-describe('Payment Management', () => {
-  describe('Role-Based Access', () => {
-    const treasurerRoles = ['admin', 'board', 'treasurer']
-
-    it('should allow admin to log payments', () => {
-      expect(treasurerRoles).toContain('admin')
-    })
-
-    it('should allow board to log payments', () => {
-      expect(treasurerRoles).toContain('board')
-    })
-
-    it('should allow treasurer to log payments', () => {
-      expect(treasurerRoles).toContain('treasurer')
-    })
-
-    it('should deny regular members from logging payments', () => {
-      expect(treasurerRoles).not.toContain('member')
-    })
-  })
-
-  describe('Cash Payment Logging', () => {
-    it('should create cash payment with correct platform', () => {
-      const payment = { platform: 'cash', amount: 100 }
-      expect(payment.platform).toBe('cash')
-    })
-
-    it('should link payment to member when member_id provided', () => {
-      const payment = {
-        member_id: 'member-123',
-        link_status: 'linked',
-      }
-      expect(payment.link_status).toBe('linked')
-    })
-
-    it('should leave unlinked when no member_id', () => {
-      const payment = {
-        member_id: null,
-        link_status: 'unlinked',
-      }
-      expect(payment.link_status).toBe('unlinked')
-    })
-  })
-
-  describe('Payment Linking', () => {
-    it('should update member payment status on link', () => {
-      const memberUpdate = {
-        last_paid_at: new Date().toISOString(),
-        payment_status: 'current',
-      }
-      expect(memberUpdate.payment_status).toBe('current')
-    })
-  })
-})
-
-// ─── Contact Management Tests ─────────────────────────────────────────────────
-describe('Contact Management', () => {
-  it('should generate contact code from name', () => {
-    const name = 'John Doe'
-    const code = name.slice(0, 3).toUpperCase() + Math.floor(Math.random() * 900 + 100)
-    expect(code).toMatch(/^JOH\d{3}$/)
-  })
-
-  it('should support all contact types', () => {
-    const types = ['vendor', 'landlord', 'utility', 'service', 'emergency', 'other']
-    expect(types.length).toBeGreaterThan(0)
-  })
-})
-
-// ─── Knowledge Base Tests ─────────────────────────────────────────────────────
-describe('Knowledge Base', () => {
-  it('should create KB entry with default visibility', () => {
-    const entry = {
-      visibility: 'all_members',
-    }
-    expect(entry.visibility).toBe('all_members')
-  })
-
-  it('should support visibility levels', () => {
-    const levels = ['all_members', 'board_only', 'admin_only']
-    expect(levels).toHaveLength(3)
-  })
-})
-
-// ─── Secrets Management Tests ─────────────────────────────────────────────────
-describe('Secrets Management', () => {
-  describe('Role-Based Access', () => {
-    it('should only allow admin/board to create secrets', () => {
-      const secretRoles = ['admin', 'board']
-      expect(secretRoles).toContain('admin')
-      expect(secretRoles).toContain('board')
-      expect(secretRoles).not.toContain('member')
-    })
-
-    it('should only allow admin to delete secrets', () => {
-      expect(mockAdminMember.role).toBe('admin')
-    })
-  })
-
-  it('should encrypt secret values', () => {
-    // Secrets should be stored securely
-    const secret = { label: 'API Key', value: 'sk-xxx' }
-    expect(secret.value).toBeDefined()
-  })
-})
-
-// ─── Settings Management Tests ─────────────────────────────────────────────────
-describe('Settings Management', () => {
-  it('should only allow admin to update space settings', () => {
-    expect(mockAdminMember.role).toBe('admin')
-  })
-
-  it('should update space settings', () => {
-    const settings = {
-      name: 'New Space Name',
-      timezone: 'America/New_York',
-    }
-    expect(settings.name).toBeDefined()
-  })
-})
-
-// ─── Activity Logging Tests ───────────────────────────────────────────────────
-describe('Activity Logging', () => {
-  it('should log task creation activity', () => {
-    const activity = {
-      action: 'created',
-      entity_type: 'task',
-    }
-    expect(activity.action).toBe('created')
-    expect(activity.entity_type).toBe('task')
-  })
-
-  it('should log all action types', () => {
-    const actions = ['created', 'claimed', 'completed', 'approved', 'logged']
-    expect(actions.length).toBeGreaterThan(0)
-  })
-})
-
-// ─── RLS Policy Tests ─────────────────────────────────────────────────────────
-describe('Row Level Security', () => {
-  it('should scope all queries to space_id', () => {
-    // Every table query should include space_id filter
-    const query = `.eq('space_id', member.space_id)`
-    expect(query).toContain('space_id')
-  })
-
-  it('should use user space membership for authorization', () => {
-    const member = { space_id: 'space-123', user_id: 'user-123' }
-    expect(member.space_id).toBeDefined()
-    expect(member.user_id).toBeDefined()
+  it('rejects a non-admin from deleting an area lead and writes nothing', async () => {
+    currentClient = makeClient({ user, queue: [{ data: memberRow('member') }] })
+    const res = await deleteAreaLead(UUID)
+    expect(res).toHaveProperty('error')
+    // No space-scoped delete ever ran.
+    expect(eqCalls(currentClient).some(a => a[0] === 'space_id')).toBe(false)
   })
 })

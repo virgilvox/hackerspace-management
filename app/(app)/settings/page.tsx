@@ -21,6 +21,8 @@ export default async function SettingsPage() {
   const { data: space } = await supabase
     .from('spaces').select('*').eq('id', member.space_id).single()
 
+  if (!space) redirect('/dashboard')
+
   const { data: integrations } = await supabase
     .from('integrations').select('*').eq('space_id', member.space_id)
 

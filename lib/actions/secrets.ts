@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import type { TablesInsert } from '@/types/database'
 import { requireMember, requireMemberWithRole, parseInput } from '@/lib/auth-helpers'
 import { ADMIN_ROLES } from '@/lib/permissions'
 import { createSecretSchema, updateSecretSchema, uuidSchema } from '@/lib/validations'
@@ -45,7 +46,7 @@ export async function createSecret(formData: {
 
   const { data, error } = await supabase
     .from('secrets')
-    .insert(row)
+    .insert(row as TablesInsert<'secrets'>)
     .select('id, title, label, area, description, icon, encryption_version, created_at, updated_at, space_id, created_by')
     .single()
 

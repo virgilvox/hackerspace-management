@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Tables } from '@/types/database'
-import type { ZodSchema } from 'zod'
+import type { ZodTypeAny, TypeOf } from 'zod'
 import { ACTIVE_STATUSES, hasRole, isPrivilegeEligible, type Role } from '@/lib/permissions'
 
 /**
@@ -97,7 +97,10 @@ export async function requireMemberWithRole(
  * so callers can `if (!v.ok) return { error: v.error }` and have `v.data`
  * narrowed to T.
  */
-export function parseInput<T>(schema: ZodSchema<T>, input: unknown): Result<T> {
+export function parseInput<S extends ZodTypeAny>(
+  schema: S,
+  input: unknown,
+): Result<TypeOf<S>> {
   const parsed = schema.safeParse(input)
   if (!parsed.success) {
     return { ok: false, error: parsed.error.errors[0]?.message ?? 'Invalid input' }

@@ -90,7 +90,7 @@ describe('enqueueNotification', () => {
     const admin = mockAdmin({ upsertResult: { error: null } })
     await enqueueNotification(admin as never, params)
     expect(admin.from).toHaveBeenCalledWith('notifications')
-    const [row, opts] = admin.upsert.mock.calls[0] as [Row, Row]
+    const [row, opts] = admin.upsert.mock.calls[0] as unknown as [Row, Row]
     expect(row).toMatchObject({
       space_id: 'space-1',
       member_id: 'member-1',

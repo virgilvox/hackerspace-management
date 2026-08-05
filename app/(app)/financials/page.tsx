@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import type { FinancialVisibility, Payment, Space } from '@/lib/types'
+import type { FinancialVisibility, Payment, Space } from '@/types/domain'
 import { Receipt } from 'lucide-react'
 import { PageTitle } from '@/components/ui/page-title'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'

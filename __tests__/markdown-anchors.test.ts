@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import type { ReactNode } from 'react'
 import {
   headingText,
   slugifyHeading,
@@ -13,7 +14,7 @@ describe('headingText', () => {
   })
   it('flattens arrays and element children', () => {
     expect(headingText(['Get ', 'started'])).toBe('Get started')
-    expect(headingText({ props: { children: ['Bold ', { props: { children: 'bit' } }] } })).toBe('Bold bit')
+    expect(headingText({ props: { children: ['Bold ', { props: { children: 'bit' } }] } } as ReactNode)).toBe('Bold bit')
   })
   it('ignores null/boolean', () => {
     expect(headingText(null)).toBe('')

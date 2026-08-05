@@ -55,7 +55,7 @@ export default async function OpsPage() {
       spaceId={member.space_id}
       kbEntries={kbEntries ?? []}
       areaLeads={areaLeads ?? []}
-      secrets={secretsResult.data ?? []}
+      secrets={(secretsResult.data ?? []) as Tables<'secrets'>[]}
       canSeeSecrets={canSeeSecrets}
       canManageAcl={canManageAcl}
       aclRoleOptions={aclRoleOptions}

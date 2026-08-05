@@ -35,7 +35,7 @@ export function SessionAttendance({
       toast.error(res.error)
       return
     }
-    setRows(((res as { data: Signup[] }).data) ?? [])
+    setRows(('data' in res ? res.data : []) ?? [])
   }, [sessionId])
 
   useEffect(() => {

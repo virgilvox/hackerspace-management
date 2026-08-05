@@ -41,7 +41,7 @@ export async function createArea(formData: {
 
   if (error) return { error: error.message }
 
-  revalidatePath('/settings')
+  revalidatePath('/customize')
   revalidatePath('/tasks')
   revalidatePath('/projects')
   revalidatePath('/ops')
@@ -75,7 +75,7 @@ export async function updateArea(formData: {
 
   if (error) return { error: error.message }
 
-  revalidatePath('/settings')
+  revalidatePath('/customize')
   revalidatePath('/tasks')
   revalidatePath('/projects')
   revalidatePath('/ops')
@@ -103,7 +103,7 @@ export async function deleteArea(areaId: string) {
 
   if (error) return { error: error.message }
 
-  revalidatePath('/settings')
+  revalidatePath('/customize')
   revalidatePath('/tasks')
   revalidatePath('/projects')
   revalidatePath('/ops')

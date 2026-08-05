@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { redirect, notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import type { Incident, IncidentUpdateRow } from '@/lib/types'
+import type { Incident, IncidentUpdateRow } from '@/types/domain'
 import { IncidentActions } from './incident-actions'
 import { MarkdownBody } from '@/components/markdown'
 import { CommentThread } from '@/components/comments/comment-thread'
