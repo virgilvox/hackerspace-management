@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { Hash, Users2, Send, ChevronLeft, Plus } from 'lucide-react'
-import { createChannel } from '@/lib/actions'
+import { createChannel, sendMessage as sendMessageAction } from '@/lib/actions'
 import type { Tables } from '@/types/database'
 import { PageTitle } from '@/components/ui/page-title'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
@@ -106,6 +106,10 @@ export default function CommsClient({ member, space, channels }: Props) {
 
   async function loadMessages() {
     if (!selectedChannel) return
+    // Intentional read-only exception: reads stay on the browser client so the
+    // postgres_changes realtime subscription above shares the same session.
+    // Writes go through the sendMessage server action (identity is derived
+    // server-side there).
     const supabase = createClient()
     const { data } = await supabase
       .from('comms_messages')
@@ -138,27 +142,19 @@ export default function CommsClient({ member, space, channels }: Props) {
     setMessages(prev => [...prev, optimisticMsg as Message])
     setNewMessage('')
 
-    const supabase = createClient()
-    const { data, error } = await supabase
-      .from('comms_messages')
-      .insert({
-        channel_id: selectedChannel.id,
-        space_id: space?.id ?? member.space_id,
-        user_id: member.user_id as string,
-        display_name: member.display_name,
-        handle: member.handle,
-        content,
-      })
-      .select()
-      .single()
+    // Sender identity + space_id are derived server-side from the session; the
+    // browser only supplies the channel and text. The realtime subscription
+    // still delivers the persisted row (temp-id dedup handles it), so latency
+    // is unchanged.
+    const result = await sendMessageAction({ channel_id: selectedChannel.id, content })
 
-    if (error) {
+    if ('error' in result && result.error) {
       // Roll back optimistic message on failure
       setMessages(prev => prev.filter(m => m.id !== tempId))
       setNewMessage(content)
-    } else if (data) {
+    } else if ('data' in result && result.data) {
       // Replace temp with confirmed message (realtime may also fire — dedup handles it)
-      setMessages(prev => prev.map(m => (m.id === tempId ? data : m)))
+      setMessages(prev => prev.map(m => (m.id === tempId ? result.data : m)))
     }
 
     setSending(false)

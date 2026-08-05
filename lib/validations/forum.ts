@@ -92,3 +92,10 @@ export const createChannelSchema = z.object({
   description: z.string().max(500).optional().nullable(),
   channel_type: z.enum(['general', 'area', 'ops', 'project']).default('general'),
 })
+
+// Only the channel and the text are client-supplied; sender identity and
+// space_id are derived server-side from the session (never trusted here).
+export const sendMessageSchema = z.object({
+  channel_id: z.string().uuid('Invalid channel ID'),
+  content: z.string().min(1, 'Message is required').max(4000),
+})
