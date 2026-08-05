@@ -634,54 +634,21 @@ CREATE TRIGGER on_space_created
   AFTER INSERT ON public.spaces
   FOR EACH ROW EXECUTE FUNCTION public.create_default_channels();
 
--- Auth signup hook
--- Called when a new user is created in auth.users.
--- Reads metadata from supabase.auth.signUp({ data: { space_id, role, display_name } })
--- and inserts the corresponding space_members row.
-CREATE OR REPLACE FUNCTION public.handle_space_signup()
-  RETURNS trigger
-  LANGUAGE plpgsql SECURITY DEFINER
-  SET search_path = public
-AS $$
-DECLARE
-  v_space_id     uuid;
-  v_role         public.member_role;
-  v_display_name text;
-BEGIN
-  v_space_id := (NEW.raw_user_meta_data->>'space_id')::uuid;
-
-  -- Default to 'member' if role is missing or invalid
-  v_role := COALESCE(
-    NULLIF(NEW.raw_user_meta_data->>'role', '')::public.member_role,
-    'member'
-  );
-
-  -- Prefer display_name, fall back to full_name, then email
-  v_display_name := COALESCE(
-    NULLIF(NEW.raw_user_meta_data->>'display_name', ''),
-    NULLIF(NEW.raw_user_meta_data->>'full_name',    ''),
-    NEW.email
-  );
-
-  -- No space_id means this is not a hackerspace signup flow
-  IF v_space_id IS NULL THEN
-    RETURN NEW;
-  END IF;
-
-  INSERT INTO public.space_members
-    (space_id, user_id, role, status, display_name, email, approved)
-  VALUES
-    (v_space_id, NEW.id, v_role, 'unverified', v_display_name, NEW.email, true)
-  ON CONFLICT (space_id, user_id) DO NOTHING;
-
-  RETURN NEW;
-END;
-$$;
-
+-- Auth signup hook — REMOVED (was a privilege-escalation vector). See
+-- scripts/056_drop_stale_signup_trigger.sql for the incremental drop on
+-- existing databases.
+--
+-- The old handle_space_signup() trigger derived the new member's role and space
+-- from auth.users.raw_user_meta_data, which is fully client-controlled: the
+-- browser calls supabase.auth.signUp({ options: { data: {...} } }) with the anon
+-- key and GoTrue stores that verbatim. A crafted signup with
+-- data:{ role:'admin', space_id:'<known-uuid>' } would self-insert an admin
+-- space_members row (approved=true), bypassing the createSpace/joinSpace guards
+-- entirely. The legitimate signup flow never sets space_id/role in metadata
+-- (membership is created by the vetted server actions in lib/auth-actions.ts),
+-- so the trigger was stale as well as dangerous. Dropped, not fixed.
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION public.handle_space_signup();
+DROP FUNCTION IF EXISTS public.handle_space_signup();
 
 -- Privilege-escalation guard.
 -- RLS lets a member update their own space_members row (so they can fix their
@@ -2978,3 +2945,17 @@ DROP TRIGGER IF EXISTS trg_dues_payment_methods_touch ON public.dues_payment_met
 CREATE TRIGGER trg_dues_payment_methods_touch
   BEFORE UPDATE ON public.dues_payment_methods
   FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
+
+
+-- -----------------------------------------------------------------------------
+-- MIGRATION TRACKING
+-- -----------------------------------------------------------------------------
+-- The deploy script (deploy/deploy.sh) applies each numbered scripts/0NN_*.sql
+-- exactly once and records the filename here. Defined in the canonical schema so
+-- a fresh instance is fully reproducible from this file alone (previously this
+-- table was created ad hoc on the production host and existed nowhere in-repo).
+-- Not a tenant table: it holds no member data and needs no RLS.
+CREATE TABLE IF NOT EXISTS public._migrations_applied (
+  filename    text PRIMARY KEY,
+  applied_at  timestamptz NOT NULL DEFAULT now()
+);

@@ -1,0 +1,464 @@
+# =============================================================================
+# docker-compose.full.yml  -  CONVENIENCE BUNDLE (app + self-hosted Supabase)
+# =============================================================================
+# One command brings up the Next.js app PLUS a self-hosted Supabase stack
+# (Postgres, GoTrue auth, PostgREST, Realtime, the Kong API gateway, and
+# Studio) so a single-tenant deployer gets application + database together:
+#
+#     cp .env.full.example .env.full     # then fill in the secrets
+#     docker compose -f docker-compose.full.yml --env-file .env.full up -d
+#
+# This is the fast path for a laptop, a demo box, or a small single-tenant
+# instance. It is deliberately opinionated and NOT hardened:
+#   - no Nginx / TLS termination (add your own reverse proxy for the internet),
+#   - no Storage / Edge Functions / analytics (not needed to run this app),
+#   - Kong's declarative config is generated inline instead of from a vendored
+#     file, so everything lives in these two files.
+#
+# For the production, hardened, internet-facing deployment (separate networks,
+# Nginx + Let's Encrypt, backups, Studio behind basic-auth, the full Supabase
+# compose) follow docs/DEPLOY_DO_SELFHOSTED.md. That guide is the source of
+# truth for real deployments; this bundle is for convenience only.
+#
+# After the stack is healthy you still apply the app schema exactly once
+# (see docs/DEPLOY_DO_SELFHOSTED.md section 9):
+#     docker compose -f docker-compose.full.yml --env-file .env.full \
+#       exec -T db psql -U postgres -d "$POSTGRES_DB" < scripts/schema.sql
+#     # then each numbered scripts/0NN_*.sql, then: ... restart rest
+# =============================================================================
+
+name: hackerspace-full
+
+services:
+  # ---------------------------------------------------------------------------
+  # Postgres  -  the one durable service. Everything else is stateless.
+  # supabase/postgres ships the roles (anon, authenticated, service_role,
+  # authenticator, supabase_admin, supabase_auth_admin, ...) and the logical
+  # replication config that GoTrue / PostgREST / Realtime expect on first boot.
+  # ---------------------------------------------------------------------------
+  db:
+    image: supabase/postgres:15.8.1.060
+    container_name: hackerspace_db
+    restart: unless-stopped
+    command:
+      - postgres
+      - -c
+      - wal_level=logical
+      - -c
+      - max_replication_slots=5
+      - -c
+      - max_wal_senders=5
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_PORT: "5432"
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXP: ${JWT_EXPIRY}
+    ports:
+      # Admin port: bound to localhost only (psql / pg_dump from the host).
+      - "127.0.0.1:${POSTGRES_PORT}:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -h localhost -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  # ---------------------------------------------------------------------------
+  # GoTrue (auth)  -  /auth/v1/* behind Kong.
+  # ---------------------------------------------------------------------------
+  auth:
+    image: supabase/gotrue:v2.177.0
+    container_name: hackerspace_auth
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: "9999"
+      API_EXTERNAL_URL: ${API_EXTERNAL_URL}
+
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+
+      GOTRUE_SITE_URL: ${SITE_URL}
+      GOTRUE_URI_ALLOW_LIST: ${ADDITIONAL_REDIRECT_URLS}
+      GOTRUE_DISABLE_SIGNUP: "false"
+
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_EXP: ${JWT_EXPIRY}
+      GOTRUE_JWT_SECRET: ${JWT_SECRET}
+
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: ${ENABLE_EMAIL_SIGNUP}
+      GOTRUE_MAILER_AUTOCONFIRM: ${ENABLE_EMAIL_AUTOCONFIRM}
+      GOTRUE_EXTERNAL_PHONE_ENABLED: "false"
+      GOTRUE_SMS_AUTOCONFIRM: "false"
+
+      GOTRUE_SMTP_ADMIN_EMAIL: ${SMTP_ADMIN_EMAIL}
+      GOTRUE_SMTP_HOST: ${SMTP_HOST}
+      GOTRUE_SMTP_PORT: ${SMTP_PORT}
+      GOTRUE_SMTP_USER: ${SMTP_USER}
+      GOTRUE_SMTP_PASS: ${SMTP_PASS}
+      GOTRUE_SMTP_SENDER_NAME: ${SMTP_SENDER_NAME}
+      GOTRUE_MAILER_URLPATHS_INVITE: /auth/v1/verify
+      GOTRUE_MAILER_URLPATHS_CONFIRMATION: /auth/v1/verify
+      GOTRUE_MAILER_URLPATHS_RECOVERY: /auth/v1/verify
+      GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE: /auth/v1/verify
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:9999/health",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  # ---------------------------------------------------------------------------
+  # PostgREST (rest)  -  /rest/v1/* behind Kong.
+  # The postgrest image is a distroless Haskell binary with no shell/curl, so
+  # it cannot self-healthcheck. Readiness for the app is therefore gated on
+  # Kong (which fronts rest); see the app service's depends_on below.
+  # ---------------------------------------------------------------------------
+  rest:
+    image: postgrest/postgrest:v12.2.12
+    container_name: hackerspace_rest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      PGRST_DB_SCHEMAS: ${PGRST_DB_SCHEMAS}
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${JWT_SECRET}
+      PGRST_DB_USE_LEGACY_GUCS: "false"
+      PGRST_APP_SETTINGS_JWT_SECRET: ${JWT_SECRET}
+      PGRST_APP_SETTINGS_JWT_EXP: ${JWT_EXPIRY}
+    command: ["postgrest"]
+
+  # ---------------------------------------------------------------------------
+  # Realtime  -  /realtime/v1/* behind Kong. The container name is significant:
+  # Kong routes to realtime-dev.supabase-realtime, matching upstream Supabase.
+  # ---------------------------------------------------------------------------
+  realtime:
+    image: supabase/realtime:v2.34.47
+    container_name: realtime-dev.supabase-realtime
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: "4000"
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_USER: supabase_admin
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_NAME: ${POSTGRES_DB}
+      DB_AFTER_CONNECT_QUERY: "SET search_path TO _realtime"
+      DB_ENC_KEY: supabaserealtime
+      API_JWT_SECRET: ${JWT_SECRET}
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+      ERL_AFLAGS: -proto_dist inet_tcp
+      DNS_NODES: "''"
+      RLIMIT_NOFILE: "10000"
+      APP_NAME: realtime
+      SEED_SELF_HOST: "true"
+      RUN_JANITOR: "true"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-sSfL",
+          "--head",
+          "-o",
+          "/dev/null",
+          "http://localhost:4000/api/tenants/realtime-dev/health",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ---------------------------------------------------------------------------
+  # postgres-meta  -  backs Studio's table editor. Not fronted by Kong here.
+  # ---------------------------------------------------------------------------
+  meta:
+    image: supabase/postgres-meta:v0.91.0
+    container_name: hackerspace_meta
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PG_META_PORT: "8080"
+      PG_META_DB_HOST: db
+      PG_META_DB_PORT: "5432"
+      PG_META_DB_NAME: ${POSTGRES_DB}
+      PG_META_DB_USER: supabase_admin
+      PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD}
+
+  # ---------------------------------------------------------------------------
+  # Kong  -  the API gateway. Everything the app / browser talks to goes here:
+  #   /auth/v1/*      -> auth:9999
+  #   /rest/v1/*      -> rest:3000
+  #   /realtime/v1/*  -> realtime:4000
+  # Declarative (DB-less) config is generated inline from the ANON_KEY /
+  # SERVICE_ROLE_KEY env vars so this bundle needs no vendored kong.yml.
+  # NOTE: $$VAR below is a literal `$VAR` after compose interpolation; the
+  # heredoc runs in the container shell, which expands it from Kong's env.
+  # ---------------------------------------------------------------------------
+  kong:
+    image: kong:2.8.1
+    container_name: hackerspace_kong
+    restart: unless-stopped
+    depends_on:
+      auth:
+        condition: service_healthy
+      rest:
+        condition: service_started
+      realtime:
+        condition: service_started
+    ports:
+      # API gateway. Bound to localhost: a reverse proxy (or the browser on the
+      # same host) reaches it here. Do NOT expose 0.0.0.0 on the public internet
+      # without TLS in front - see docs/DEPLOY_DO_SELFHOSTED.md.
+      - "127.0.0.1:${KONG_HTTP_PORT}:8000"
+      - "127.0.0.1:${KONG_HTTPS_PORT}:8443"
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
+      KONG_DNS_ORDER: LAST,A,CNAME
+      KONG_PLUGINS: request-transformer,cors,key-auth,acl
+      KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
+      KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
+      SUPABASE_ANON_KEY: ${ANON_KEY}
+      SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
+    entrypoint:
+      - bash
+      - -c
+      - |
+        set -e
+        cat > /home/kong/kong.yml <<EOF
+        _format_version: '2.1'
+        _transform: true
+
+        consumers:
+          - username: anon
+            keyauth_credentials:
+              - key: $$SUPABASE_ANON_KEY
+          - username: service_role
+            keyauth_credentials:
+              - key: $$SUPABASE_SERVICE_KEY
+
+        acls:
+          - consumer: anon
+            group: anon
+          - consumer: service_role
+            group: admin
+
+        services:
+          - name: auth-v1-open
+            url: http://auth:9999/verify
+            routes:
+              - name: auth-v1-open
+                strip_path: true
+                paths:
+                  - /auth/v1/verify
+            plugins:
+              - name: cors
+          - name: auth-v1-open-callback
+            url: http://auth:9999/callback
+            routes:
+              - name: auth-v1-open-callback
+                strip_path: true
+                paths:
+                  - /auth/v1/callback
+            plugins:
+              - name: cors
+          - name: auth-v1-open-authorize
+            url: http://auth:9999/authorize
+            routes:
+              - name: auth-v1-open-authorize
+                strip_path: true
+                paths:
+                  - /auth/v1/authorize
+            plugins:
+              - name: cors
+          - name: auth-v1
+            url: http://auth:9999/
+            routes:
+              - name: auth-v1-all
+                strip_path: true
+                paths:
+                  - /auth/v1/
+            plugins:
+              - name: cors
+              - name: key-auth
+                config:
+                  hide_credentials: false
+              - name: acl
+                config:
+                  hide_groups_header: true
+                  allow:
+                    - admin
+                    - anon
+          - name: rest-v1
+            url: http://rest:3000/
+            routes:
+              - name: rest-v1-all
+                strip_path: true
+                paths:
+                  - /rest/v1/
+            plugins:
+              - name: cors
+              - name: key-auth
+                config:
+                  hide_credentials: true
+              - name: acl
+                config:
+                  hide_groups_header: true
+                  allow:
+                    - admin
+                    - anon
+          - name: realtime-v1
+            url: http://realtime-dev.supabase-realtime:4000/socket/
+            routes:
+              - name: realtime-v1-all
+                strip_path: true
+                paths:
+                  - /realtime/v1/
+            plugins:
+              - name: cors
+              - name: key-auth
+                config:
+                  hide_credentials: false
+              - name: acl
+                config:
+                  hide_groups_header: true
+                  allow:
+                    - admin
+                    - anon
+        EOF
+        exec /docker-entrypoint.sh kong docker-start
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  # ---------------------------------------------------------------------------
+  # Studio  -  the admin dashboard. Bound to localhost only; put it behind a
+  # reverse proxy with auth before exposing it (see the DEPLOY doc, section 11).
+  # ---------------------------------------------------------------------------
+  studio:
+    image: supabase/studio:2025.06.30-sha-6f5982d
+    container_name: hackerspace_studio
+    restart: unless-stopped
+    depends_on:
+      kong:
+        condition: service_healthy
+      meta:
+        condition: service_started
+    ports:
+      # Admin dashboard: localhost only.
+      - "127.0.0.1:${STUDIO_PORT}:3000"
+    environment:
+      STUDIO_PG_META_URL: http://meta:8080
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      DEFAULT_ORGANIZATION_NAME: ${STUDIO_DEFAULT_ORGANIZATION}
+      DEFAULT_PROJECT_NAME: ${STUDIO_DEFAULT_PROJECT}
+      SUPABASE_URL: http://kong:8000
+      SUPABASE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL}
+      SUPABASE_ANON_KEY: ${ANON_KEY}
+      SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
+      AUTH_JWT_SECRET: ${JWT_SECRET}
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/api/platform/profile').then((r)=>{if(r.status!==200)throw new Error(r.status)}).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # ---------------------------------------------------------------------------
+  # The app  -  built from the existing Dockerfile. NEXT_PUBLIC_* values are
+  # inlined at build time (Next.js), so they are passed as build args AND at
+  # runtime. Point NEXT_PUBLIC_SUPABASE_URL at the browser-reachable Kong URL
+  # (http://localhost:8000 for a local bundle).
+  # ---------------------------------------------------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${ANON_KEY}
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
+    image: hackerspace-management:latest
+    container_name: hackerspace_app
+    restart: unless-stopped
+    depends_on:
+      # App waits until the API gateway is healthy. Kong fronts rest/auth/
+      # realtime, so a healthy Kong means the data plane is reachable. rest has
+      # no in-image shell to self-healthcheck, so it is gated here as started
+      # and effectively covered by Kong's own upstream readiness.
+      kong:
+        condition: service_healthy
+      auth:
+        condition: service_healthy
+      rest:
+        condition: service_started
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${ANON_KEY}
+      SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
+      # Single-tenant knobs (optional; see .env.full.example / docs/SINGLE_TENANT.md)
+      NEXT_PUBLIC_SINGLE_TENANT: ${NEXT_PUBLIC_SINGLE_TENANT}
+      NEXT_PUBLIC_SITE_NAME: ${NEXT_PUBLIC_SITE_NAME}
+      NEXT_PUBLIC_SINGLE_TENANT_SPACE_SLUG: ${NEXT_PUBLIC_SINGLE_TENANT_SPACE_SLUG}
+      NEXT_PUBLIC_SINGLE_TENANT_OPEN_JOIN: ${NEXT_PUBLIC_SINGLE_TENANT_OPEN_JOIN}
+      NEXT_PUBLIC_SHOW_MARKETING: ${NEXT_PUBLIC_SHOW_MARKETING}
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3000/api/health",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  # Postgres data survives `docker compose down`. Use `down -v` to wipe it.
+  db-data:
+
+networks:
+  default:
+    name: hackerspace_full_net

@@ -148,11 +148,15 @@ describe('buildManageUrl', () => {
     expect(buildManageUrl('example.test')).toBe('https://example.test/me')
   })
 
-  it('falls back to NEXT_PUBLIC_APP_URL then to the prod default', () => {
+  it('falls back to NEXT_PUBLIC_APP_URL then to the configured default', () => {
     process.env.NEXT_PUBLIC_APP_URL = 'https://my.test'
     expect(buildManageUrl(null)).toBe('https://my.test/me')
     delete process.env.NEXT_PUBLIC_APP_URL
-    expect(buildManageUrl(null)).toBe('https://hackerspace.sh/me')
+    // With no host header and no NEXT_PUBLIC_APP_URL set, buildManageUrl now
+    // resolves through appBaseUrl(), whose default is localhost (the old
+    // hardcoded https://hackerspace.sh fallback was removed so a fork/instance
+    // never leaks the platform domain into its emails).
+    expect(buildManageUrl(null)).toBe('http://localhost:3000/me')
   })
 })
 

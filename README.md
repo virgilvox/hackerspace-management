@@ -78,6 +78,10 @@ Summary:
 
 The deploy script is idempotent and tracked: every numbered migration in `scripts/` is recorded in `public._migrations_applied`. New migrations are applied automatically on push.
 
+### Single-tenant deployments
+
+By default the app is the multi-tenant platform (one deployment hosts many spaces). You can also run it as a private, white-labeled instance for exactly one space: signup becomes "join THE space", the create-a-space flow is disabled, and the hackerspace.sh marketing shell is hidden. Set `NEXT_PUBLIC_SINGLE_TENANT=true`, then run `pnpm setup` once to create the space and the first admin. See [docs/SINGLE_TENANT.md](./docs/SINGLE_TENANT.md) for the end-to-end guide and [docs/CUSTOMIZE.md](./docs/CUSTOMIZE.md) for the branding and configuration pattern.
+
 ## Database
 
 `scripts/schema.sql` is the canonical, idempotent, full schema. Run it once on a fresh Supabase project. Subsequent changes are added as numbered migrations (`scripts/021_*.sql`, `022_*.sql`, etc.) and applied incrementally.
