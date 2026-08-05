@@ -47,6 +47,11 @@ const PUBLIC_ROUTES = [
   // submitForm enforces visibility). The /forms* management routes do NOT
   // match the '/f/' prefix and stay auth-gated.
   '/f',
+  // Public documentation site. /docs and every /docs/<category>/<slug> page are
+  // static, read-only marketing/help content and must be reachable anonymously
+  // (they render no member data). Screenshots under /docs-media/* are static
+  // image files and already bypass the middleware via the matcher below.
+  '/docs',
   '/resources',
   '/zine',
   '/governance',
