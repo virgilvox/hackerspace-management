@@ -56,7 +56,7 @@ export async function createOnboardingStep(input: {
     .single()
 
   if (error) return { error: error.message }
-  revalidatePath('/settings')
+  revalidatePath('/customize')
   return { id: data.id }
 }
 
@@ -93,7 +93,7 @@ export async function updateOnboardingStep(stepId: string, updates: {
     .eq('space_id', member.space_id)
 
   if (error) return { error: error.message }
-  revalidatePath('/settings')
+  revalidatePath('/customize')
   return { success: true as const }
 }
 
@@ -115,7 +115,7 @@ export async function deleteOnboardingStep(stepId: string) {
 
   if (error) return { error: error.message }
   if (count === 0) return { error: 'Built-in steps cannot be deleted. Disable it instead.' }
-  revalidatePath('/settings')
+  revalidatePath('/customize')
   return { success: true as const }
 }
 

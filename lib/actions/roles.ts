@@ -39,7 +39,7 @@ export async function upsertRoleLabel(input: {
     }, { onConflict: 'space_id,role' })
 
   if (error) return { error: error.message }
-  revalidatePath('/settings')
+  revalidatePath('/customize')
   return { success: true as const }
 }
 
@@ -72,7 +72,7 @@ export async function createCustomRole(input: {
     .single()
 
   if (error) return { error: error.message }
-  revalidatePath('/settings')
+  revalidatePath('/customize')
   return { id: data.id }
 }
 
@@ -105,7 +105,7 @@ export async function updateCustomRole(roleId: string, updates: {
     .eq('space_id', member.space_id)
 
   if (error) return { error: error.message }
-  revalidatePath('/settings')
+  revalidatePath('/customize')
   return { success: true as const }
 }
 
@@ -125,7 +125,7 @@ export async function deleteCustomRole(roleId: string) {
     .eq('space_id', member.space_id)
 
   if (error) return { error: error.message }
-  revalidatePath('/settings')
+  revalidatePath('/customize')
   return { success: true as const }
 }
 
@@ -164,7 +164,7 @@ export async function assignCustomRole(memberId: string, customRoleId: string) {
 
   if (error) return { error: error.message }
   revalidatePath('/members')
-  revalidatePath('/settings')
+  revalidatePath('/customize')
   return { success: true as const }
 }
 
@@ -185,6 +185,6 @@ export async function unassignCustomRole(memberId: string, customRoleId: string)
 
   if (error) return { error: error.message }
   revalidatePath('/members')
-  revalidatePath('/settings')
+  revalidatePath('/customize')
   return { success: true as const }
 }

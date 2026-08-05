@@ -81,7 +81,7 @@ export async function createInvite(input: {
     .single()
 
   if (error) return { error: error.message }
-  revalidatePath('/settings')
+  revalidatePath('/customize')
   return { id: data.id, code: data.code }
 }
 
@@ -143,7 +143,7 @@ export async function updateInvite(inviteId: string, updates: {
     .eq('space_id', member.space_id)
 
   if (error) return { error: error.message }
-  revalidatePath('/settings')
+  revalidatePath('/customize')
   return { success: true as const }
 }
 
@@ -163,6 +163,6 @@ export async function deleteInvite(inviteId: string) {
     .eq('space_id', member.space_id)
 
   if (error) return { error: error.message }
-  revalidatePath('/settings')
+  revalidatePath('/customize')
   return { success: true as const }
 }

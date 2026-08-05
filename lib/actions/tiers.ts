@@ -39,7 +39,7 @@ export async function createTier(input: {
     .single()
 
   if (error) return { error: error.message }
-  revalidatePath('/settings')
+  revalidatePath('/customize')
   return { id: data.id }
 }
 
@@ -76,7 +76,7 @@ export async function updateTier(tierId: string, updates: {
     .eq('space_id', member.space_id)
 
   if (error) return { error: error.message }
-  revalidatePath('/settings')
+  revalidatePath('/customize')
   return { success: true as const }
 }
 
@@ -98,6 +98,6 @@ export async function deleteTier(tierId: string) {
 
   if (error) return { error: error.message }
   if (count === 0) return { error: 'Cannot delete a built-in tier. Archive it instead.' }
-  revalidatePath('/settings')
+  revalidatePath('/customize')
   return { success: true as const }
 }
