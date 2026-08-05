@@ -44,6 +44,7 @@ export default async function LandingPage() {
             <span>hackerspace<span style={{ color: 'var(--ln-accent)' }}>.sh</span></span>
           </Link>
           <div className="landing-nav-links">
+            <Link href="/docs" className="hidden sm:inline">Docs</Link>
             <Link href="/resources" className="hidden sm:inline">Resources</Link>
             <a
               href="https://github.com/virgilvox/hackerspace-management"
