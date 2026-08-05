@@ -1,9 +1,9 @@
 name: CI
 
 # Checks only — completely separate from deploy.yml (which SSHes to the droplet
-# on push to main). This never deploys; it runs typecheck, lint, and unit tests
-# on every PR and on main after merge, so a type/lint/test regression is caught
-# before (and independently of) a deploy.
+# on push to main). This never deploys; it runs typecheck, lint, unit tests, and
+# the DB-backed integration + Playwright e2e suites on every PR and on main after
+# merge, so a regression is caught before (and independently of) a deploy.
 on:
   pull_request:
   push:
@@ -15,6 +15,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Fast, hermetic gate: no DB, no browser.
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -44,7 +45,100 @@ jobs:
       - name: Unit tests
         run: pnpm run test:run
 
-    # NOTE: the integration suite (pnpm test:integration) and Playwright e2e are
-    # not wired here yet — they need a Supabase/Postgres service in CI. Adding
-    # that (and failing the run if the integration suite executes 0 tests, so a
-    # missing DB can't masquerade as passing) is the next CI step.
+  # DB-backed gate: brings up the Supabase CLI stack, applies the canonical
+  # schema, then runs the integration suite (shipped SQL: RPCs / RLS / triggers /
+  # constraints, driven through psql) and the Playwright e2e suite against the
+  # app wired to that stack.
+  integration-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      DB_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # The integration harness (integration/db.ts) drives the DB through a
+      # host `psql`, so it must be on PATH.
+      - name: Install psql client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.98.2
+
+      - name: Start Supabase stack
+        run: |
+          # Auto-seed on first start would fail: seed.sql needs tables that
+          # schema.sql (applied below, not via a migration) hasn't created yet.
+          # Disable it for this ephemeral CI checkout; schema + seed are applied
+          # explicitly in the next step. (Local dev is unaffected.)
+          sed -i '/^\[db\.seed\]/,/^\[/ s/^enabled = true/enabled = false/' supabase/config.toml
+          supabase start
+
+      - name: Apply canonical schema + seed
+        run: |
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -f scripts/schema.sql
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -f scripts/seed.sql
+
+      # Guard: if the DB is unreachable the integration suite self-skips and
+      # would pass with zero coverage. Fail loudly here first.
+      - name: Verify DB is reachable
+        run: psql "$DB_URL" -tAc 'select 1'
+
+      - name: Integration tests
+        run: >
+          pnpm exec vitest run --config vitest.integration.config.ts
+          --reporter=default --reporter=json --outputFile=integration-result.json
+
+      # Belt-and-suspenders: even with a reachable DB, refuse to pass if the
+      # suite executed 0 tests (a glob miss, an all-skipped run, etc.).
+      - name: Fail if the integration suite executed 0 tests
+        run: |
+          node -e '
+            const r = require("./integration-result.json");
+            const ran = (r.numPassedTests || 0) + (r.numFailedTests || 0);
+            console.log(`integration tests executed: ${ran} (passed ${r.numPassedTests}, failed ${r.numFailedTests}, skipped ${r.numPendingTests})`);
+            if (ran < 1) {
+              console.error("::error::integration suite executed 0 tests — the DB was unreachable and the suite self-skipped. Refusing to pass.");
+              process.exit(1);
+            }
+          '
+
+      - name: Install Playwright browser (chromium)
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: E2E (Playwright)
+        run: |
+          eval "$(supabase status -o env 2>/dev/null)"
+          export NEXT_PUBLIC_SUPABASE_URL="$API_URL"
+          export NEXT_PUBLIC_SUPABASE_ANON_KEY="$ANON_KEY"
+          export SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
+          export NEXT_PUBLIC_APP_URL="http://localhost:3000"
+          # Playwright's webServer boots `npm run dev` (see playwright.config.ts)
+          # and inherits these env vars.
+          pnpm exec playwright test --project=chromium
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
