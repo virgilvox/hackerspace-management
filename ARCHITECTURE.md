@@ -123,9 +123,12 @@ A correct feature touches **one file per layer** and imports cross-feature code 
   explicit active-space selector before that changes.
 - **Regenerate `types/database.ts`** to drop the hand-added RPC entries and the `// TODO(types)` join
   casts, and to de-duplicate the governance row types in `types/domain/governance.ts` into `Tables<>`.
-- **Ops area-lead writes** still go directly to the DB from the browser (RLS-protected). They can't reuse
-  `upsertAreaLead` (a different `area_code`-keyed interface), so migrating them needs a small dedicated
-  server-action trio reconciled with that interface.
 - **`markOnboardingStepDone`** read-modify-writes a JSON column; a concurrent double-submit can drop a
   step. A DB-side atomic append (RPC / jsonb operator) is the fix.
-- Integration + e2e suites need a DB service wired into CI.
+- Integration + e2e suites need a DB service wired into CI (only unit tests + typecheck + lint run today).
+- **Full authenticated UI testing** hasn't run in this environment (no local Docker/Supabase). The public
+  surface + routing were browser-smoke-tested; the authed screens are verified by `next build` + tsc + tests.
+
+All client-component DB writes now go through server actions (the ops area-lead and comms message writes
+were the last direct-browser-write holdouts). The only browser-client usage that remains is auth
+(login/signup) and the comms realtime read, which the postgres_changes subscription requires.
